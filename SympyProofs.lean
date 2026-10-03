@@ -1,1 +1,2 @@
 import SympyProofs.BinomialMean
+import SympyProofs.RouthHurwitz
