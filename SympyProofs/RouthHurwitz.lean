@@ -2,9 +2,10 @@ import SympyProofs.RouthHurwitz.Imperative.Correctness
 import SympyProofs.RouthHurwitz.Exact.Correctness
 import SympyProofs.RouthHurwitz.Exact.Polynomial
 import SympyProofs.RouthHurwitz.Parametric.Correctness
+import SympyProofs.ComplexRouthHurwitz
 
 /-!
-# Three verified Routh–Hurwitz interfaces
+# Verified Routh–Hurwitz interfaces
 
 * `Imperative.run`: the reference Routh table over real coefficients. Its
   correctness theorems count complex roots and characterize strict stability.
@@ -15,6 +16,15 @@ import SympyProofs.RouthHurwitz.Parametric.Correctness
 * `Parametric.run`: one unsigned previous-pivot pass returns the generated
   rows and a conjunction of strict inequalities. It holds exactly when the specialized leading
   coefficient is nonzero and the specialized polynomial is Hurwitz stable.
+
+* `ComplexRouth.run`: a direct complex-coefficient table returning fixed-width coefficient
+  vector pairs, real pivots, and right/axis root counts.
+  The left count is the degree minus the two returned counts.
+  `ComplexRouth.run_counts_correct` counts roots with multiplicity, including
+  exceptional repairs; `ComplexRouth.run_stable_iff` characterizes strict stability.
+  Both theorems assume the input polynomial is nonzero.
+  Nonzero deficient rows use imaginary translation and reciprocal reversal.
+  No conjugate-product reduction or root enumeration is used by the runner.
 
 `Div` supplies division; `MulDivCancelClass` certifies cancellation on exact products.
 Backends cover Euclidean domains, polynomial rings, and finite multivariate

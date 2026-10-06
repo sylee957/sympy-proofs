@@ -35,7 +35,7 @@ private theorem polynomialQuotient_mul (fuel : ℕ) (a d : Polynomial A)
         ((d*a).leadingCoeff / d.leadingCoeff) = monomial a.natDegree a.leadingCoeff := by
       rw [hdeg, Nat.add_sub_cancel_left, leadingCoeff_mul,
         mul_div_cancel_left₀ _ (leadingCoeff_ne_zero.mpr hd)]
-    rw [polynomialQuotient, if_neg (mul_ne_zero hd ha), if_neg hlt, hterm]
+    rw [polynomialQuotient, ite_eq_right (mul_ne_zero hd ha), ite_eq_right hlt, hterm]
     have hrem : d*a-d*monomial a.natDegree a.leadingCoeff = d*a.eraseLead := by
       rw [← mul_sub, self_sub_monomial_natDegree_leadingCoeff]
     dsimp only
@@ -93,9 +93,9 @@ theorem mvPolynomialMulDivCancelClass (n : ℕ) :
   induction n with
   | zero => exact mulDivCancelOfEquiv (MvPolynomial.isEmptyRingEquiv A (Fin 0))
   | succ n ih =>
-    letI : Div (MvPolynomial (Fin n) A) := mvPolynomialDiv n
-    letI : MulDivCancelClass (MvPolynomial (Fin n) A) := ih
-    letI : Div (Polynomial (MvPolynomial (Fin n) A)) := polynomialDiv
+    let : Div (MvPolynomial (Fin n) A) := mvPolynomialDiv n
+    let : MulDivCancelClass (MvPolynomial (Fin n) A) := ih
+    let : Div (Polynomial (MvPolynomial (Fin n) A)) := polynomialDiv
     have h : MulDivCancelClass (Polynomial (MvPolynomial (Fin n) A)) :=
       @polynomialMulDivCancelClass (MvPolynomial (Fin n) A) _ _ _ (mvPolynomialDiv n) ih
     exact @mulDivCancelOfEquiv _ _ _ _ (polynomialDiv (A := MvPolynomial (Fin n) A)) h

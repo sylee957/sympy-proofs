@@ -90,7 +90,7 @@ theorem stable_pair_reduce (d : ℕ) (u v : Row ℝ) (hu : 0 < u 0) (hv : 0 < v 
   have hc : 0 < c := div_pos hu hv
   have hr := elimination_rightCount U V _ (pow_ne_zero _ (by norm_num)) hU hV c
     (ne_of_gt hc) (d+1) hVd (by rw [hrem]; omega)
-  rw [hrem, add_comm W V, if_neg (not_lt_of_gt hc), add_zero] at hr
+  rw [hrem, add_comm W V, ite_eq_right (not_lt_of_gt hc), add_zero] at hr
   have hstart : U + V ≠ 0 := by
     rw [← Polynomial.map_add]
     exact (Polynomial.map_ne_zero_iff Complex.ofRealHom.injective).mpr

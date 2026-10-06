@@ -1,6 +1,6 @@
 # Routh–Hurwitz algorithms and theorem statements
 
-Import all three interfaces with:
+Import all interfaces with:
 
 ```lean
 import SympyProofs.RouthHurwitz
@@ -16,6 +16,8 @@ All Lean names below are relative to the namespace `RouthHurwitz`.
 | --- | --- | --- | --- |
 | Base real-coefficient Routh | [`Imperative.run`, `Result`, `accepts`](Imperative/Basic.lean) | [`Imperative.run_signChanges_correct`](Imperative/Correctness.lean) | [`Imperative.accepts_iff_hurwitzStable`](Imperative/Correctness.lean) |
 | Numeric fraction-free Routh | [`Exact.run`](Exact/Basic.lean), with the same `Imperative.Result` and `accepts` | [`Exact.run_signChanges_correct`](Exact/Correctness.lean) | [`Exact.accepts_run_iff_hurwitzStable`](Exact/Correctness.lean) |
+| Direct complex-coefficient Routh | [`ComplexRouth.run`](../ComplexRouthHurwitz/Reference/Basic.lean), [`Result`](../ComplexRouthHurwitz/Reference/Basic.lean) | [`ComplexRouth.run_counts_correct`](../ComplexRouthHurwitz/Reference/Correctness.lean) | [`ComplexRouth.run_stable_iff`](../ComplexRouthHurwitz/Reference/Correctness.lean) |
+| Gaussian-integer complex Routh | [`ComplexRouth.Exact.Gaussian.run`, `Result`](../ComplexRouthHurwitz/Exact/Basic.lean) | [`Gaussian.run_counts_correct`](../ComplexRouthHurwitz/Exact/Correctness.lean) | [`Gaussian.run_stable_iff`](../ComplexRouthHurwitz/Exact/Correctness.lean) |
 | Parametric fraction-free Routh | [`Parametric.run`, `Result`, `Result.Holds`](Parametric/Basic.lean) | No numeric root count is returned | [`Parametric.run_correct`](Parametric/Correctness.lean) |
 
 ## Conventions and meanings
@@ -26,13 +28,13 @@ $$
 p(s)=a_n s^n+a_{n-1}s^{n-1}+\cdots+a_0,\qquad a_n\ne0.
 $$
 
-The implementation uses `n = p.natDegree` and row width
+The real-coefficient and fraction-free implementations use `n = p.natDegree` and row width
 
 $$
 W=\left\lfloor\frac n2\right\rfloor+1.
 $$
 
-The zero polynomial also has `natDegree = 0` in Lean and is handled explicitly. All rows are fixed-length, array-backed `Vector` values. The code uses proved bounds for direct indexing. Initial coefficient reads beyond the declared degree are explicitly padded with zero.
+The zero polynomial also has `natDegree = 0` in Lean and is handled explicitly. In those interfaces, rows are fixed-length, array-backed `Vector` values. The direct complex table instead stores each row as `Polynomial ℂ`. The code uses proved bounds for direct indexing. Initial coefficient reads beyond the declared degree are explicitly padded with zero.
 
 Pseudocode conventions:
 
@@ -394,6 +396,246 @@ $$
 
 No injectivity or nonzero-pivot assumption is required for this specialization identity.
 
+## 4. Direct complex-coefficient root-counting table
+
+### Input and output
+
+Input is a nonzero $p\in\mathbb C[s]$. [`ComplexRouth.run`](../ComplexRouthHurwitz/Reference/Basic.lean) returns:
+
+- `rightRoots`, `axisRoots`: roots in the open right half-plane and on the imaginary axis, with multiplicity; the left count is `p.natDegree - rightRoots - axisRoots`;
+- `rows`: each repaired upper/lower pair, stored consecutively as `Vector ℂ (n+1)`;
+- `pivots`: the real lower-row pivot used in each elimination;
+- `stable`: the strict-stability decision.
+
+This is a field-division algorithm. It does not form the conjugate-product polynomial or enumerate roots. The input is unpacked once into ascending-power coefficient vectors: index $j$ stores the coefficient of $s^j$. Every row retains width $n+1$, including zero padding after degree reduction. Elimination, differentiation, evaluation, translation, and reversal operate on coordinates. There is no order comparison on $\mathbb C$.
+
+### Coefficient scan and repair
+
+For the degree-$n$ polynomial $q=\overline{a_n}p$, whose leading coefficient is $|a_n|^2>0$, the initial rows satisfy
+
+$$
+u=\frac{q+(-1)^n q^\star}{2},\qquad
+v=\frac{q-(-1)^n q^\star}{2},\qquad
+q^\star(s)=\overline{q(-\overline{s})}.
+$$
+
+The implementation reads the positively scaled coefficients into a vector and splits their real and imaginary parts coordinatewise; it does not evaluate these reflection formulas.
+
+```text
+# All vectors have fixed width N = original degree + 1.
+ENTRY(a, j) = a[j] if 0 <= j < N else 0
+DERIVATIVE(a)[j] = (j + 1) * ENTRY(a, j + 1)
+EVAL(a, z) = sum(a[j] * z^j for j in range(N))
+
+SCAN(a, degree):
+    upper = vector(N)
+    lower = vector(N)
+    for j in range(N):
+        if degree % 2 == j % 2:
+            upper[j] = real(a[j])
+            lower[j] = i * imag(a[j])
+        else:
+            upper[j] = i * imag(a[j])
+            lower[j] = real(a[j])
+    return Pair(upper = upper, lower = lower)
+
+REPAIR_COMPLEX(d, upper, lower):
+    if lower == zeroVector(N):
+        return Pair(upper = upper, lower = DERIVATIVE(upper))
+    if real(lower[d]) != 0:
+        return Pair(upper = upper, lower = lower)
+
+    du = DERIVATIVE(upper)
+    dv = DERIVATIVE(lower)
+    t = first integer in range(2 * (d + 1) + 1) such that
+        EVAL(upper, i*t) * EVAL(dv, i*t)
+        - EVAL(du, i*t) * EVAL(lower, i*t) != 0
+    a[j] = upper[j] + lower[j]                 # for every j
+    m = d + 1
+    z = i*t
+    factor = conjugate(EVAL(a, z))
+    for j in range(N):
+        if j <= m:
+            q[j] = sum(a[k] * binomial(k, m-j) * z^(k-(m-j))
+                       for k in range(N)) * factor
+        else:
+            q[j] = 0
+    return SCAN(q, m)
+```
+
+In the binomial sum, natural subtraction is truncated at zero; terms with $k<m-j$ vanish because their binomial coefficient is zero.
+
+The finite search always succeeds in the nonzero deficient-row branch. The resulting polynomial has the same degree, right-half-plane count, and axis count as `upper + lower`, and has a nonzero real lower pivot. This repair corresponds to $s\mapsto 1/s+ij$, together with coefficient reversal and scalar normalization. Entirely zero rows use derivative repair instead.
+
+### Main loop
+
+```text
+COMPLEX(p):
+    n = natDegree(p)
+    lc = leadingCoefficient(p)
+    N = n + 1
+    q = vector(p.coeff(j) * conjugate(lc) for j in range(N))
+    # Input precondition: p != 0. This is the only polynomial access.
+    if n == 0:
+        return Result(rows = [q], pivots = [],
+                      rightRoots = 0, axisRoots = 0,
+                      stable = true)
+
+    (upper, lower) = SCAN(q, n)
+    rows = []
+    pivots = []
+    count = 0
+    auxiliary = none
+    for k in range(n):
+        d = n - (k + 1)
+        if lower == zeroVector(N) and auxiliary is none:
+            auxiliary = Auxiliary(degree = d + 1, rightBefore = count)
+
+        (upper, lower) = REPAIR_COMPLEX(d, upper, lower)
+        rows.extend([upper, lower])
+        pivot = real(lower[d])
+        pivots.append(pivot)
+        count += indicator((real(upper[d + 1]) < 0) != (pivot < 0))
+
+        if d == 0:
+            upper = [1, 0, ..., 0]
+            lower = zeroVector(N)
+        else:
+            a = real(upper[d + 1]) / pivot
+            b = (upper[d] - a * lower[d - 1]) / lower[d]
+            raw[j] = upper[j] - b*lower[j] - a*ENTRY(lower, j-1)
+            nextUpper[j] = lower[j] / pivot
+            nextLower[j] = raw[j] / pivot       # for every j
+            upper = nextUpper
+            lower = nextLower
+
+    if auxiliary is none:
+        axis = 0
+    else:
+        axis = auxiliary.degree - 2 * (count - auxiliary.rightBefore)
+    return Result(rows = rows, pivots = pivots,
+                  rightRoots = count,
+                  axisRoots = axis,
+                  stable = (count == 0 and axis == 0))
+```
+
+Every repaired pivot is nonzero. Negative pivots contribute one right-half-plane root and do not stop the loop. Normalization makes the next upper leading coefficient positive. The imaginary correction $b$ is purely imaginary, and each ordinary elimination lowers the current degree by one.
+
+For $n>0$, the result contains $n$ pivots and $n$ repaired pairs, or $2n$ coefficient vectors in `rows`. The pairs include normalization and any changes of variable; they should not be read as an unrepaired scalar first-column table. `pivots` records the values actually used for counting.
+
+The axis count is recovered by constant-size arithmetic on the accumulated counter and first auxiliary record, which remains local to the loop. No subsequent traversal or separate root computation is performed. An auxiliary row need not consist entirely of axis roots: symmetric left/right pairs are included in its degree and are accounted for by the formula.
+
+### Correctness statements
+
+For nonzero $p$, let $N_+(p)$ count roots with positive real part and $N_0(p)$ count roots with zero real part, both with multiplicity.
+
+[`ComplexRouth.run_counts_correct`](../ComplexRouthHurwitz/Reference/Correctness.lean), for **every nonzero** $p\in\mathbb C[s]$:
+
+$$
+\boxed{
+\begin{aligned}
+\mathrm{COMPLEX}(p).\mathrm{rightRoots}&=N_+(p),\\
+\mathrm{COMPLEX}(p).\mathrm{axisRoots}&=N_0(p).
+\end{aligned}
+}
+$$
+
+There is no regular-pivot assumption. The statement includes negative pivots, nonzero deficient rows, entirely zero rows, and repeated roots.
+
+[`ComplexRouth.run_stable_iff`](../ComplexRouthHurwitz/Reference/Correctness.lean), for **every nonzero** $p\in\mathbb C[s]$:
+
+$$
+\boxed{
+\mathrm{COMPLEX}(p).\mathrm{stable}=\mathrm{true}
+\iff \forall z\in\mathbb C,\quad p(z)=0\Longrightarrow\operatorname{Re}z<0.
+}
+$$
+
+Nonzero constants are accepted. Zero input is outside the correctness precondition; `run` does not validate it. Arbitrary nonzero complex leading coefficients are allowed. Both capstones refer to the actual imperative `run`. Initialization and reciprocal repair use conjugate multiplication, so those stages require no division. Ordinary elimination still uses field division. The previous-squared-pivot variant below avoids those ordinary pivot divisions.
+
+### Complex previous-squared-pivot variant
+
+[`ComplexRouth.FractionFree.runFF`](../ComplexRouthHurwitz/FractionFree/Basic.lean) uses the same repairs, result fields, and sign-change counters as `COMPLEX`, with the following initialization in place of conjugate scaling:
+
+```text
+z = leadingCoefficient(p)
+if real(z) == 0:
+    unit = i if imag(z) < 0 else -i
+else:
+    unit = -1 if real(z) < 0 else 1
+coefficients[j] = unit * coefficient(p, j)
+(upper, lower) = SCAN(coefficients, n)
+a = real(coefficients[n])
+b = imag(coefficients[n])
+if b == 0:
+    divisor = 1
+else:
+    lower[j] = a * lower[j] - (b*i) * upper[j]
+    divisor = a
+```
+
+For nonzero input the unit makes $a>0$. Unit multiplication only swaps or negates coefficient components. A real leading coefficient uses the direct scan; otherwise the first elimination cancels the degree-$n$ term in the lower row. The stored divisor begins at $a$, so the first ordinary elimination cancels this known factor exactly. The right-root counter starts at zero.
+
+Before a repair, reset the divisor to one if the current lower leading coefficient is zero. After repair, put $A=\operatorname{Re}(u_{d+1})$ and $B=\operatorname{Re}(v_d)$, and count one right-half-plane root exactly when $A$ and $B$ have opposite signs.
+
+For $d>0$, replace the ordinary elimination block with:
+
+```text
+gamma = B * upper[d] - A * lower[d-1]
+nextLower[j] = (B*B * upper[j] - gamma * lower[j]
+                - A*B * ENTRY(lower, j-1)) / D
+upper = lower
+lower = nextLower
+divisor = B*B
+```
+
+All right-hand sides use the old repaired pair. The divisor update also occurs in the terminal branch. Rows retain their signs: the upper row is assigned directly from the old lower row, with no row negation. Elimination divides only by the stored squared pivot. The loop invariant proves that every divisor used is strictly positive.
+
+For every nonzero $p\in\mathbb C[s]$, [`FractionFree.runFF_counts_correct`](../ComplexRouthHurwitz/FractionFree/Correctness.lean) states
+
+$$
+\mathrm{runFF}(p).\mathrm{rightRoots}=N_+(p),\qquad
+\mathrm{runFF}(p).\mathrm{axisRoots}=N_0(p).
+$$
+
+[`FractionFree.runFF_stable_iff`](../ComplexRouthHurwitz/FractionFree/Correctness.lean) states
+
+$$
+\mathrm{runFF}(p).\mathrm{stable}=\mathrm{true}
+\iff \forall z\in\mathbb C,\ p(z)=0\Longrightarrow\operatorname{Re}z<0.
+$$
+
+These capstones cover the actual imperative loop, including both exceptional repairs. The Gaussian-integer implementation below realizes the same squared-pivot recurrence with certified exact division. No coefficient-growth or runtime bound is claimed.
+
+### Gaussian-integer fraction-free runner
+
+[`ComplexRouth.Exact.Gaussian.run`](../ComplexRouthHurwitz/Exact/Basic.lean) takes $p\in\mathbb Z[i][s]$. Its rows are fixed-width Gaussian-integer vectors and its pivots are integers. It uses the same unit rotation, first elimination, repairs, counters, and divisor updates as the complex fraction-free variant. The elimination assignment is
+
+```text
+nextLower[j] = (B*B * upper[j] - gamma * lower[j]
+                - A*B * ENTRY(lower, j-1)) / D
+upper = lower
+lower = nextLower
+```
+
+Here `/` is Mathlib's Gaussian Euclidean division, and each reached numerator is proved divisible by $D$. Every division is therefore exact; no complex conversion or root computation occurs in the loop. Repairs reset $D$ to one and begin a fresh determinant segment.
+
+Let $\llbracket p\rrbracket=p.\mathrm{map}(\mathrm{GaussianInt.toComplex})$. For every nonzero $p$, [`Gaussian.run_counts_correct`](../ComplexRouthHurwitz/Exact/Correctness.lean) states
+
+$$
+\mathrm{run}(p).\mathrm{rightRoots}=N_+(\llbracket p\rrbracket),\qquad
+\mathrm{run}(p).\mathrm{axisRoots}=N_0(\llbracket p\rrbracket).
+$$
+
+[`Gaussian.run_stable_iff`](../ComplexRouthHurwitz/Exact/Correctness.lean) states
+
+$$
+\mathrm{run}(p).\mathrm{stable}=\mathrm{true}
+\iff \forall z\in\mathbb C,\ \llbracket p\rrbracket(z)=0\Longrightarrow\operatorname{Re}z<0.
+$$
+
+[`Gaussian.run_divisions_exact`](../ComplexRouthHurwitz/Exact/Correctness.lean) states that, at every reached iteration that performs elimination, its integer divisor is positive and divides every cell numerator in $\mathbb Z[i]$. There is no regularity assumption on the input. The terminal iteration performs no division.
+
 ## Implementation boundaries
 
 The exact-division polynomial instances in [`Exact/Polynomial.lean`](Exact/Polynomial.lean) are enabled with:
@@ -403,5 +645,16 @@ open scoped RouthHurwitz.Exact
 ```
 
 They use leading-term cancellation and support suitable iterated and finite multivariate polynomial rings. Mathlib field-coefficient division retains priority. Mathlib's polynomial arithmetic is noncomputable for code extraction, so these instances carry that annotation; the generic runners can execute when supplied with executable coefficient arithmetic.
+
+The complex modules can also be imported separately with `import SympyProofs.ComplexRouthHurwitz`. Their layout is:
+
+- `Reference/`: the ordinary field-division runner, its loop invariant, and capstones.
+- `Table/`: shared polynomial and coefficient-vector mathematics, including repairs.
+- `FractionFree/`: ring identities, the squared-pivot field runner, its invariant, and capstones in separate files.
+- `Exact/`: the Gaussian-integer runner, coefficient-denotation lemmas, loop invariant, and capstones.
+
+For Gaussian coefficients, `Exact.Gaussian.denote p` is `p.map GaussianInt.toComplex`. This interpretation preserves nonzero input and degree. Unit rotation, first elimination, repairs, pseudo-remainders, and exact quotients agree with complex arithmetic; pivot comparisons use the integer real component. No order on Gaussian integers is imposed. The Gaussian runner performs the table arithmetic in that ring; its simultaneous counting and determinant invariant proves the result corresponds to the complex denotation through every repair.
+
+The complex interface uses Mathlib `ℂ` and classical real comparisons and is also `noncomputable`; its verified loop is not directly extractable as an executable numeric program.
 
 The pseudocode describes the verified Lean loops, but a translation into another language still needs a correspondence proof. Root statements assume exact arithmetic. The numeric `degenerate` flag is not an axis-root counter, and the parametric interface has no root-count result. No benchmark or time-complexity claim is part of this guide.

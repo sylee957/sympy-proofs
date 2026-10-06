@@ -17,7 +17,7 @@ def elim (q : K) (m : ℕ) : Matrix (Fin m) (Fin m) K :=
   fun r c => if r = c then 1 else if r.val % 2 = 1 ∧ c.val + 1 = r.val then -q else 0
 
 theorem elim_det (q : K) (m : ℕ) : (elim q m).det = 1 := by
-  rw [Matrix.det_of_lowerTriangular]
+  rw [Matrix.det_of_isLowerTriangular]
   · simp [elim]
   · intro i j hij
     have h : i.val < j.val := hij
@@ -57,17 +57,17 @@ theorem entry_succ (u l : ℕ → K) (hl : l 0 ≠ 0) (r c : ℕ) :
   by_cases hr : r % 2 = 0
   · have hm : (r+1) % 2 = 1 := by omega
     have hd : (r+1) / 2 = r / 2 := by omega
-    simp only [hEntry, hr, hm, hd, if_pos, Nat.one_ne_zero, if_false]
+    simp only [hEntry, hr, hm, hd, ite_eq_left, Nat.one_ne_zero, ite_false]
     by_cases hc : r / 2 ≤ c
     · have hcs : r / 2 ≤ c+1 := by omega
-      simp only [if_pos hc, if_pos hcs, next, show c+1-r/2 = c-r/2+1 by omega]
+      simp only [ite_eq_left hc, ite_eq_left hcs, next, show c+1-r/2 = c-r/2+1 by omega]
     · by_cases hcs : r / 2 ≤ c+1
       · have he : r/2 = c+1 := by omega
         simp [he, hl]
       · simp [hc, hcs]
   · have hm : (r+1) % 2 = 0 := by omega
     have hd : (r+1) / 2 = r / 2 + 1 := by omega
-    simp only [hEntry, hr, hm, hd, if_pos, Nat.zero_ne_one, if_false, sub_zero,
+    simp only [hEntry, hr, hm, hd, ite_eq_left, Nat.zero_ne_one, ite_false, sub_zero,
       Nat.add_le_add_iff_right, Nat.add_sub_add_right]
 
 theorem entry_zero (u l : ℕ → K) (hl : l 0 ≠ 0) (r : ℕ) :

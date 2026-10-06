@@ -25,7 +25,7 @@ private theorem run_outcome (p : Polynomial ℝ) (hp : p ≠ 0) :
     unfold Proofs.Inv at hm
     rw [show p.natDegree - (p.natDegree-1+1) = 0 by omega] at hm
     have hend := hm.finish hp
-    simp only [run, if_neg hn, List.forIn_pure_yield_eq_foldl]
+    simp only [run, ite_eq_right hn, List.forIn_pure_yield_eq_foldl]
     exact hend
 
 /-- The stored counter counts open-right-half-plane roots with multiplicity. -/

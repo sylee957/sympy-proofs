@@ -68,8 +68,6 @@ private theorem start_map (p : Polynomial ℝ) (coeff : ℕ → A)
   dsimp only [width] at ⊢
   simp only [← hu, ← hl, repair_map, Vector.getElem_map, List.map_cons, List.map_nil,
     map_one, lt_zero_iff_embed D, map_mul]
-  erw [Vector.getElem_map]
-  rfl
 
 private theorem step_map (n k : ℕ) (s : Locals A n)
     (hex : FractionFree.ExactDivision D.embed n k (mapLocals D s)) :
@@ -98,7 +96,7 @@ private theorem step_map (n k : ℕ) (s : Locals A n)
     intro j hj
     simp only [raw, rawR, Vector.getElem_map, Vector.getElem_ofFn]
     by_cases ha : j < w
-    · simp only [dif_pos ha]
+    · simp only [dite_eq_left ha]
       let numerator := (if (lower[0]'(width_pos _)) < 0 then (-1 : A) else 1) *
         (lower[0]'(width_pos _) * upper[j+1]'(next_index_lt n k j ha) -
           upper[0]'(width_pos _) * lower[j+1]'(next_index_lt n k j ha))
@@ -111,7 +109,7 @@ private theorem step_map (n k : ℕ) (s : Locals A n)
       have hdiv : divisor ∣ numerator := ⟨q, D.injective (by simpa [mapLocals] using hq)⟩
       have hm := map_quotient D.embed D.injective numerator divisor hd hdiv
       simpa [numerator, lt_zero_iff_embed D, apply_ite] using hm
-    · simp only [dif_neg ha, map_zero]
+    · simp only [dite_eq_right ha, map_zero]
   have hr := repair_map D (n+1-(k+2)) w lower raw
   dsimp only [width] at hr hraw ⊢
   rw [hraw] at hr
@@ -131,14 +129,12 @@ private theorem step_map (n k : ℕ) (s : Locals A n)
   dsimp only [width] at w upper lower rows raw rawR hr hraw ⊢
   simp only [hr]
   simp only [← hraw, Vector.getElem_map, lt_zero_iff_embed D, map_mul]
-  repeat' erw [Vector.getElem_map]
   by_cases hz : raw[0]'(Nat.zero_lt_succ (n/2)) = 0
-  all_goals simp only [embed_eq_zero, hz, if_true, if_false,
+  all_goals simp only [embed_eq_zero, hz, ite_true, ite_false,
     Prod.mk.injEq, true_and]
-  all_goals repeat' first | erw [if_pos hz] | erw [if_neg hz]
   all_goals simp only [map_one, embed_abs]
   all_goals repeat' first | erw [List.map_append] | erw [List.map_cons] | erw [List.map_nil]
-  all_goals simp only [true_and, and_true]
+  all_goals simp only [and_true]
   all_goals repeat' constructor
 
 private theorem loop_map (p : Polynomial ℝ) (coeff : ℕ → A)
@@ -164,7 +160,7 @@ private theorem outcome_map (p : Polynomial A) :
   have hc : ∀ j, D.embed (p.coeff j) = (p.map D.embed).coeff j :=
     fun j => (coeff_map _ _).symm
   by_cases hn : (p.map D.embed).natDegree = 0
-  · simp only [run, ← hd, if_pos hn, Id.run_pure, coeff_map, embed_eq_zero]
+  · simp only [run, ← hd, ite_eq_left hn, Id.run_pure, coeff_map, embed_eq_zero]
   · have hi := loop_map D (p.map D.embed) p.coeff hc ((p.map D.embed).natDegree-1) (by omega)
     have hh := congrArg (fun s : FractionFree.Proofs.Locals (K := ℝ) (p.map D.embed).natDegree =>
       (s.2.2.2.1, s.2.2.2.2.1)) hi
@@ -172,7 +168,7 @@ private theorem outcome_map (p : Polynomial A) :
       let s := (List.range (n-1)).foldl (fun s j => step n j s) (start n p.coeff)
       (s.2.2.2.1, s.2.2.2.2.1)) hd.symm
     have hn' : p.natDegree ≠ 0 := by simpa only [hd] using hn
-    simp only [run_eq, if_neg hn, if_neg hn']
+    simp only [run_eq, ite_eq_right hn, ite_eq_right hn']
     exact he.trans hh
 
 end Proofs

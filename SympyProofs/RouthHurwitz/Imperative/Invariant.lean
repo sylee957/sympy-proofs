@@ -50,7 +50,6 @@ private theorem initial_inv (p : Polynomial ℝ) (hp : p ≠ 0) (hn : 0 < p.natD
   have hv := rowFunction_tabulate_degree p.natDegree (p.natDegree-1) v (by omega) h.lower_support
   dsimp only [width] at h0 h1 hv
   simp only [Inv, initialLocals, repair_eq, h0, h1, Id.run_pure]
-  rw [rowFunction_initial]
   change LoopInvariant p (p.natDegree-1) u (rowFunction (tabulate (p.natDegree / 2 + 1) v)) _ _
   rw [hv]
   simpa [initial, initialCoefficients, initialRow, descendingCoefficients, tabulate, u, v] using h
@@ -71,7 +70,7 @@ private theorem step_inv (p : Polynomial ℝ) (k : ℕ) (hk : k+2 ≤ p.natDegre
     by_cases hj : j < activeWidth n (k+2)
     · have hj' := next_index_lt n k j hj
       dsimp only [n] at hj hj'
-      simp [raw, w, n, rowFunction, hj, show j < width p.natDegree by omega, hj', boundedNextRow, nextRow, width_pos]
+      simp [raw, w, n, rowFunction, hj, show j < width p.natDegree by omega, hj', boundedNextRow, nextRow]
     · simp only [rowFunction, raw, Vector.getElem_ofFn, boundedNextRow]
       split_ifs <;> simp_all
   have hs : ∀ j, n-(k+2) < 2*j → rowFunction raw j = 0 := by
@@ -84,7 +83,7 @@ private theorem step_inv (p : Polynomial ℝ) (k : ℕ) (hk : k+2 ≤ p.natDegre
   have hd : n+1-(k+2)-1 = n-(k+2) := by dsimp [n]; omega
   have he := repair_function n (n+1-(k+2)) w lower raw (by omega) (by rw [hd]; exact hs)
   let row := (repair (n+1-(k+2)) w lower raw).1
-  have hv0 : lower[0]'(width_pos _) = rowFunction lower 0 := by simp [rowFunction, width_pos]
+  have hv0 : lower[0]'(width_pos _) = rowFunction lower 0 := by simp [rowFunction]
   have hr0 : row[0]'(width_pos _) = rowFunction row 0 := by
     simp only [rowFunction]
     split_ifs
@@ -103,7 +102,7 @@ private theorem step_inv (p : Polynomial ℝ) (k : ℕ) (hk : k+2 ≤ p.natDegre
   change rowFunction row = _ at he
   rw [hv0, hr0, he, hf, hraw]
   dsimp only [width] at hraw hnew ⊢
-  simp only [hraw, show k+1+1 = k+2 by omega]
+  simp only [show k+1+1 = k+2 by omega]
   exact hnew
 
 theorem loop_invariant (p : Polynomial ℝ) (hp : p ≠ 0) (k : ℕ) (hk : k+1 ≤ p.natDegree) :

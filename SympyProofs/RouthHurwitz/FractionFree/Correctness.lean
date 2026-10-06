@@ -24,7 +24,7 @@ private theorem run_outcome (p : Polynomial ℝ) (hp : p ≠ 0) :
     obtain ⟨u, v, _, _, hm, _, _⟩ := hi
     rw [show p.natDegree - (p.natDegree-1+1) = 0 by omega] at hm
     have hend := hm.finish hp
-    simp only [Exact.Proofs.run_eq, if_neg hn]
+    simp only [Exact.Proofs.run_eq, ite_eq_right hn]
     exact hend
 
 /-- The stored counter counts open-right-half-plane roots with multiplicity. -/

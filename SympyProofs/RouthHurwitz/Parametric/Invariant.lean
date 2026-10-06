@@ -65,9 +65,9 @@ private theorem loop_rows_pivots {W : ℕ} (first second : Vector A (W+1)) (k : 
     generalize hs : (List.range k).foldl (fun s _ => step s) (start first second) = s at ih ⊢
     dsimp only at ih ⊢
     by_cases hl : s.2.1[0] ≠ 0
-    · simp only [step, if_pos hl, List.map_append, List.map_cons, List.map_nil,
+    · simp only [step, ite_eq_left hl, List.map_append, List.map_cons, List.map_nil,
         ih, List.cons_append]
-    · simpa only [step, if_neg hl] using ih
+    · simpa only [step, ite_eq_right hl] using ih
 
 variable {K : Type*} [Field K] (f : A →+* K) (hf : Function.Injective f)
 
@@ -170,19 +170,19 @@ theorem RegularState.advance {W : ℕ} {first second : Vector A (W+1)}
     by_cases hj : j+1 < W+1
     · rw [show extend row j =
           (s.2.1[0] * extend s.1 (j+1) - s.1[0] * extend s.2.1 (j+1)) / s.2.2.2.1 by
-        simp only [extend, row, Vector.getElem_ofFn, dif_pos hj, dif_pos (show j < W+1 by omega)]]
+        simp only [extend, row, Vector.getElem_ofFn, dite_eq_left hj, dite_eq_left (show j < W+1 by omega)]]
       exact map_quotient f hf _ _ h.divisor_ne (h.divides f hf hl j)
     · have hz : extend row j = 0 := by
         simp only [extend, row, Vector.getElem_ofFn]
         split_ifs <;> simp_all
       rw [hz]
-      simp only [extend, dif_neg hj, mul_zero, sub_self, map_zero, zero_div]
+      simp only [extend, dite_eq_right hj, mul_zero, sub_self, map_zero, zero_div]
   have hpivot : row[0] = minor first second (k+1) := by
     apply hf
     have hh := det_pair u v (k+1) 0 hreg
     rw [minor_map f] at hh
     exact (hrow 0).trans hh.symm
-  rw [step, if_pos hl]
+  rw [step, ite_eq_left hl]
   change RegularState f first second (k+1)
     (s.2.1, row, s.2.2.1 ++ [row[0]], s.2.2.2.2.1, s.2.1[0], s.2.2.2.2.2 ++ [row])
   refine ⟨hreg, he, ?_, hrow, ?_, ?_⟩
@@ -209,7 +209,7 @@ theorem loop_inv {W : ℕ} (first second : Vector A (W+1)) (k : ℕ) :
     rcases ih with h | ⟨hz, hmem, j, hj, he⟩
     · by_cases hl : ((List.range k).foldl (fun s _ => step s) (start first second)).2.1[0] = 0
       · right
-        rw [step, if_neg (not_not.mpr hl)]
+        rw [step, ite_eq_right (not_not.mpr hl)]
         refine ⟨hl, ?_, k, by omega, ?_⟩
         · rw [h.pivots]
           apply List.mem_map.mpr
@@ -217,7 +217,7 @@ theorem loop_inv {W : ℕ} (first second : Vector A (W+1)) (k : ℕ) :
         · exact (h.pivot_eq f hf).symm.trans hl
       · exact Or.inl (h.advance f hf hl)
     · right
-      rw [step, if_neg (not_not.mpr hz)]
+      rw [step, ite_eq_right (not_not.mpr hz)]
       exact ⟨hz, hmem, j, by omega, he⟩
 
 /-- The certificate remains correct under every real specialization, including
@@ -251,7 +251,7 @@ theorem run_positive_eq_firstColumn (p : Polynomial A) :
   have hfirst : (initial p p.natDegree 0)[0]'(Imperative.Bounds.width_pos _) =
       p.leadingCoeff * p.leadingCoeff := by
     simp only [initial, Vector.getElem_ofFn, Nat.mul_zero, Nat.add_zero, Nat.zero_le,
-      if_true, Nat.sub_zero, Polynomial.coeff_natDegree]
+      ite_true, Nat.sub_zero, Polynomial.coeff_natDegree]
   rw [Proofs.run_eq]
   split_ifs with hn
   · simp only [List.map_cons, List.map_nil, hfirst]

@@ -51,10 +51,10 @@ private theorem repair_of_pivot {W : ℕ} (d : ℕ) (w : Fin (W+2))
   have hn : (nonzeroIndices w (rowFunction raw)).Nonempty :=
     ⟨0, by simp [nonzeroIndices, rowFunction, hw, hr]⟩
   rw [repair_eq]
-  simp only [repairRow, if_pos hn, rowFunction, dif_pos (Nat.zero_lt_succ W), if_neg hr]
+  simp only [repairRow, ite_eq_left hn, rowFunction, dite_eq_left (Nat.zero_lt_succ W), ite_eq_right hr]
   apply Vector.ext
   intro j hj
-  simp only [tabulate, Vector.getElem_ofFn, rowFunction, dif_pos hj]
+  simp only [tabulate, Vector.getElem_ofFn, rowFunction, dite_eq_left hj]
 
 omit [IsStrictOrderedRing K] in
 private theorem raw_function (n k : ℕ) (upper lower : Vector K (width n))
@@ -167,7 +167,7 @@ private theorem step_segment (p : Polynomial K)
     intro j
     obtain ⟨q, hq⟩ := hrawi j.val
     have hj : j.val < width n := by have := j.isLt; dsimp [activeWidth] at this; omega
-    simp only [rowFunction, dif_pos hj, raw, Vector.getElem_ofFn, w, dif_pos j.isLt] at hq
+    simp only [rowFunction, dite_eq_left hj, raw, Vector.getElem_ofFn, w, dite_eq_left j.isLt] at hq
     change cellNumerator n k (upper, lower, rows, count, deg, d, e) j / d = f q at hq
     refine ⟨q, ?_⟩
     have heq := (div_eq_iff (ne_of_gt hd)).mp hq
@@ -183,18 +183,17 @@ private theorem step_segment (p : Polynomial K)
   by_cases hz : raw[0]'(width_pos _) = 0
   · refine ⟨rowFunction lower, rowFunction (repair (n+1-(k+2)) w lower raw).1,
       0, hlint, hrow, trivial, ?_, ?_, ?_, ⟨1, by simp [hz]⟩, ⟨1, by simp [hz]⟩⟩ <;> simp [hz, pair, weight]
-    all_goals rfl
   · have hw : 0 < w.val := by dsimp [w, activeWidth, width]; omega
     have hr := repair_of_pivot (n+1-(k+2)) w lower raw hw hz
     refine ⟨u, l, t+1, hui, hli, hreg', ?_, ?_, ?_, ?_, ?_⟩
-    · simpa only [if_neg hz, pair_step] using hle
-    · simpa only [if_neg hz, hr, habs] using hraw
-    · simpa only [if_neg hz] using habs
-    · simpa only [if_neg hz] using hemap
+    · simpa only [ite_eq_right hz, pair_step] using hle
+    · simpa only [ite_eq_right hz, hr, habs] using hraw
+    · simpa only [ite_eq_right hz] using habs
+    · simpa only [ite_eq_right hz] using hemap
     · obtain ⟨a, ha⟩ := hlint 0
-      simp only [rowFunction, dif_pos (width_pos p.natDegree)] at ha
+      simp only [rowFunction, dite_eq_left (width_pos p.natDegree)] at ha
       dsimp only
-      rw [if_neg hz]
+      rw [ite_eq_right hz]
       by_cases hneg : lower[0]'(width_pos n) < 0
       · exact ⟨-a, by rw [map_neg, ← ha, abs_of_neg hneg]⟩
       · exact ⟨a, by rw [← ha, abs_of_nonneg (le_of_not_gt hneg)]⟩
@@ -223,7 +222,6 @@ private theorem initial_segment (p : Polynomial K)
         (initial p 0) (initial p 1)).1, 0, hu, hl, trivial, ?_, ?_, ?_,
         ⟨1, by simp [initialLocals_eq]⟩, ⟨1, by simp [initialLocals_eq]⟩⟩
     all_goals simp [initialLocals_eq, pair, weight]
-    all_goals rfl
   · intro row hr
     change row ∈ [initial p 0, (repair p.natDegree ⟨width p.natDegree, Nat.lt_succ_self _⟩
       (initial p 0) (initial p 1)).1] at hr
@@ -265,12 +263,12 @@ theorem run_preserves_ring (p : Polynomial K)
     ∀ row ∈ (Exact.run p).rows, ∀ j (hj : j < width p.natDegree), ∃ z : R, row[j] = f z := by
   by_cases hn : p.natDegree = 0
   · intro row hr
-    simp only [Exact.Proofs.run_eq, if_pos hn, List.mem_singleton] at hr
+    simp only [Exact.Proofs.run_eq, ite_eq_left hn, List.mem_singleton] at hr
     subst row
     exact (mapped_rowFunction f _).mp (mapped_initial f p hc 0)
   · have hp : p ≠ 0 := by intro hz; subst p; simp at hn
     have hi := (loop_mapped f p hp hc (p.natDegree-1) (by omega)).2
-    simp only [Exact.Proofs.run_eq, if_neg hn]
+    simp only [Exact.Proofs.run_eq, ite_eq_right hn]
     change ∀ row ∈ ((List.range (p.natDegree-1)).foldl
       (fun s j => step p.natDegree j s) (initialLocals p)).2.2.1, _
     intro row hr

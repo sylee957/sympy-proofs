@@ -119,12 +119,12 @@ theorem encodeRow_repairRow [DecidableEq K] (d w : ℕ) (previous raw : Row K)
       else (encodeRow d previous).derivative := by
   by_cases hn : (nonzeroIndices w raw).Nonempty
   · by_cases hz : raw 0 = 0
-    · simp only [repairRow, if_pos hn, if_pos hz]
+    · simp only [repairRow, ite_eq_left hn, ite_eq_left hz]
       apply encodeRow_shiftRow _ _ _ _ ?_ hw (before_firstNonzero w raw hn) hs
       by_contra! hk
       exact (firstNonzero_spec w raw hn).2 (hs _ hk)
     · simp [repairRow, hn, hz]
-  · simp only [repairRow, if_neg hn]
+  · simp only [repairRow, ite_eq_right hn]
     exact (encodeRow_derivative d previous).symm
 
 end Encoding
@@ -351,9 +351,9 @@ theorem repairRow_axis_rootMultiplicity (d w : ℕ) (previous raw : Row ℝ)
   simp only [Nat.add_sub_cancel] at he
   rw [he]
   by_cases hn : (nonzeroIndices w raw).Nonempty
-  · simp only [if_pos hn]
+  · simp only [ite_eq_left hn]
     by_cases hr : raw 0 = 0
-    · simp only [if_pos hr]
+    · simp only [ite_eq_left hr]
       have hraw : encodeRow d raw ≠ 0 := by
         obtain ⟨j, hj⟩ := hn
         have hj' : j < w ∧ raw j ≠ 0 := by simpa [nonzeroIndices] using hj
@@ -370,8 +370,8 @@ theorem repairRow_axis_rootMultiplicity (d w : ℕ) (previous raw : Row ℝ)
         parityMultiplier_axis_rootMultiplicity P Q _ σ hσ hp hq
           (shiftMultiplier_axisReflect _) hp0
           ((Polynomial.map_ne_zero_iff Complex.ofRealHom.injective).mpr hraw) _ hz hαz
-    · simp only [if_neg hr]
-  · simp only [if_neg hn]
+    · simp only [ite_eq_right hr]
+  · simp only [ite_eq_right hn]
     have hraw : encodeRow d raw = 0 := by
       rw [← encodeRow_zero d]
       apply encodeRow_congr

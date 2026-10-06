@@ -1,5 +1,5 @@
 import SympyProofs.RouthHurwitz.Table.Basic
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 
 /-! Polynomial interpretation of table rows, shared by regular and repaired steps. -/
 
@@ -13,7 +13,7 @@ theorem repairRow_support {K : Type*} [Field K] [DecidableEq K]
     (j : ℕ) (hj : d - 1 < 2 * j) : repairRow d w previous raw j = 0 := by
   by_cases hn : (nonzeroIndices w raw).Nonempty
   · by_cases hz : raw 0 = 0
-    · simp only [repairRow, if_pos hn, if_pos hz, shiftRow]
+    · simp only [repairRow, ite_eq_left hn, ite_eq_left hz, shiftRow]
       split
       · simp [hs j hj, hs (j + firstNonzero w raw) (by omega)]
       · exact hs j hj
@@ -88,7 +88,7 @@ theorem coeff_encodeRow (d : ℕ) (r : Row K) (k : ℕ) :
       by_cases hk : k = 1
       · subst k; simp [encodeRow]
       · have hc : ¬ (k ≤ 1 ∧ (1 - k) % 2 = 0) := by omega
-        simp only [encodeRow, coeff_C_mul_X, if_neg hk, if_neg hc]
+        simp only [encodeRow, coeff_C_mul_X, ite_eq_right hk, ite_eq_right hc]
   | more d ih _ =>
       rw [encodeRow, coeff_add, coeff_C_mul_X_pow, ih]
       by_cases hk : k = d + 2

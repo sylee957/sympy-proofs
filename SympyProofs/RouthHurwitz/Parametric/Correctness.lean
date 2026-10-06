@@ -12,9 +12,9 @@ private theorem initial_extend (p : Polynomial A) (n parity : ℕ) (j : ℕ) :
       if 2*j+parity ≤ n then p.coeff n * p.coeff (n-(2*j+parity)) else 0 := by
   change (if h : j < n/2+1 then (initial p n parity)[j] else 0) = _
   by_cases hj : j < n/2+1
-  · simp only [dif_pos hj, initial, Vector.getElem_ofFn]
+  · simp only [dite_eq_left hj, initial, Vector.getElem_ofFn]
   · have hh : ¬ 2*j+parity ≤ n := by omega
-    simp only [dif_neg hj, if_neg hh]
+    simp only [dite_eq_right hj, ite_eq_right hh]
 
 omit [IsDomain A] [DecidableEq A] [Div A] [MulDivCancelClass A] in
 private theorem initial_minor (p : Polynomial A) (n k : ℕ) :
@@ -47,7 +47,7 @@ private theorem run_iff_of_leadingCoeff_ne_zero (p : Polynomial A) (f : A →+* 
   by_cases hn : p.natDegree = 0
   · simp [hn]
     intro k hk he; omega
-  · rw [if_neg hn]
+  · rw [ite_eq_right hn]
     rw [Proofs.loop_positive_iff (algebraMap A (FractionRing A))
       (IsFractionRing.injective A (FractionRing A))]
     simp_rw [initial_minor, hurwitzMinor_map]

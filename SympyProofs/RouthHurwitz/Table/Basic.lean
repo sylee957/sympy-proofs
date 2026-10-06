@@ -65,7 +65,7 @@ theorem firstNonzero_spec (w : ℕ) (r : Row K)
     (h : (nonzeroIndices w r).Nonempty) :
     firstNonzero w r < w ∧ r (firstNonzero w r) ≠ 0 := by
   unfold firstNonzero
-  rw [dif_pos h]
+  rw [dite_eq_left h]
   simpa only [nonzeroIndices, mem_filter, mem_range] using
     (Finset.min'_mem (nonzeroIndices w r) h)
 
@@ -78,7 +78,7 @@ theorem before_firstNonzero (w : ℕ) (r : Row K)
     simp only [nonzeroIndices, mem_filter, mem_range]
     exact ⟨by omega, hn⟩
   have := Finset.min'_le (nonzeroIndices w r) j hm
-  simp only [firstNonzero, dif_pos h] at hj
+  simp only [firstNonzero, dite_eq_left h] at hj
   omega
 
 /-- SymPy's extended-table update after `k` leading zeros.
@@ -122,7 +122,7 @@ def initialRow (n : ℕ) (a : ℕ → K) (parity : ℕ) : Row K :=
   fun j => if 2 * j + parity ≤ n then a (2 * j + parity) else 0
 
 /-- Number of columns allocated by SymPy. -/
-def width (n : ℕ) : ℕ := n / 2 + 1
+abbrev width (n : ℕ) : ℕ := n / 2 + 1
 
 /-- The active prefix for row `i`, matching `_calculate_row`. -/
 def activeWidth (n i : ℕ) : ℕ := width n - i / 2

@@ -197,7 +197,7 @@ theorem LoopInvariant.advance {p : ℝ[X]} {d w count : ℕ} {deg : Bool} {u v :
     have hg' : deg = false ∧ (nonzeroIndices w raw).Nonempty := by simpa using hg
     have hm' : (pairPolynomial d v row).rootMultiplicity (ω * Complex.I) =
         (pairPolynomial (d+1) u v).rootMultiplicity (ω * Complex.I) := by
-      simpa only [if_pos hg'.2] using hm ω
+      simpa only [ite_eq_left hg'.2] using hm ω
     exact hm'.trans (h.axis hg'.1 ω)
   · intro hp
     obtain ⟨hg, hs⟩ := h.stable hp
@@ -247,7 +247,7 @@ theorem LoopInvariant.start (p : ℝ[X]) (hp : p ≠ 0) (hn : 0 < p.natDegree) :
     rw [hc']; omega
   · intro hg ω
     have hraw : (nonzeroIndices (width n) raw).Nonempty := by simpa using hg
-    simpa only [pairPolynomial, hd, if_pos hraw] using hm' ω
+    simpa only [pairPolynomial, hd, ite_eq_left hraw] using hm' ω
   · intro hs
     have hraw : (nonzeroIndices (width n) raw).Nonempty := by
       by_contra hz
@@ -262,7 +262,7 @@ theorem LoopInvariant.start (p : ℝ[X]) (hp : p ≠ 0) (hn : 0 < p.natDegree) :
     · simpa only [pairPolynomial, hd] using hc.le
     · intro z hz
       rw [axis_eq_mul_I z hz]
-      simpa only [pairPolynomial, hd, if_pos hraw] using (hm' z.im).le
+      simpa only [pairPolynomial, hd, ite_eq_left hraw] using (hm' z.im).le
 
 theorem LoopInvariant.finish {p : ℝ[X]} (hp : p ≠ 0) {u v : Row ℝ} {count : ℕ} {deg : Bool}
     (h : LoopInvariant p 0 u v count deg) :

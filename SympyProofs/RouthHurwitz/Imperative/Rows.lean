@@ -55,25 +55,25 @@ theorem repair_eq {W : ℕ} (d : ℕ) (w : Fin (W + 2)) (previous raw : Vector K
   by_cases hn : (nonzeroIndices w (rowFunction raw)).Nonempty
   · have hk := firstNonzero_spec w (rowFunction raw) hn
     by_cases hz : raw[0] = 0
-    · simp only [repair, scan_found w raw hn, if_pos hk.1, Id.run_pure,
-        repairRow, if_pos hn, rowFunction, dif_pos (Nat.zero_lt_succ W), if_pos hz, decide_eq_true hn, Prod.mk.injEq,
+    · simp only [repair, scan_found w raw hn, ite_eq_left hk.1, Id.run_pure,
+        repairRow, ite_eq_left hn, rowFunction, dite_eq_left (Nat.zero_lt_succ W), ite_eq_left hz, decide_eq_true hn, Prod.mk.injEq,
         and_true]
       apply Vector.ext
       intro j hj
       simp [tabulate, shiftRow, rowFunction]
       split_ifs <;> simp_all
       all_goals omega
-    · simp only [repair, scan_found w raw hn, if_pos hk.1, Id.run_pure,
-        repairRow, if_pos hn, rowFunction, dif_pos (Nat.zero_lt_succ W), if_neg hz, decide_eq_true hn, Prod.mk.injEq,
+    · simp only [repair, scan_found w raw hn, ite_eq_left hk.1, Id.run_pure,
+        repairRow, ite_eq_left hn, rowFunction, dite_eq_left (Nat.zero_lt_succ W), ite_eq_right hz, decide_eq_true hn, Prod.mk.injEq,
         and_true]
       apply Vector.ext
       intro j hj
-      simp only [tabulate, Vector.getElem_ofFn, rowFunction, dif_pos hj]
-  · simp only [repair, scan_missing w raw hn, lt_self_iff_false, if_false, Id.run_pure,
-      repairRow, if_neg hn, decide_eq_false hn, Prod.mk.injEq, and_true]
+      simp only [tabulate, Vector.getElem_ofFn, rowFunction, dite_eq_left hj]
+  · simp only [repair, scan_missing w raw hn, lt_self_iff_false, ite_false, Id.run_pure,
+      repairRow, ite_eq_right hn, decide_eq_false hn, Prod.mk.injEq, and_true]
     apply Vector.ext
     intro j hj
-    simp only [tabulate, Vector.getElem_ofFn, derivativeRow, rowFunction, dif_pos hj]
+    simp only [tabulate, Vector.getElem_ofFn, derivativeRow, rowFunction, dite_eq_left hj]
 
 omit [DecidableEq K] in
 private theorem initial_eq (p : Polynomial K) (parity : ℕ) :

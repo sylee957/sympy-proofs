@@ -124,7 +124,7 @@ theorem repairRow_rightCount (d w : ℕ) (previous raw : Row ℝ)
       rightCount ((encodeRow (d + 1) previous + encodeRow d raw).map Complex.ofRealHom) := by
   by_cases hn : (nonzeroIndices w raw).Nonempty
   · by_cases hz : raw 0 = 0
-    · simp only [repairRow, if_pos hn, if_pos hz]
+    · simp only [repairRow, ite_eq_left hn, ite_eq_left hz]
       apply shiftRow_rightCount _ _ _ _ _ hpivot _ hw (before_firstNonzero w raw hn) hs
       by_contra! hh
       exact (firstNonzero_spec w raw hn).2 (hs _ hh)
@@ -142,7 +142,7 @@ theorem repairRow_rightCount (d w : ℕ) (previous raw : Row ℝ)
   have hder : encodeRow d (derivativeRow (d + 1) previous) =
       (encodeRow (d + 1) previous).derivative := by
     simpa using (encodeRow_derivative (d + 1) previous).symm
-  rw [repairRow, if_neg hn, hraw, add_zero, hder]
+  rw [repairRow, ite_eq_right hn, hraw, add_zero, hder]
   have hdeg : (encodeRow (d + 1) previous).natDegree = d + 1 :=
     encodeRow_natDegree _ _ hpivot
   rw [Polynomial.map_add, ← derivative_map]

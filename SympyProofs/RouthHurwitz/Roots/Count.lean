@@ -39,7 +39,7 @@ private theorem regionCount_prod (P : ℂ → Prop) (r : ι → ℂ) (s : Finset
       change (({r i} : Multiset ℂ).filter P).card +
         regionCount (∏ j ∈ s, (X - C (r j))) P = _
       rw [ih]
-      by_cases h : P (r i) <;> simp only [Multiset.filter_singleton, h, if_true, if_false, Multiset.card_singleton, Multiset.empty_eq_zero, Multiset.card_zero]
+      by_cases h : P (r i) <;> simp only [Multiset.filter_singleton, h, ite_true, ite_false, Multiset.card_singleton, Multiset.empty_eq_zero, Multiset.card_zero]
 
 private theorem regionCount_factorization (P : ℂ → Prop) (n : ℕ) (r : Fin n → ℂ) (c : ℂ) (hc : c ≠ 0) :
     regionCount (C c * ∏ i, (X - C (r i))) P =
@@ -146,7 +146,7 @@ theorem continuous_rightCount_of_axisCount {T : Type*} [TopologicalSpace T]
         else if i ∈ S then 0 ≤ (v.2 i).re else (v.2 i).re ≤ 0)}
   have hK (S J : Finset (Fin n)) : IsCompact (K S J) := by
     apply (isCompact_univ.prod hB).inter_right
-    simp only [Set.setOf_and, Set.setOf_forall]
+    simp only [Set.ofPred_and, Set.ofPred_forall]
     apply IsClosed.inter
     · apply isClosed_iInter
       intro z
@@ -155,13 +155,13 @@ theorem continuous_rightCount_of_axisCount {T : Type*} [TopologicalSpace T]
     · apply isClosed_iInter
       intro i
       by_cases hi : i ∈ J
-      · simp only [if_pos hi]
+      · simp only [ite_eq_left hi]
         exact isClosed_eq (by fun_prop) continuous_const
-      · simp only [if_neg hi]
+      · simp only [ite_eq_right hi]
         by_cases hi : i ∈ S
-        · simp only [if_pos hi]
+        · simp only [ite_eq_left hi]
           exact isClosed_le continuous_const (by fun_prop)
-        · simp only [if_neg hi]
+        · simp only [ite_eq_right hi]
           exact isClosed_le (by fun_prop) continuous_const
   have hfactors {t : T} {r : Fin n → ℂ}
       (he : ∀ z, (p t).eval z = (p t).leadingCoeff * ∏ i, (z - r i)) :
@@ -184,14 +184,14 @@ theorem continuous_rightCount_of_axisCount {T : Type*} [TopologicalSpace T]
     have hsub : J ⊆ Z := by
       intro i hi
       have hh := hs i
-      simp only [if_pos hi] at hh
+      simp only [ite_eq_left hi] at hh
       simp [Z, hh]
     have hJZ : J = Z := Finset.eq_of_subset_of_card_le hsub (by omega)
     have heq : Finset.univ.filter (fun i => 0 < (r i).re) = S := by
       ext i
       have hh := hs i
       by_cases hj : i ∈ J
-      · simp only [if_pos hj] at hh
+      · simp only [ite_eq_left hj] at hh
         have hn : i ∉ S := fun hi => Finset.disjoint_left.mp hdisj hi hj
         simp [hh, hn]
       · have hn : (r i).re ≠ 0 := by
@@ -199,11 +199,11 @@ theorem continuous_rightCount_of_axisCount {T : Type*} [TopologicalSpace T]
           apply hj
           rw [hJZ]
           simp [Z, hz]
-        simp only [if_neg hj] at hh
+        simp only [ite_eq_right hj] at hh
         by_cases hi : i ∈ S
-        · simp only [if_pos hi] at hh
+        · simp only [ite_eq_left hi] at hh
           simp [hi, lt_of_le_of_ne hh (Ne.symm hn)]
-        · simp only [if_neg hi] at hh
+        · simp only [ite_eq_right hi] at hh
           simp [hi, not_lt.mpr hh]
     rw [hfac, rightCount_factorization n r _ (leadingCoeff_ne_zero.mpr (hp t)), heq]
   apply continuous_iff_isClosed.mpr
@@ -234,7 +234,7 @@ theorem continuous_rightCount_of_axisCount {T : Type*} [TopologicalSpace T]
         linarith
       apply Set.mem_iUnion.mpr
       refine ⟨(S, J), ?_⟩
-      rw [if_pos ⟨hJ, hdisj, hS⟩]
+      rw [ite_eq_left ⟨hJ, hdisj, hS⟩]
       refine ⟨(t, r), ?_, rfl⟩
       refine ⟨⟨Set.mem_univ _, fun i => ?_⟩, ?_, ?_⟩
       · exact hM t (r i) (hr ▸ root_tuple_isRoot n r (p t).leadingCoeff i)
@@ -284,8 +284,8 @@ theorem axisCount_eq_of_rootMultiplicity (p q : ℂ[X])
   apply Multiset.ext.mpr
   intro z
   by_cases hz : z.re = 0
-  · simp only [Multiset.count_filter, if_pos hz, count_roots, h z hz]
-  · simp only [Multiset.count_filter, if_neg hz]
+  · simp only [Multiset.count_filter, ite_eq_left hz, count_roots, h z hz]
+  · simp only [Multiset.count_filter, ite_eq_right hz]
 
 /-- A polynomial-valued affine path with fixed degree and fixed boundary
 multiplicities has equal right-half-plane counts at its endpoints. -/

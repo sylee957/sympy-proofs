@@ -30,14 +30,14 @@ private theorem initial_shape (p : Polynomial K) (hp : p ≠ 0) (hn : 0 < p.natD
     have h := leadingCoeff_ne_zero.mpr hp
     change p.coeff p.natDegree ≠ 0 at h
     simpa only [upper, initial, initialCoefficients, Vector.getElem_ofFn, Nat.mul_zero, Nat.add_zero,
-      Nat.zero_le, if_true, Nat.sub_zero] using h
+      Nat.zero_le, ite_true, Nat.sub_zero] using h
   have hu : rowFunction upper 0 ≠ 0 := by simpa [rowFunction, width_pos] using hu0
   have he := repair_function n n w upper raw (by omega) hr
   have hl := repairRow_pivot_ne_zero_of_previous n w (rowFunction upper) (rowFunction raw) (ne_of_gt hn) hu
   have hl0 : lower[0]'(width_pos n) ≠ 0 := by
     change rowFunction lower = _ at he
     have h := congrFun he 0
-    simp only [rowFunction, dif_pos (width_pos n)] at h
+    simp only [rowFunction, dite_eq_left (width_pos n)] at h
     exact h ▸ hl
   change Shape n 0 (upper, lower, [upper, lower], _, _, 1, 1)
   refine ⟨hu0, hl0, ?_, ?_, zero_lt_one, zero_lt_one⟩
@@ -70,7 +70,7 @@ private theorem initial_shape (p : Polynomial K) (hp : p ≠ 0) (hn : 0 < p.natD
       have hh : j < width n := by omega
       have huz := hu (j+1) (by omega)
       have hlz := hl (j+1) (by omega)
-      simp only [rowFunction, dif_pos hj'] at huz hlz
+      simp only [rowFunction, dite_eq_left hj'] at huz hlz
       simp [rowFunction, raw, w, hh, hactive, huz, hlz]
     · simp only [rowFunction, raw, Vector.getElem_ofFn]
       split_ifs <;> simp_all
@@ -82,7 +82,7 @@ private theorem initial_shape (p : Polynomial K) (hp : p ≠ 0) (hn : 0 < p.natD
   have hrow0 : row[0]'(width_pos n) ≠ 0 := by
     change rowFunction row = _ at hrow
     have hh := congrFun hrow 0
-    simp only [rowFunction, dif_pos (width_pos n)] at hh
+    simp only [rowFunction, dite_eq_left (width_pos n)] at hh
     exact hh ▸ hp
   change Shape n (k+1) (lower, row, List.append rows [row], _, _,
     (if raw[0]'(width_pos n) = 0 then 1 else e),
