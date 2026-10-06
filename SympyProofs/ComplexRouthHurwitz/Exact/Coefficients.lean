@@ -1,146 +1,161 @@
 import SympyProofs.ComplexRouthHurwitz.Exact.Basic
-import SympyProofs.ComplexRouthHurwitz.FractionFree.Descending
+import SympyProofs.ComplexRouthHurwitz.Exact.Model.Coefficients
 
-/-! The ring-valued coefficient operations commute with complex denotation. -/
+/-! Lossless row encoding and the exact integer elimination identity. -/
 namespace RouthHurwitz.ComplexRouth.Exact.Gaussian
-open Polynomial
-open scoped ComplexConjugate
-noncomputable section
-open Classical
-local notation "f" => GaussianInt.toComplex
+open Polynomial Model
 
-/-- Coordinatewise denotation; never called by the Gaussian runner. -/
-def mapRow {N : ℕ} (a : Rows.Row N) : Coefficients.Row N := Vector.ofFn (fun j => f a[j])
-def mapPair {N : ℕ} (r : Rows.Pair N) : Coefficients.Pair N := ⟨mapRow r.upper, mapRow r.lower⟩
+@[simp] theorem encode_decode {N} (n : ℕ) (a : Row N) : encode n (decode n a) = a := by
+  ext j hj
+  simp [encode, decode, scalar]
+  split_ifs <;> simp_all
 
-@[simp] theorem mapRow_get {N} (a : Rows.Row N) (j : ℕ) (hj : j < N) :
-    (mapRow a)[j] = f a[j] := by simp [mapRow]
-@[simp] theorem map_entry {N} (a : Rows.Row N) (j : ℕ) :
-    Coefficients.entry (mapRow a) j = f (Rows.entry a j) := by
-  simp [Coefficients.entry, Rows.entry]; split_ifs <;> simp
-@[simp] theorem map_zero (N) : mapRow (Rows.zero N) = Coefficients.zero N := by
-  ext j hj; simp [mapRow, Rows.zero, Coefficients.zero]
-@[simp] theorem map_one (N) : mapRow (Rows.one N) = Coefficients.one N := by
-  ext j hj; simp [mapRow, Rows.one, Coefficients.one]
-@[simp] theorem map_add {N} (a b : Rows.Row N) :
-    mapRow (Rows.add a b) = Coefficients.add (mapRow a) (mapRow b) := by
-  ext j hj; simp [mapRow, Rows.add, Coefficients.add]
-@[simp] theorem map_scale {N} (c : GaussianInt) (a : Rows.Row N) :
-    mapRow (Rows.scale c a) = Coefficients.scale (f c) (mapRow a) := by
-  ext j hj; simp [mapRow, Rows.scale, Coefficients.scale]
-@[simp] theorem map_derivative {N} (a : Rows.Row N) :
-    mapRow (Rows.derivative a) = Coefficients.derivative (mapRow a) := by
-  ext j hj; simp [mapRow, Rows.derivative, Coefficients.derivative, ← map_entry]
-@[simp] theorem map_eval {N} (a : Rows.Row N) (z : GaussianInt) :
-    f (Rows.eval a z) = Coefficients.eval (mapRow a) (f z) := by
-  simp [Rows.eval, Coefficients.eval, mapRow]
+@[simp] theorem decode_entry {N} (n : ℕ) (a : Row N) (j : ℕ) :
+    Rows.entry (decode n a) j = scalar (n%2 == j%2) (entry a j) := by
+  simp only [Rows.entry, entry]
+  split_ifs <;> (simp [decode, scalar]; try rfl)
 
-@[simp] theorem map_real (z : GaussianInt) : f (z.re : GaussianInt) = ((f z).re : ℂ) := by
-  simp only [_root_.map_intCast, ← GaussianInt.intCast_re, Complex.ofReal_intCast]
-@[simp] theorem map_imag (z : GaussianInt) :
-    f ((z.im : GaussianInt)*(⟨0,1⟩ : GaussianInt)) = (f z).im*Complex.I := by
-  rw [_root_.map_mul, _root_.map_intCast, show f (⟨0,1⟩ : GaussianInt) = Complex.I by simp [GaussianInt.toComplex_def]]
-  simp only [← GaussianInt.intCast_im, Complex.ofReal_intCast]
+@[simp] theorem decode_pivot {N} (n : ℕ) (a : Row N) :
+    (Rows.entry (decode n a) n).re = entry a n := by simp [scalar]
 
-@[simp] theorem map_scan {N} (a : Rows.Row N) (n : ℕ) :
-    mapPair (Rows.scan a n) = Coefficients.scan (mapRow a) n := by
-  unfold mapPair Rows.scan Coefficients.scan
-  congr 1
-  all_goals
-    apply Vector.ext; intro j hj
-    simp only [mapRow, Vector.getElem_ofFn, Fin.getElem_fin]
-    split_ifs <;> first | exact map_real _ | exact map_imag _
-
-@[simp] theorem mapRow_eq_zero {N} (a : Rows.Row N) :
-    mapRow a = Coefficients.zero N ↔ a = Rows.zero N := by
-  constructor
-  · intro h; apply Vector.ext; intro j hj
-    apply GaussianInt.toComplex_injective
-    have he := congrArg (fun v : Vector ℂ N => v[j]) h
-    simpa [mapRow, Coefficients.zero, Rows.zero] using he
-  · rintro rfl; exact map_zero N
-
-@[simp] theorem map_I : f (⟨0,1⟩ : GaussianInt) = Complex.I := by
-  simp [GaussianInt.toComplex_def]
-
-@[simp] theorem map_repairOffset {N} (d : ℕ) (u v : Rows.Row N) :
-    Coefficients.repairOffset d (mapRow u) (mapRow v) = Rows.repairOffset d u v := by
-  have he (j : ℕ) :
-      Coefficients.eval (mapRow u) ((j:ℂ)*Complex.I) *
-        Coefficients.eval (Coefficients.derivative (mapRow v)) ((j:ℂ)*Complex.I) -
-      Coefficients.eval (Coefficients.derivative (mapRow u)) ((j:ℂ)*Complex.I) *
-        Coefficients.eval (mapRow v) ((j:ℂ)*Complex.I) =
-      f (Rows.eval u ((j:GaussianInt)*⟨0,1⟩)*Rows.eval (Rows.derivative v) ((j:GaussianInt)*⟨0,1⟩)-
-        Rows.eval (Rows.derivative u) ((j:GaussianInt)*⟨0,1⟩)*Rows.eval v ((j:GaussianInt)*⟨0,1⟩)) := by
-    simp only [_root_.map_sub, _root_.map_mul, map_eval, map_derivative, _root_.map_natCast, map_I]
-  simp only [Rows.repairOffset, Coefficients.repairOffset, he, ne_eq, GaussianInt.toComplex_eq_zero]
-
-@[simp] theorem map_reciprocal {N} (a : Rows.Row N) (m : ℕ) (t : ℤ) :
-    mapRow (Rows.reciprocal a m t) = Coefficients.reciprocal (mapRow a) m t := by
-  apply Vector.ext; intro i hi
-  simp only [mapRow, Rows.reciprocal, Coefficients.reciprocal, Vector.getElem_ofFn, Fin.getElem_fin]
-  split_ifs <;> simp only [_root_.map_zero, _root_.map_mul, _root_.map_sum,
-    _root_.map_pow, _root_.map_intCast, _root_.map_natCast, map_I,
-    GaussianInt.toComplex_star, map_eval, Coefficients.eval, mapRow,
-    Fin.getElem_fin, Vector.getElem_ofFn, Complex.ofReal_intCast]
-
-@[simp] theorem map_repair {N} (d : ℕ) (u v : Rows.Row N) :
-    mapPair (Rows.repair d u v) = Coefficients.repair d (mapRow u) (mapRow v) := by
-  simp only [Rows.repair, Coefficients.repair, mapRow_eq_zero, map_entry, ← zero_real_iff]
-  split_ifs
-  · simp [mapPair]
-  · simp only [map_scan, map_reciprocal, map_add, map_repairOffset, Int.cast_natCast]
-  · rfl
-
-/-- The cell numerator before exact division by the previous squared pivot. -/
-def cellNumerator {N} (d : ℕ) (u v : Rows.Row N) (j : Fin N) : GaussianInt :=
-  let A := (Rows.entry u (d+1)).re
-  let B := (Rows.entry v d).re
-  ((B:GaussianInt)^2*u[j] - ((B:GaussianInt)*Rows.entry u d -
-      (A:GaussianInt)*Rows.entry v (d-1))*v[j] -
-      (A:GaussianInt)*(B:GaussianInt)*(if j.val=0 then 0 else Rows.entry v (j.val-1)))
-
-theorem field_cell {N} (d : ℕ) (D : ℤ) (u v : Rows.Row N) (j : Fin N) :
-    f (cellNumerator d u v j) / (D:ℂ) =
-      (FractionFree.nextLower d (D:ℝ) (mapRow u) (mapRow v))[j] := by
-  simp only [cellNumerator, FractionFree.nextLower, Vector.getElem_ofFn, Fin.getElem_fin,
-    _root_.map_mul, _root_.map_sub, _root_.map_pow, map_entry, map_real,
-    mapRow_get, Complex.ofReal_intCast]
-  have he : f (if j.val=0 then 0 else Rows.entry v (j.val-1)) =
-      if j.val=0 then 0 else f (Rows.entry v (j.val-1)) := by split_ifs <;> simp
-  rw [he]
-
-/-- Divisibility follows from the mapped subresultant row, not from rounding. -/
-theorem cell_divides {N} (d : ℕ) (D : ℤ) (u v : Rows.Row N) (hD : D ≠ 0)
-    (hm : FractionFree.Arithmetic.MappedRow f
-      (Coefficients.entry (FractionFree.nextLower d (D:ℝ) (mapRow u) (mapRow v)))) (j : Fin N) :
-    (D:GaussianInt) ∣ cellNumerator d u v j := by
-  obtain ⟨q,hq⟩ := hm j.val
-  simp only [Coefficients.entry, dite_eq_left j.isLt] at hq
-  have he := (field_cell d D u v j).trans hq
-  have hd : (D:ℂ) ≠ 0 := Int.cast_ne_zero.mpr hD
-  have he' := (div_eq_iff hd).mp he
-  refine ⟨q, GaussianInt.toComplex_injective ?_⟩
-  rw [_root_.map_mul, _root_.map_intCast, he', mul_comm]
-
-@[simp] theorem map_nextLower {N} (d : ℕ) (D : ℤ) (u v : Rows.Row N) (hD : D ≠ 0)
-    (hm : FractionFree.Arithmetic.MappedRow f
-      (Coefficients.entry (FractionFree.nextLower d (D:ℝ) (mapRow u) (mapRow v)))) :
-    mapRow (nextLower d D u v) = FractionFree.nextLower d (D:ℝ) (mapRow u) (mapRow v) := by
+@[simp] theorem decode_zero (n N : ℕ) :
+    decode n (Vector.replicate N 0) = Rows.zero N := by
   apply Vector.ext; intro j hj
-  simp only [mapRow_get, nextLower, Vector.getElem_ofFn, Fin.getElem_fin]
-  change f (cellNumerator d u v ⟨j,hj⟩ / (D:GaussianInt)) = _
-  rw [denote_exact_quotient _ _ (Int.cast_ne_zero.mpr hD) (cell_divides d D u v hD hm ⟨j,hj⟩),
-    _root_.map_intCast]
-  exact field_cell d D u v ⟨j,hj⟩
+  simp [decode, scalar, Rows.zero]
+  rfl
 
-/-- Any Gaussian vector supplies a ring-valued seed for a fresh segment. -/
-theorem mapped_descending {N} (a : Rows.Row N) (d : ℕ) :
-    FractionFree.Arithmetic.MappedRow f (FractionFree.descending (Coefficients.entry (mapRow a)) d) := by
-  intro j
-  refine ⟨FractionFree.descending (Rows.entry a) d j, ?_⟩
-  simp only [FractionFree.descending]
-  split_ifs <;> simp
+@[simp] theorem decode_eq_zero {N} (n : ℕ) (a : Row N) :
+    decode n a = Rows.zero N ↔ a = Vector.replicate N 0 := by
+  constructor
+  · intro h
+    have := congrArg (encode n) h
+    rw [encode_decode] at this
+    exact this.trans (by apply Vector.ext; intro j hj; simp [encode, Rows.zero])
+  · rintro rfl; exact decode_zero n N
 
-end
+/-- Coordinate encoding of a symmetric polynomial is lossless. -/
+theorem decode_encode_symmetric {N} (n : ℕ) (a : Rows.Row N) (p : ℂ[X])
+    (ha : mapRow a = Coefficients.pack N p) (hp : Symmetric p n) :
+    decode n (encode n a) = a := by
+  apply Vector.ext; intro j hj
+  have hc := congrArg (fun q : ℂ[X] => q.coeff j) hp
+  simp only [reflect_coeff, coeff_C_mul] at hc
+  have he := congrArg (fun v : Vector ℂ N => v[j]) ha
+  simp only [mapRow_get, Coefficients.pack, Vector.getElem_ofFn] at he
+  rw [← he] at hc
+  have hjpow : (-1 : ℂ)^j = (-1 : ℂ)^(j%2) := (neg_one_pow_eq_pow_mod_two j)
+  have hnpow : (-1 : ℂ)^n = (-1 : ℂ)^(n%2) := (neg_one_pow_eq_pow_mod_two n)
+  rw [hjpow, hnpow] at hc
+  have hjmod := Nat.mod_lt j (by omega : 0 < 2)
+  have hnmod := Nat.mod_lt n (by omega : 0 < 2)
+  simp only [decode, encode, Vector.getElem_ofFn, Fin.getElem_fin, scalar]
+  rcases (show n%2=0 ∨ n%2=1 by omega) with hn | hn <;>
+    rcases (show j%2=0 ∨ j%2=1 by omega) with hj' | hj'
+  all_goals
+    simp only [hn, hj', pow_zero, pow_one, mul_one, one_mul, mul_neg_one,
+      neg_one_mul] at hc
+    have hre := congrArg Complex.re hc
+    have him := congrArg Complex.im hc
+    simp only [Complex.conj_re, Complex.conj_im, Complex.neg_re, Complex.neg_im,
+      ← GaussianInt.intCast_re, ← GaussianInt.intCast_im] at hre him
+    simp only [hn, hj', beq_self_eq_true, ↓reduceIte, Nat.reduceBEq,
+      Bool.false_eq_true, Nat.zero_ne_one, Nat.one_ne_zero]
+    apply Zsqrtd.ext <;> (dsimp; try rfl)
+    all_goals norm_cast at hre him
+    all_goals omega
+
+/-- Selecting a real or imaginary component commutes with an exact real divisor. -/
+theorem component_div (z : GaussianInt) (D : ℤ) (hD : D ≠ 0)
+    (hz : (D : GaussianInt) ∣ z) (real : Bool) :
+    (if real then z.re else z.im) / D =
+      if real then (z / (D : GaussianInt)).re else (z / (D : GaussianInt)).im := by
+  obtain ⟨q, rfl⟩ := hz
+  have hd : (D : GaussianInt) ≠ 0 := Int.cast_ne_zero.mpr hD
+  rw [mul_div_cancel_left₀ q hd]
+  cases real <;> simp [hD]
+
+theorem numerator_spec {N} (d : ℕ) (hd : 0 < d) (u v : Row N) (j : Fin N) :
+    numerator d u v j =
+      if (d-1)%2 = j.val%2 then
+        (cellNumerator d (decode (d+1) u) (decode d v) j).re
+      else (cellNumerator d (decode (d+1) u) (decode d v) j).im := by
+  have hdpar : (d-1)%2 = (d+1)%2 := by omega
+  have hdiff : (d+1)%2 ≠ d%2 := by omega
+  simp only [cellNumerator, decode_entry]
+  simp only [numerator, decode,
+    Vector.getElem_ofFn, Fin.getElem_fin, scalar, hdpar]
+  rcases (show d%2=0 ∨ d%2=1 by omega) with hm | hm <;>
+    rcases (show j.val%2=0 ∨ j.val%2=1 by omega) with hjm | hjm
+  all_goals
+    have hdp : (d+1)%2 = 1-d%2 := by omega
+    by_cases hj : j.val=0
+    · simp [hm, hdp, hj, pow_two]; ring
+    · have hjp : (j.val-1)%2 = 1-j.val%2 := by omega
+      simp [hm, hjm, hdp, hj, hjp, pow_two]; ring
+
+theorem nextLower_encode {N} (d : ℕ) (hd : 0 < d) (D : ℤ) (hD : D ≠ 0)
+    (u v : Row N)
+    (hex : ∀ j, (D : GaussianInt) ∣ cellNumerator d (decode (d+1) u) (decode d v) j) :
+    nextLower d D u v = encode (d-1) (Model.nextLower d D (decode (d+1) u) (decode d v)) := by
+  apply Vector.ext; intro j hj
+  simp only [nextLower, encode, Model.nextLower, Vector.getElem_ofFn, Fin.getElem_fin]
+  change numerator d u v ⟨j,hj⟩ / D =
+    if (d-1)%2=j%2 then (cellNumerator d (decode (d+1) u) (decode d v) ⟨j,hj⟩ / (D:GaussianInt)).re
+    else (cellNumerator d (decode (d+1) u) (decode d v) ⟨j,hj⟩ / (D:GaussianInt)).im
+  rw [numerator_spec d hd]
+  simpa only [decide_eq_true_eq] using component_div _ D hD (hex ⟨j,hj⟩) (decide ((d-1)%2=j%2))
+
+theorem scan_spec {N} (a : Rows.Row N) (n : ℕ) (hn : 0 < n) :
+    (scan a n).upper = encode n (Rows.scan a n).upper ∧
+    (scan a n).lower = encode (n-1) (Rows.scan a n).lower := by
+  constructor
+  · apply Vector.ext; intro j hj
+    simp [scan, Rows.scan, encode]
+    split_ifs <;> simp_all
+  · apply Vector.ext; intro j hj
+    have hm : ((n-1)%2 = j%2) ↔ ¬ (n%2 = j%2) := by omega
+    by_cases hp : n%2 = j%2 <;> simp [scan, Rows.scan, encode, hm, hp]
+
+theorem initialRows_spec {N} (a : Rows.Row N) (n : ℕ) (hn : 0 < n) :
+    (initialRows a n).upper = encode n (Model.initialRows a n).upper ∧
+    (initialRows a n).lower = encode (n-1) (Model.initialRows a n).lower := by
+  have hpar : (n-1)%2 ≠ n%2 := by omega
+  constructor
+  · apply Vector.ext; intro j hj
+    simp [initialRows, scan, Model.initialRows, Rows.scan, encode]
+    split_ifs <;> simp_all
+  · apply Vector.ext; intro j hj
+    by_cases hz : (Rows.entry a n).im = 0 <;>
+      by_cases hjp : n%2 = j%2
+    all_goals
+      have hm : ((n-1)%2 = j%2) ↔ ¬ (n%2 = j%2) := by omega
+      simp [initialRows, scan, Model.initialRows, Rows.scan, encode,
+        hz, hjp, hm, sub_eq_add_neg]
+
+theorem derivative_spec {N} (d : ℕ) (u : Row N) :
+    derivative u = encode d (Rows.derivative (decode (d+1) u)) := by
+  apply Vector.ext; intro j hj
+  simp only [derivative, encode, Rows.derivative, Vector.getElem_ofFn,
+    Fin.getElem_fin, decode_entry]
+  by_cases h : d%2=j%2
+  · have hs : (d+1)%2=(j+1)%2 := by omega
+    simp [h,hs,scalar]
+  · have hs : (d+1)%2≠(j+1)%2 := by omega
+    simp [h,hs,scalar]
+
+theorem repair_spec {N} (d : ℕ) (u v : Row N) :
+    (repair d u v).upper = encode (d+1) (Rows.repair d (decode (d+1) u) (decode d v)).upper ∧
+    (repair d u v).lower = encode d (Rows.repair d (decode (d+1) u) (decode d v)).lower := by
+  unfold repair
+  by_cases hz : v=Vector.replicate N 0
+  · simp only [hz, ite_true, Rows.repair, decode_eq_zero, encode_decode]
+    exact ⟨True.intro, derivative_spec d u⟩
+  · by_cases hp : entry v d=0
+    · simp only [hz, hp, ite_false, ite_true, Rows.repair, decode_eq_zero, decode_pivot]
+      simpa only [Nat.add_sub_cancel] using
+        scan_spec (Rows.reciprocal (Rows.add (decode (d+1) u) (decode d v)) (d+1)
+          (Rows.repairOffset d (decode (d+1) u) (decode d v))) (d+1) (by omega)
+    · simp only [hz,hp,ite_false,Rows.repair,decode_eq_zero,decode_pivot,encode_decode]
+      constructor <;> trivial
+
 end RouthHurwitz.ComplexRouth.Exact.Gaussian

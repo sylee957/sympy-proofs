@@ -1,119 +1,111 @@
-import SympyProofs.ComplexRouthHurwitz.Exact.GaussianInt
-import SympyProofs.ComplexRouthHurwitz.Reference.Basic
+import SympyProofs.ComplexRouthHurwitz.Exact.Model.Basic
 
-/-! Gaussian coefficient arithmetic for the direct squared-pivot table.
-All loop rows remain vectors of Gaussian integers; pivots and divisors are integers.
-Complex denotation belongs to the proofs, not this runner. -/
+/-! Compressed fraction-free complex Routh table. Loop rows store integers;
+their degree parity determines the real or imaginary interpretation. -/
 namespace RouthHurwitz.ComplexRouth.Exact.Gaussian
-open Polynomial
+open Polynomial Model
 
-namespace Rows
-abbrev Row (N : ℕ) := Vector GaussianInt N
+abbrev Row (N : ℕ) := Vector ℤ N
 
-/-- Zero extension is used only for shifted coefficient indices. -/
-def entry {N : ℕ} (a : Row N) (j : ℕ) : GaussianInt := if h : j < N then a[j] else 0
+def entry {N} (a : Row N) (j : ℕ) : ℤ := if h : j < N then a[j] else 0
 
-def zero (N : ℕ) : Row N := Vector.ofFn (fun _ => 0)
-def one (N : ℕ) : Row N := Vector.ofFn (fun j => if j.val = 0 then 1 else 0)
-def add {N : ℕ} (a b : Row N) : Row N := Vector.ofFn (fun j => a[j]+b[j])
-def scale {N : ℕ} (c : GaussianInt) (a : Row N) : Row N := Vector.ofFn (fun j => c*a[j])
-def derivative {N : ℕ} (a : Row N) : Row N :=
-  Vector.ofFn (fun j => entry a (j.val+1) * (j.val+1 : ℕ))
-def eval {N : ℕ} (a : Row N) (z : GaussianInt) : GaussianInt := ∑ j : Fin N, a[j]*z^j.val
+def scalar (real : Bool) (x : ℤ) : GaussianInt := if real then ⟨x, 0⟩ else ⟨0, x⟩
+
+def decode {N} (n : ℕ) (a : Row N) : Rows.Row N :=
+  Vector.ofFn (fun j => scalar (n%2 == j.val%2) a[j])
+
+def encode {N} (n : ℕ) (a : Rows.Row N) : Row N :=
+  Vector.ofFn (fun j => if n%2 = j.val%2 then a[j].re else a[j].im)
+
+/-- Integer numerator, with the sign of the imaginary product determined by parity. -/
+def numerator {N} (d : ℕ) (u v : Row N) (j : Fin N) : ℤ :=
+  let A := entry u (d+1)
+  let B := entry v d
+  let g := B * entry u d - A * entry v (d-1)
+  B^2*u[j] + (if d%2 = j.val%2 then -g else g)*v[j] -
+    A*B*(if j.val = 0 then 0 else entry v (j.val-1))
+
+def nextLower {N} (d : ℕ) (D : ℤ) (u v : Row N) : Row N :=
+  let A := entry u (d+1)
+  let B := entry v d
+  let g := B * entry u d - A * entry v (d-1)
+  let square := B^2
+  let product := A*B
+  Vector.ofFn (fun j => (square*u[j] +
+    (if d%2=j.val%2 then -g else g)*v[j] -
+    product*(if j.val=0 then 0 else entry v (j.val-1))) / D)
 
 structure Pair (N : ℕ) where
   upper : Row N
   lower : Row N
 
-/-- Split each coefficient into its alternating real and imaginary parts. -/
-def scan {N : ℕ} (a : Row N) (n : ℕ) : Pair N := {
-  upper := Vector.ofFn (fun j => if n%2 = j.val%2 then (a[j].re : GaussianInt) else a[j].im*(⟨0,1⟩ : GaussianInt))
-  lower := Vector.ofFn (fun j => if n%2 = j.val%2 then a[j].im*(⟨0,1⟩ : GaussianInt) else (a[j].re : GaussianInt)) }
+def scan {N} (a : Rows.Row N) (n : ℕ) : Pair N := {
+  upper := Vector.ofFn (fun j => if n%2=j.val%2 then a[j].re else a[j].im)
+  lower := Vector.ofFn (fun j => if n%2=j.val%2 then a[j].im else a[j].re) }
 
-/-- At most 2(d+1)+1 distinct points suffice for the nonzero Wronskian. -/
-def repairOffset {N : ℕ} (d : ℕ) (u v : Row N) : ℕ :=
-  let du := derivative u
-  let dv := derivative v
-  ((List.range (2*(d+1)+1)).find? (fun j : ℕ =>
-    let z := (j : GaussianInt)*(⟨0,1⟩ : GaussianInt)
-    decide (eval u z * eval dv z - eval du z * eval v z ≠ 0))).getD 0
+def initialRows {N} (a : Rows.Row N) (n : ℕ) : Pair N :=
+  let r := scan a n
+  let z := Rows.entry a n
+  { upper := r.upper
+    lower := if z.im=0 then r.lower else Vector.ofFn (fun j =>
+      z.re*r.lower[j] + (if n%2=j.val%2 then -z.im else z.im)*r.upper[j]) }
 
-/-- Shift, reverse at the current degree, and normalize. The binomial sum is
-computed directly from coefficients; the repair proof guarantees a nonzero normalization factor. -/
-def reciprocal {N : ℕ} (a : Row N) (m : ℕ) (t : ℤ) : Row N :=
-  let z := (t : GaussianInt)*(⟨0,1⟩ : GaussianInt)
-  let factor := star (eval a z)
-  Vector.ofFn (fun i => if i.val ≤ m then
-    (∑ j : Fin N, a[j] * (j.val.choose (m-i.val) : GaussianInt) * z^(j.val-(m-i.val))) * factor
-    else 0)
+def derivative {N} (u : Row N) : Row N :=
+  Vector.ofFn (fun j => entry u (j.val+1) * (j.val+1 : ℕ))
 
-def repair {N : ℕ} (d : ℕ) (u v : Row N) : Pair N :=
-  if v = zero N then { upper := u, lower := derivative u }
-  else if (entry v d).re = 0 then
-    scan (reciprocal (add u v) (d+1) (repairOffset d u v)) (d+1)
+/-- Ordinary and auxiliary steps keep integer coordinates. A reciprocal repair
+uses Gaussian coordinates temporarily, then immediately packs its two rows. -/
+def repair {N} (d : ℕ) (u v : Row N) : Pair N :=
+  if v = Vector.replicate N 0 then { upper := u, lower := derivative u }
+  else if entry v d = 0 then
+    let upper := decode (d+1) u
+    let lower := decode d v
+    let offset := Rows.repairOffset d upper lower
+    let combined := Rows.add upper lower
+    scan (Rows.reciprocal combined (d+1) offset) (d+1)
   else { upper := u, lower := v }
-end Rows
-
 
 structure Result (N : ℕ) where
-  rows : List (Rows.Row N)
+  rows : List (Row N)
   pivots : List ℤ
   rightRoots : ℕ
   axisRoots : ℕ
   stable : Bool
 
-/-- A Gaussian unit makes the leading real part positive without coefficient growth. -/
-def phase (z : GaussianInt) : GaussianInt :=
-  if z.re = 0 then (if z.im < 0 then (⟨0,1⟩ : GaussianInt) else -(⟨0,1⟩ : GaussianInt))
-  else if z.re < 0 then -1 else 1
-
-/-- The degree-zero first elimination; a real leading coefficient needs only a scan. -/
-def initialRows {N} (a : Rows.Row N) (n : ℕ) : Rows.Pair N :=
-  let r := Rows.scan a n
-  let z := Rows.entry a n
-  { upper := r.upper, lower := if z.im = 0 then r.lower else
-      Vector.ofFn (fun j => (z.re : GaussianInt)*r.lower[j] - (z.im : GaussianInt)*(⟨0,1⟩ : GaussianInt)*r.upper[j]) }
-
-def initialDivisor {N} (a : Rows.Row N) (n : ℕ) : ℤ :=
-  let z := Rows.entry a n
-  if z.im = 0 then 1 else z.re
-
-/-- Coordinatewise pseudo-remainder divided exactly by the stored divisor. -/
-def nextLower {N : ℕ} (d : ℕ) (D : ℤ) (u v : Rows.Row N) : Rows.Row N :=
-  let A := (Rows.entry u (d+1)).re
-  let B := (Rows.entry v d).re
-  let γ := (B:GaussianInt)*Rows.entry u d - (A:GaussianInt)*Rows.entry v (d-1)
-  Vector.ofFn (fun j => ((B:GaussianInt)^2*u[j] - γ*v[j] - (A:GaussianInt)*(B:GaussianInt)*
-      (if j.val = 0 then 0 else Rows.entry v (j.val-1))) / (D:GaussianInt))
-
-noncomputable def run (p : GaussianInt[X]) : Result (p.natDegree+1) := Id.run do
+/-- The table stores one integer per coordinate. For row pair k, the upper
+pattern is n-k and the lower pattern n-k-1. Constants need no table steps. -/
+def run (p : GaussianInt[X]) : Result (p.natDegree+1) := Id.run do
   let n := p.natDegree
-  let unit := phase p.leadingCoeff
-  let coefficients := Vector.ofFn (fun j : Fin (n+1) => unit * p.coeff j.val)
-  if n = 0 then
-    return { rows := [coefficients], pivots := [], rightRoots := 0, axisRoots := 0, stable := true }
+  let coefficients := Vector.ofFn (fun j : Fin (n+1) => phase p.leadingCoeff * p.coeff j.val)
+  if n=0 then
+    return { rows := [], pivots := [], rightRoots := 0, axisRoots := 0, stable := true }
   else
-    let initial := initialRows coefficients n
+    let initial := scan coefficients n
     let mut upper := initial.upper
     let mut lower := initial.lower
     let mut rows := []
     let mut pivots : List ℤ := []
     let mut count := 0
     let mut auxiliary : Option Auxiliary := none
-    let mut divisor : ℤ := initialDivisor coefficients n
+    let leading := coefficients[n]
+    let mut divisor : ℤ := 1
+    if leading.im ≠ 0 then
+      lower := Vector.ofFn (fun j => leading.re*lower[j] +
+        (if n%2=j.val%2 then -leading.im else leading.im)*upper[j])
+      divisor := leading.re
     for k in List.range n do
       let d := n-(k+1)
-      auxiliary := if lower = Rows.zero (n+1) ∧ auxiliary.isNone then
+      auxiliary := if lower = Vector.replicate (n+1) 0 ∧ auxiliary.isNone then
         some { degree := d+1, rightBefore := count } else auxiliary
-      divisor := if (Rows.entry lower d).re = 0 then 1 else divisor
-      let r := Rows.repair d upper lower
-      rows := rows ++ [r.upper, r.lower]
-      let pivot := (Rows.entry r.lower d).re
+      divisor := if entry lower d=0 then 1 else divisor
+      let r := repair d upper lower
+      rows := rows ++ [r.upper,r.lower]
+      let pivot := entry r.lower d
       pivots := pivots ++ [pivot]
-      count := count + if (Rows.entry r.upper (d+1)).re < 0 ↔ pivot < 0 then 0 else 1
-      if d = 0 then
-        upper := Rows.one (n+1)
-        lower := Rows.zero (n+1)
+      count := count + if entry r.upper (d+1)<0 ↔ pivot<0 then 0 else 1
+      if d=0 then
+        upper := Vector.ofFn (fun j => if j.val=0 then 1 else 0)
+        lower := Vector.replicate (n+1) 0
       else
         upper := r.lower
         lower := nextLower d divisor r.upper r.lower
@@ -121,7 +113,7 @@ noncomputable def run (p : GaussianInt[X]) : Result (p.natDegree+1) := Id.run do
     let axis := axisTotal auxiliary count
     return {
       rows := rows, pivots := pivots, rightRoots := count, axisRoots := axis,
-      stable := decide (count = 0 ∧ axis = 0) }
+      stable := decide (count=0 ∧ axis=0) }
 
 
 end RouthHurwitz.ComplexRouth.Exact.Gaussian

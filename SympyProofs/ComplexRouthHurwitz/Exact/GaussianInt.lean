@@ -4,7 +4,8 @@ import Mathlib.Algebra.Polynomial.Degree.Lemmas
 
 /-! Gaussian integer coefficients with their complex denotation.
 Integer real parts supply pivot comparisons; the Gaussian ring is not ordered.
-The runner and its capstones are in `Exact.Basic` and `Exact.Correctness`. -/
+The integer-row runner and its capstones are in `Exact.Basic` and
+`Exact.Correctness`; `Exact.Model` supplies the Gaussian proof model. -/
 namespace RouthHurwitz.ComplexRouth.Exact.Gaussian
 open Polynomial
 
