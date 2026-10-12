@@ -219,7 +219,7 @@ theorem computeJordanKrylovBasis_correct
       · apply computeJordanKrylovBasis_correct_of_initial_yield K A f V hops hf hm hgenerating hranks
         exact algorithmOuterIteration_initial_noEarly K A f m k pending hearly hcolumns
 
-/-- Algorithm 1's array supplies Algorithm 2's rank-indexed input by lookup. -/
+/-- Algorithm 1 supplies Algorithm 2's rank-indexed input directly. -/
 theorem computeJordanKrylovBasis_fromPrimaryGenerators_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n s : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (e : Fin s → (Fin n → K))
@@ -228,7 +228,7 @@ theorem computeJordanKrylovBasis_fromPrimaryGenerators_correct
     (p : Fin s → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
     (hops : PolynomialOperations.IsCorrect K) :
     IsJordanKrylovBasis K A (powerKernel K A f (multiplicity f (minpoly K A)))
-      (computeJordanKrylovBasis K A f (fun ℓ => (computePrimaryGenerators K A e f p)[ℓ]?.getD [])
+      (computeJordanKrylovBasis K A f (computePrimaryGenerators K A e f p)
         (multiplicity f (minpoly K A)) (multiplicity f A.charpoly) : Set (Fin n → K)) := by
   apply computeJordanKrylovBasis_correct K A f _ hops hf hm rfl
   · rw [computePrimaryGenerators_inputSet_eq K hops A e f hf hm p

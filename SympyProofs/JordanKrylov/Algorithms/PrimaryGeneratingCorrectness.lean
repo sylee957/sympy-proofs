@@ -16,7 +16,7 @@ theorem computePrimaryGenerators_correct (K : Subfield ℂ) [DecidableEq K]
     (e : Fin m → (Fin n → K)) (he : Submodule.span K (Set.range e) = ⊤) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i)) :
     IsKrylovGeneratingSet K A (powerKernel K A f (multiplicity f (minpoly K A)))
-      {v | v ∈ (computePrimaryGenerators K A e f p).toList.flatten} := by
+      {v | ∃ ℓ, v ∈ computePrimaryGenerators K A e f p ℓ} := by
   rw [computePrimaryGenerators_eq K hops A e f hf hm p
     (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)]
   have hp' : p = fun i => minimalAnnihilatingPolynomial K A (e i) := funext hp
@@ -30,7 +30,7 @@ theorem computePrimaryGenerators_ranks (K : Subfield ℂ) [DecidableEq K]
     (A : Matrix (Fin n) (Fin n) K) (e : Fin m → (Fin n → K))
     (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
-    (ℓ : ℕ) (v : Fin n → K) (hv : v ∈ (computePrimaryGenerators K A e f p)[ℓ]?.getD []) :
+    (ℓ : ℕ) (v : Fin n → K) (hv : v ∈ computePrimaryGenerators K A e f p ℓ) :
     vectorRank K A f v = ℓ := by
   rw [mem_computePrimaryGenerators K hops A e f hf hm p
     (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)] at hv
