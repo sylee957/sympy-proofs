@@ -43,7 +43,7 @@ def candidateIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperation
 
 theorem candidateIteration_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
@@ -93,7 +93,7 @@ theorem candidateIteration_correct
       exact h.discard K A f _ D v todo pending hbzero
 theorem candidateLayer_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n))

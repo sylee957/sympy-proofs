@@ -210,7 +210,7 @@ theorem boundedRankSearch_correct {K : Type} [Field K] [DecidableEq K] {n : ℕ}
 
 theorem applyMatrix_iterate_eq_pow_mulVec
     (K : Subfield ℂ) [PolynomialOperations K] {n : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K) (j : ℕ) :
     (PolynomialOperations.applyMatrix f A)^[j] v = (aeval A f)^j *ᵥ v := by
   induction j with
@@ -221,7 +221,7 @@ theorem applyMatrix_iterate_eq_pow_mulVec
 
 theorem applyMatrix_iterate_ne_zero_of_lt_vectorRank
     (K : Subfield ℂ) [PolynomialOperations K] {n j : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K)
     (hv : v ≠ 0)
     (hj : j < vectorRank K A f v) :
@@ -235,7 +235,7 @@ theorem applyMatrix_iterate_ne_zero_of_lt_vectorRank
 vector. In particular, its positive-rank guard cannot drop a nonzero residual. -/
 theorem residualRankSearch_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n k : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K)
     (hv : v ≠ 0) (hk : v ∈ powerKernel K A f k) :
     (Id.run do
@@ -502,7 +502,7 @@ theorem coefficientSupport_sup_eq_natDegree {K : Type*} [Field K] (f : K[X]) :
 kernel bound and the exponent in the paired-column relation by one. -/
 theorem lowerPairedTable_invariant
     (K : Subfield ℂ) [PolynomialOperations K] {n k : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hk : 1 ≤ k)
     (D : Array (Fin n × PairedColumn K n))
     (hech : PairedEchelon D.toList)

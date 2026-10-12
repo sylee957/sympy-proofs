@@ -14,6 +14,17 @@ namespace SympyProofs.JordanKrylov
 open Polynomial Matrix
 open scoped BigOperators
 
+/-- The cofactor after removing the full multiplicity of `f` from `p`. -/
+noncomputable def primaryCofactor (K : Subfield ℂ) (f p : K[X]) : K[X] :=
+  p / f ^ multiplicity f p
+
+/-- The cofactor-vector layer `𝓥^(ℓ)`. The zero layer is empty. -/
+noncomputable def primaryGeneratorLayer (K : Subfield ℂ) [DecidableEq K] {n m : ℕ}
+    (A : Matrix (Fin n) (Fin n) K) (e : Fin m → (Fin n → K))
+    (f : K[X]) (p : Fin m → K[X]) (ℓ : ℕ) : Finset (Fin n → K) :=
+  (Finset.univ.filter (fun i => 0 < ℓ ∧ multiplicity f (p i) = ℓ)).image
+    (fun i => aeval A (primaryCofactor K f (p i)) *ᵥ e i)
+
 /-- Equation (10), factorization: extract the full multiplicity of f. -/
 theorem minimalAnnihilatingPolynomial_exists_primary_factor (K : Subfield ℂ) {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (u : Fin n → K) :

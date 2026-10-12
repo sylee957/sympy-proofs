@@ -189,7 +189,7 @@ theorem EliminationTableInvariant.accept
 
 theorem EliminationTableInvariant.lower
     (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hk : 1 ≤ k)
     (B : Set (Fin n → K)) (D : Array (Fin n × PairedColumn K n))
     (h : EliminationTableInvariant K A f ℓbar (k + 1) B D) :
@@ -332,7 +332,7 @@ structure EliminationWorkInvariant (K : Subfield ℂ) {n : ℕ}
 /-- After a layer is exhausted, lower the table and extract the next queue. -/
 theorem EliminationWorkInvariant.next_layer
     (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hk : 1 ≤ k)
     (B : Set (Fin n → K)) (D : Array (Fin n × PairedColumn K n))
     (pending : ℕ → List (PairedColumn K n))

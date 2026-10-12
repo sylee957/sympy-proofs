@@ -7,6 +7,7 @@ import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisOuter
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovElimination
 import SympyProofs.JordanKrylov.Algorithms.PolynomialOperations
 import SympyProofs.JordanKrylov.Algorithms.PrimaryGenerating
+import SympyProofs.JordanKrylov.Algorithms.PrimaryGeneratingCorrectness
 
 /-!
 Jordan–Krylov algorithms, their operation interfaces, and correctness proofs.

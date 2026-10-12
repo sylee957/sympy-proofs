@@ -20,7 +20,7 @@ def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOpera
 
  theorem remainingLayers_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (k : ℕ) (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (hle : k + 1 ≤ ℓbar)
@@ -110,7 +110,7 @@ theorem pendingSpace_initialPending (K : Subfield ℂ) {n : ℕ}
 theorem initialPending_valid
     (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
       (algorithmInputSet V ℓbar))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ)
@@ -145,7 +145,7 @@ theorem EliminationTableInvariant.empty
 theorem initial_workInvariant
     (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
       (algorithmInputSet V ℓbar))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ) :

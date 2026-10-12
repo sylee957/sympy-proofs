@@ -19,7 +19,7 @@ class PolynomialOperations (K : Type*) [Field K] where
   applyMatrix : {n : ℕ} → K[X] → Matrix (Fin n) (Fin n) K → (Fin n → K) → (Fin n → K)
 
 /-- Specifications required to prove Algorithm 1 correct. -/
-structure PolynomialOperations.IsCorrect {K : Type*} [Field K]
+structure PolynomialOperations.IsCorrect (K : Type*) [Field K]
     [PolynomialOperations K] : Prop where
   pow_eq : ∀ (p : K[X]) (k : ℕ), PolynomialOperations.pow p k = p ^ k
   multiplicity_eq : ∀ (f p : K[X]), 0 < f.natDegree → f.Monic → p ≠ 0 →

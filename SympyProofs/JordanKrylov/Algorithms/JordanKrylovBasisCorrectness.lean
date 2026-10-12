@@ -139,7 +139,7 @@ theorem outerLoop_eq_ordinary_of_initial_yield
 theorem computeJordanKrylovBasis_correct_of_initial_yield
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n k m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (hf : Irreducible f) (hm : f.Monic)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f (k + 1))
       (algorithmInputSet V (k + 1)))
@@ -173,7 +173,7 @@ a generating family with the prescribed ranks and characteristic multiplicity. -
 theorem computeJordanKrylovBasis_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
-    (hops : PolynomialOperations.IsCorrect (K := K))
+    (hops : PolynomialOperations.IsCorrect K)
     (hf : Irreducible f) (hm : f.Monic)
     (hmultiplicity : m = multiplicity f A.charpoly)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
