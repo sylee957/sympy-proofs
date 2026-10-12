@@ -18,6 +18,25 @@ theorem minimalAnnihilatingPolynomial_dvd_minpoly (K : Subfield ℂ) {n : ℕ}
   apply (minimalAnnihilatingPolynomial_dvd_iff K A u _).mpr
   simp [minpoly.aeval]
 
+/-- An annihilator of a spanning family annihilates the whole matrix. -/
+theorem minpoly_dvd_iff_spanning_annihilators_dvd (K : Subfield ℂ) {n : ℕ} {ι : Type*}
+    (A : Matrix (Fin n) (Fin n) K) (e : ι → (Fin n → K))
+    (he : Submodule.span K (Set.range e) = ⊤) (p : K[X]) :
+    minpoly K A ∣ p ↔ ∀ i, minimalAnnihilatingPolynomial K A (e i) ∣ p := by
+  constructor
+  · intro h i
+    exact (minimalAnnihilatingPolynomial_dvd_minpoly K A (e i)).trans h
+  · intro h
+    apply minpoly.dvd K A
+    have hk : Submodule.span K (Set.range e) ≤ LinearMap.ker (aeval A p).mulVecLin := by
+      apply Submodule.span_le.mpr
+      rintro _ ⟨i, rfl⟩
+      exact (minimalAnnihilatingPolynomial_dvd_iff K A (e i) p).mp (h i)
+    rw [he] at hk
+    apply Matrix.ext_iff_mulVec.mpr
+    intro v
+    simpa using hk (Submodule.mem_top : v ∈ (⊤ : Submodule K (Fin n → K)))
+
 /-- A polynomial kills the matrix exactly when it kills every basis vector. -/
 theorem minpoly_dvd_iff_basis_annihilators_dvd (K : Subfield ℂ) {n : ℕ} {ι : Type*}
     (A : Matrix (Fin n) (Fin n) K) (e : Module.Basis ι K (Fin n → K)) (p : K[X]) :
