@@ -13,25 +13,25 @@ namespace SympyProofs.JordanKrylov
 open Polynomial Matrix
 
 /-- The generators in the positive layers inspected by Algorithm 2. -/
-def algorithmInputSet {K : Type*} {n : ℕ} (V : ℕ → List (Vec K n))
-    (ℓbar : ℕ) : Set (Vec K n) := {v | ∃ ℓ, 1 ≤ ℓ ∧ ℓ ≤ ℓbar ∧ v ∈ V ℓ}
+def algorithmInputSet {K : Type*} {n : ℕ} (V : ℕ → List (Fin n → K))
+    (ℓbar : ℕ) : Set (Fin n → K) := {v | ∃ ℓ, 1 ≤ ℓ ∧ ℓ ≤ ℓbar ∧ v ∈ V ℓ}
 
 /-- The generation precondition puts every processed vector in the primary kernel. -/
 theorem algorithmInput_mem_powerKernel
     (K : Subfield ℂ) {n ℓbar : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
       (algorithmInputSet V ℓbar))
-    {ℓ : ℕ} (hpos : 1 ≤ ℓ) (hle : ℓ ≤ ℓbar) {v : Vec K n} (hv : v ∈ V ℓ) :
+    {ℓ : ℕ} (hpos : 1 ≤ ℓ) (hle : ℓ ≤ ℓbar) {v : Fin n → K} (hv : v ∈ V ℓ) :
     v ∈ powerKernel K A f ℓbar :=
   hgenerating.subset K A _ _ ⟨ℓ, hpos, hle, hv⟩
 
 /-- Under the paper's rank convention all processed input vectors are nonzero. -/
 theorem algorithmInput_ne_zero
     (K : Subfield ℂ) {n ℓbar : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ)
-    {ℓ : ℕ} (hpos : 1 ≤ ℓ) (hle : ℓ ≤ ℓbar) {v : Vec K n} (hv : v ∈ V ℓ) :
+    {ℓ : ℕ} (hpos : 1 ≤ ℓ) (hle : ℓ ≤ ℓbar) {v : Fin n → K} (hv : v ∈ V ℓ) :
     v ≠ 0 := by
   intro hz
   have hr := hranks ℓ hpos hle v hv
@@ -73,7 +73,7 @@ theorem reducePairedColumn_bottom_eq_zero_at_rank_one
     (hD : ∀ iw ∈ D.toList, iw.2.top = iw.2.bottom)
     (hv : v.top = v.bottom) (hz : (reducePairedColumn D v).top = 0) :
     (reducePairedColumn D v).bottom = 0 := by
-  have hr := reducePairedColumn_top_eq (LinearMap.id : Module.End K (Vec K n)) D v hD hv
+  have hr := reducePairedColumn_top_eq (LinearMap.id : Module.End K (Fin n → K)) D v hD hv
   exact hr.symm.trans hz
 
 /-- Case 1: a nonzero upper remainder has exactly the current rank. -/
@@ -100,8 +100,8 @@ theorem reducePairedColumn_insert_independent
     (K : Subfield ℂ) {n ℓbar ℓ : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (hℓ : 1 ≤ ℓ) (hle : ℓ ≤ ℓbar)
-    (B : Set (Vec K n)) (hB : IsJordanKrylovIndependent K A B)
-    (hBker : B ⊆ (powerKernel K A f ℓbar : Set (Vec K n)))
+    (B : Set (Fin n → K)) (hB : IsJordanKrylovIndependent K A B)
+    (hBker : B ⊆ (powerKernel K A f ℓbar : Set (Fin n → K)))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hech : PairedEchelon D.toList)
     (hspan : Submodule.span K {w | ∃ iw ∈ D.toList, w = iw.2.top} =
@@ -126,10 +126,10 @@ theorem reducePairedColumn_insert_independent
 space after adjoining the already accepted invariant subspace. -/
 theorem krylovSpace_sup_eq_of_sub_mem
     (K : Subfield ℂ) {n : ℕ} (A : Matrix (Fin n) (Fin n) K)
-    (W : Submodule K (Vec K n)) (hW : ∀ x ∈ W, A *ᵥ x ∈ W)
-    (v r : Vec K n) (hvr : v - r ∈ W) :
+    (W : Submodule K (Fin n → K)) (hW : ∀ x ∈ W, A *ᵥ x ∈ W)
+    (v r : Fin n → K) (hvr : v - r ∈ W) :
     W ⊔ krylovSpace K A v = W ⊔ krylovSpace K A r := by
-  have hinv (u : Vec K n) (x : Vec K n) (hx : x ∈ W ⊔ krylovSpace K A u) :
+  have hinv (u : Fin n → K) (x : Fin n → K) (hx : x ∈ W ⊔ krylovSpace K A u) :
       A *ᵥ x ∈ W ⊔ krylovSpace K A u := by
     obtain ⟨a, ha, b, hb, rfl⟩ := Submodule.mem_sup.mp hx
     rw [Matrix.mulVec_add]
@@ -151,7 +151,7 @@ theorem krylovSpace_sup_eq_of_sub_mem
 its remainder is accepted, requeued, or discarded. -/
 theorem reducePairedColumn_preserves_generating_space
     (K : Subfield ℂ) {n : ℕ} (A : Matrix (Fin n) (Fin n) K)
-    (W : Submodule K (Vec K n)) (hW : ∀ x ∈ W, A *ᵥ x ∈ W)
+    (W : Submodule K (Fin n → K)) (hW : ∀ x ∈ W, A *ᵥ x ∈ W)
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hD : ∀ iw ∈ D.toList, iw.2.bottom ∈ W) :
     W ⊔ krylovSpace K A v.bottom =
@@ -161,10 +161,10 @@ theorem reducePairedColumn_preserves_generating_space
 
 /-- State of the bounded scan after any number of iterations. -/
 theorem boundedRankSearch_fold_state {K : Type} [Field K] [DecidableEq K] {n : ℕ}
-    (F : Vec K n → Vec K n) (v : Vec K n) (r : ℕ) (hr : 0 < r)
+    (F : (Fin n → K) → (Fin n → K)) (v : Fin n → K) (r : ℕ) (hr : 0 < r)
     (hkill : F^[r] v = 0) (hbefore : ∀ j < r, F^[j] v ≠ 0) (k : ℕ) :
     (List.range k).foldl
-      (fun (s : ℕ × Vec K n × Vec K n) j =>
+      (fun (s : ℕ × (Fin n → K) × (Fin n → K)) j =>
         if s.1 = 0 then
           if F s.2.2 = 0 then (j + 1, s.2.2, s.2.2)
           else (s.1, s.2.1, F s.2.2)
@@ -189,7 +189,7 @@ theorem boundedRankSearch_fold_state {K : Type} [Field K] [DecidableEq K] {n : �
       simp [hk, hs, Nat.ne_of_gt hr]
 /-- Once the bound reaches the first vanishing iterate, the scan has found it. -/
 theorem boundedRankSearch_correct {K : Type} [Field K] [DecidableEq K] {n : ℕ}
-    (F : Vec K n → Vec K n) (v : Vec K n) (r k : ℕ) (hr : 0 < r) (hk : r ≤ k)
+    (F : (Fin n → K) → (Fin n → K)) (v : Fin n → K) (r k : ℕ) (hr : 0 < r) (hk : r ≤ k)
     (hkill : F^[r] v = 0) (hbefore : ∀ j < r, F^[j] v ≠ 0) :
     (Id.run do
       let mut rank : ℕ := 0
@@ -211,7 +211,7 @@ theorem boundedRankSearch_correct {K : Type} [Field K] [DecidableEq K] {n : ℕ}
 theorem applyMatrix_iterate_eq_pow_mulVec
     (K : Subfield ℂ) [PolynomialOperations K] {n : ℕ}
     (hops : PolynomialOperations.IsCorrect (K := K))
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Vec K n) (j : ℕ) :
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K) (j : ℕ) :
     (PolynomialOperations.applyMatrix f A)^[j] v = (aeval A f)^j *ᵥ v := by
   induction j with
   | zero => simp
@@ -222,7 +222,7 @@ theorem applyMatrix_iterate_eq_pow_mulVec
 theorem applyMatrix_iterate_ne_zero_of_lt_vectorRank
     (K : Subfield ℂ) [PolynomialOperations K] {n j : ℕ}
     (hops : PolynomialOperations.IsCorrect (K := K))
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Vec K n)
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K)
     (hv : v ≠ 0)
     (hj : j < vectorRank K A f v) :
     (PolynomialOperations.applyMatrix f A)^[j] v ≠ 0 := by
@@ -236,7 +236,7 @@ vector. In particular, its positive-rank guard cannot drop a nonzero residual. -
 theorem residualRankSearch_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n k : ℕ}
     (hops : PolynomialOperations.IsCorrect (K := K))
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Vec K n)
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K)
     (hv : v ≠ 0) (hk : v ∈ powerKernel K A f k) :
     (Id.run do
       let F := PolynomialOperations.applyMatrix f A
@@ -278,7 +278,7 @@ theorem iterate_loop_eq {α : Type} (F : α → α) (v : α) (k : ℕ) :
     exact (Function.iterate_succ_apply' F k v).symm
 
  theorem pairedLayer_loop_eq {K : Type} {n : ℕ}
-    (F : Vec K n → Vec K n) (vs : List (Vec K n)) (k : ℕ) :
+    (F : (Fin n → K) → (Fin n → K)) (vs : List (Fin n → K)) (k : ℕ) :
     (Id.run do
       let mut layer : List (PairedColumn K n) := []
       for v in vs do
@@ -288,12 +288,12 @@ theorem iterate_loop_eq {α : Type} (F : α → α) (v : α) (k : ℕ) :
         layer := layer ++ [⟨top, v⟩]
       return layer) = vs.map (fun v => ⟨F^[k] v, v⟩) := by
   simp only [List.forIn_pure_yield_eq_foldl, Id.run, pure_bind]
-  have hp (v : Vec K n) : (List.range k).foldl (fun b _ => F b) v = F^[k] v := by
+  have hp (v : Fin n → K) : (List.range k).foldl (fun b _ => F b) v = F^[k] v := by
     have h := iterate_loop_eq F v k
     simp only [List.forIn_pure_yield_eq_foldl, Id.run, pure_bind] at h
     exact h
   simp only [hp]
-  have hfold (xs : List (Vec K n)) (acc : List (PairedColumn K n)) :
+  have hfold (xs : List (Fin n → K)) (acc : List (PairedColumn K n)) :
       xs.foldl (fun b a => b ++ [⟨F^[k] a, a⟩]) acc =
         acc ++ xs.map (fun a => ⟨F^[k] a, a⟩) := by
     induction xs generalizing acc with
@@ -316,7 +316,7 @@ theorem layerUpdates_fold_apply {α : Type} (layer : ℕ → α)
 
 /-- Initialization builds exactly the paired columns of each positive input layer. -/
 theorem initializePending_loop_eq {K : Type} {n : ℕ}
-    (F : Vec K n → Vec K n) (V : ℕ → List (Vec K n)) (ℓbar ℓ : ℕ) :
+    (F : (Fin n → K) → (Fin n → K)) (V : ℕ → List (Fin n → K)) (ℓbar ℓ : ℕ) :
     (Id.run do
       let mut pending : ℕ → List (PairedColumn K n) := fun _ => []
       for k in (List.range ℓbar).reverse do
@@ -354,8 +354,8 @@ theorem initializePending_loop_eq {K : Type} {n : ℕ}
 
 theorem insertKrylovColumns_fold_invariant
     {K : Type} [Field K] [DecidableEq K] {n : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (F : Module.End K (Vec K n))
-    (W : Submodule K (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (F : Module.End K (Fin n → K))
+    (W : Submodule K (Fin n → K))
     (hcomm : ∀ x, F (A *ᵥ x) = A *ᵥ F x)
     (hstable : ∀ x ∈ W, A *ᵥ x ∈ W)
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
@@ -383,8 +383,8 @@ theorem insertKrylovColumns_fold_invariant
 
  theorem insertKrylovColumns_loop_invariant
     {K : Type} [Field K] [DecidableEq K] {n : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (F : Module.End K (Vec K n))
-    (W : Submodule K (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (F : Module.End K (Fin n → K))
+    (W : Submodule K (Fin n → K))
     (hcomm : ∀ x, F (A *ᵥ x) = A *ᵥ F x)
     (hstable : ∀ x ∈ W, A *ᵥ x ∈ W)
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
@@ -406,7 +406,7 @@ theorem insertKrylovColumns_fold_invariant
   simp only [List.forIn_pure_yield_eq_foldl, Id.run, pure_bind]
   exact insertKrylovColumns_fold_invariant A F W hcomm hstable D v hech hD hDW hv hvW _
 theorem truncatedKrylovSpace_succ (K : Subfield ℂ) {n : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (v : Vec K n) (d : ℕ) :
+    (A : Matrix (Fin n) (Fin n) K) (v : Fin n → K) (d : ℕ) :
     truncatedKrylovSpace K A v (d + 1) =
       truncatedKrylovSpace K A v d ⊔ Submodule.span K {A^d *ᵥ v} := by
   unfold truncatedKrylovSpace
@@ -464,7 +464,7 @@ theorem insertKrylovColumns_loop_span
 /-- A terminal vector needs only degree(f) Krylov columns to span its cyclic space. -/
 theorem truncatedKrylovSpace_eq_of_annihilated
     (K : Subfield ℂ) {n : ℕ} (A : Matrix (Fin n) (Fin n) K)
-    (f : K[X]) (hm : f.Monic) (v : Vec K n) (hv : aeval A f *ᵥ v = 0) :
+    (f : K[X]) (hm : f.Monic) (v : Fin n → K) (hv : aeval A f *ᵥ v = 0) :
     truncatedKrylovSpace K A v f.natDegree = krylovSpace K A v := by
   have h := krylovSpace_eq_sup K A f hm v
   simpa only [hv, krylovSpace_zero, sup_bot_eq] using h.symm
@@ -473,13 +473,13 @@ theorem truncatedKrylovSpace_eq_of_annihilated
 /-- Under the input contract, Algorithm 2's highest-layer early return is a basis. -/
 theorem algorithmInput_early_return
     (K : Subfield ℂ) {n ℓbar m : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hf : Irreducible f) (hm : f.Monic)
     (hmultiplicity : m = multiplicity f A.charpoly)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
       (algorithmInputSet V ℓbar))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ)
-    (hpos : 1 ≤ ℓbar) (hearly : ℓbar = m) {v : Vec K n} (hv : v ∈ V ℓbar) :
+    (hpos : 1 ≤ ℓbar) (hearly : ℓbar = m) {v : Fin n → K} (hv : v ∈ V ℓbar) :
     IsJordanKrylovBasis K A (powerKernel K A f ℓbar) {v} := by
   apply singleton_isJordanKrylovBasis_of_rank_eq_charpoly_multiplicity
     K A f hf hm v

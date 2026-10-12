@@ -1,4 +1,3 @@
-import SympyProofs.JordanKrylov.Mathematics.Vec
 import SympyProofs.JordanKrylov.Mathematics.PrimaryGeneratingSet
 
 /-! # Operations supplied to the primary generating algorithm
@@ -10,11 +9,14 @@ open Polynomial Matrix
 
 /-- Polynomial operations used by Algorithm 1, without correctness proof inputs. -/
 class PolynomialOperations (K : Type*) [Field K] where
+  /-- `pow p k` computes the polynomial power `p ^ k`. -/
   pow : K[X] → ℕ → K[X]
+  /-- Multiplicity of monic, positive-degree `f` in nonzero `p`. -/
   multiplicity : K[X] → K[X] → ℕ
-  /-- Arguments are the divisor followed by the dividend. -/
+  /-- `divMonic q p` returns `p /ₘ q` for monic `q`; divisor first. -/
   divMonic : K[X] → K[X] → K[X]
-  applyMatrix : {n : ℕ} → K[X] → Matrix (Fin n) (Fin n) K → (Vec K n) → (Vec K n)
+  /-- `applyMatrix p A u` computes `p(A)u`. -/
+  applyMatrix : {n : ℕ} → K[X] → Matrix (Fin n) (Fin n) K → (Fin n → K) → (Fin n → K)
 
 /-- Specifications required to prove Algorithm 1 correct. -/
 structure PolynomialOperations.IsCorrect {K : Type*} [Field K]
@@ -23,7 +25,7 @@ structure PolynomialOperations.IsCorrect {K : Type*} [Field K]
   multiplicity_eq : ∀ (f p : K[X]), 0 < f.natDegree → f.Monic → p ≠ 0 →
     PolynomialOperations.multiplicity f p = _root_.multiplicity f p
   divMonic_eq : ∀ (q p : K[X]), q.Monic → PolynomialOperations.divMonic q p = p /ₘ q
-  applyMatrix_eq : ∀ {n} (p : K[X]) (A : Matrix (Fin n) (Fin n) K) (u : Vec K n),
+  applyMatrix_eq : ∀ {n} (p : K[X]) (A : Matrix (Fin n) (Fin n) K) (u : Fin n → K),
     PolynomialOperations.applyMatrix p A u = aeval A p *ᵥ u
 
 end SympyProofs.JordanKrylov

@@ -9,8 +9,8 @@ namespace SympyProofs.JordanKrylov
 
 /-- A column of the paper's stacked matrix `[D'; D]`. -/
 structure PairedColumn (K : Type*) (n : ℕ) where
-  top : Vec K n
-  bottom : Vec K n
+  top : Fin n → K
+  bottom : Fin n → K
 
 /-- Subtract a multiple of a paired column from both halves. -/
 def PairedColumn.subMul {K : Type*} [Field K] {n : ℕ}
@@ -40,7 +40,7 @@ def insertPairedColumn {K : Type*} [Field K] [DecidableEq K] {n : ℕ}
 
 /-- Simultaneous subtraction preserves the relation between the halves. -/
 theorem PairedColumn.subMul_top_eq {K : Type*} [Field K] {n : ℕ}
-    (F : Module.End K (Vec K n)) (v w : PairedColumn K n) (c : K)
+    (F : Module.End K (Fin n → K)) (v w : PairedColumn K n) (c : K)
     (hv : v.top = F v.bottom) (hw : w.top = F w.bottom) :
     (v.subMul w c).top = F (v.subMul w c).bottom := by
   simp [subMul, hv, hw]
@@ -48,7 +48,7 @@ theorem PairedColumn.subMul_top_eq {K : Type*} [Field K] {n : ℕ}
 /-- Remark 4: a vanishing upper remainder certifies that its lower half
 lies in the kernel of the map relating the two halves. -/
 theorem PairedColumn.bottom_mem_ker {K : Type*} [Field K] {n : ℕ}
-    (F : Module.End K (Vec K n)) (r : PairedColumn K n)
+    (F : Module.End K (Fin n → K)) (r : PairedColumn K n)
     (hr : r.top = F r.bottom) (hz : r.top = 0) :
     r.bottom ∈ LinearMap.ker F := by
   exact hr.symm.trans hz
@@ -62,7 +62,7 @@ theorem reducePairedColumn_eq_foldl {K : Type*} [Field K] {n : ℕ}
 
 /-- The relation between upper and lower blocks survives the entire reduction. -/
 theorem reducePairedColumn_top_eq {K : Type*} [Field K] {n : ℕ}
-    (F : Module.End K (Vec K n))
+    (F : Module.End K (Fin n → K))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hD : ∀ iw ∈ D.toList, iw.2.top = F iw.2.bottom)
     (hv : v.top = F v.bottom) :
@@ -81,7 +81,7 @@ theorem reducePairedColumn_top_eq {K : Type*} [Field K] {n : ℕ}
 /-- Subtraction during elimination does not leave a subspace containing both
 lower vectors. -/
 theorem reducePairedColumn_bottom_mem {K : Type*} [Field K] {n : ℕ}
-    (W : Submodule K (Vec K n))
+    (W : Submodule K (Fin n → K))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hD : ∀ iw ∈ D.toList, iw.2.bottom ∈ W) (hv : v.bottom ∈ W) :
     (reducePairedColumn D v).bottom ∈ W := by
@@ -99,7 +99,7 @@ theorem reducePairedColumn_bottom_mem {K : Type*} [Field K] {n : ℕ}
 /-- The original lower vector and its remainder differ by a combination of
 stored lower columns. This is the generation-preservation invariant. -/
 theorem reducePairedColumn_bottom_sub_mem {K : Type*} [Field K] {n : ℕ}
-    (W : Submodule K (Vec K n))
+    (W : Submodule K (Fin n → K))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hD : ∀ iw ∈ D.toList, iw.2.bottom ∈ W) :
     v.bottom - (reducePairedColumn D v).bottom ∈ W := by
@@ -119,7 +119,7 @@ theorem reducePairedColumn_bottom_sub_mem {K : Type*} [Field K] {n : ℕ}
 
 /-- The linear map on upper vectors represented by the reduction loop. -/
 noncomputable def pairedTopReduction {K : Type*} [Field K] {n : ℕ} :
-    List (Fin n × PairedColumn K n) → Module.End K (Vec K n)
+    List (Fin n × PairedColumn K n) → Module.End K (Fin n → K)
   | [] => LinearMap.id
   | iw :: ds => (pairedTopReduction ds).comp
       (LinearMap.id - (LinearMap.proj iw.1).smulRight
@@ -127,7 +127,7 @@ noncomputable def pairedTopReduction {K : Type*} [Field K] {n : ℕ} :
 
 @[simp] theorem pairedTopReduction_cons_apply {K : Type*} [Field K] {n : ℕ}
     (iw : Fin n × PairedColumn K n) (ds : List (Fin n × PairedColumn K n))
-    (v : Vec K n) :
+    (v : Fin n → K) :
     pairedTopReduction (iw :: ds) v =
       pairedTopReduction ds (v - (v iw.1 / iw.2.top iw.1) • iw.2.top) := by
   simp [pairedTopReduction, div_eq_mul_inv, smul_smul]
@@ -185,7 +185,7 @@ theorem reducePairedColumn_top_eq_zero_of_mem_span {K : Type*} [Field K] {n : �
 
 /-- Reduction changes the upper vector only by a combination of stored columns. -/
 theorem reducePairedColumn_top_sub_mem {K : Type*} [Field K] {n : ℕ}
-    (W : Submodule K (Vec K n))
+    (W : Submodule K (Fin n → K))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hD : ∀ iw ∈ D.toList, iw.2.top ∈ W) :
     v.top - (reducePairedColumn D v).top ∈ W := by
@@ -246,7 +246,7 @@ theorem insertPairedColumn_eq_find {K : Type*} [Field K] [DecidableEq K] {n : �
 /-- Reduction leaves a coordinate unchanged when every upper column is zero there. -/
 theorem pairedTopReduction_apply_of_zero {K : Type*} [Field K] {n : ℕ}
     (ds : List (Fin n × PairedColumn K n)) (i : Fin n)
-    (h : ∀ jw ∈ ds, jw.2.top i = 0) (v : Vec K n) :
+    (h : ∀ jw ∈ ds, jw.2.top i = 0) (v : Fin n → K) :
     pairedTopReduction ds v i = v i := by
   induction ds generalizing v with
   | nil => rfl
@@ -257,7 +257,7 @@ theorem pairedTopReduction_apply_of_zero {K : Type*} [Field K] {n : ℕ}
 /-- Every old pivot coordinate vanishes in the reduced upper vector. -/
 theorem pairedTopReduction_pivot_eq_zero {K : Type*} [Field K] {n : ℕ}
     (ds : List (Fin n × PairedColumn K n)) (h : PairedEchelon ds)
-    (v : Vec K n) (iw : Fin n × PairedColumn K n) (hiw : iw ∈ ds) :
+    (v : Fin n → K) (iw : Fin n × PairedColumn K n) (hiw : iw ∈ ds) :
     pairedTopReduction ds v iw.1 = 0 := by
   induction ds generalizing v with
   | nil => simp at hiw
@@ -299,7 +299,7 @@ theorem insertPairedColumn_echelon {K : Type*} [Field K] [DecidableEq K] {n : �
 
 /-- A vector already zero at every stored pivot is unchanged by reduction. -/
 theorem pairedTopReduction_eq_self {K : Type*} [Field K] {n : ℕ}
-    (ds : List (Fin n × PairedColumn K n)) (v : Vec K n)
+    (ds : List (Fin n × PairedColumn K n)) (v : Fin n → K)
     (hv : ∀ iw ∈ ds, v iw.1 = 0) : pairedTopReduction ds v = v := by
   induction ds with
   | nil => rfl
@@ -324,7 +324,7 @@ theorem reducePairedColumn_top_not_mem_span {K : Type*} [Field K] {n : ℕ}
 
 /-- Insertion preserves the linear relation between the upper and lower blocks. -/
 theorem insertPairedColumn_top_eq {K : Type*} [Field K] [DecidableEq K] {n : ℕ}
-    (F : Module.End K (Vec K n))
+    (F : Module.End K (Fin n → K))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hD : ∀ iw ∈ D.toList, iw.2.top = F iw.2.bottom)
     (hv : v.top = F v.bottom) :
@@ -341,7 +341,7 @@ theorem insertPairedColumn_top_eq {K : Type*} [Field K] [DecidableEq K] {n : ℕ
 
 /-- Insertion preserves membership of lower columns in a fixed subspace. -/
 theorem insertPairedColumn_bottom_mem {K : Type*} [Field K] [DecidableEq K] {n : ℕ}
-    (W : Submodule K (Vec K n))
+    (W : Submodule K (Fin n → K))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hD : ∀ iw ∈ D.toList, iw.2.bottom ∈ W) (hv : v.bottom ∈ W) :
     ∀ iw ∈ (insertPairedColumn D v).toList, iw.2.bottom ∈ W := by
@@ -358,7 +358,7 @@ theorem insertPairedColumn_bottom_mem {K : Type*} [Field K] [DecidableEq K] {n :
 /-- Changing only lower columns leaves the echelon invariant unchanged. -/
 theorem PairedEchelon.map_bottom {K : Type*} [Field K] {n : ℕ}
     (ds : List (Fin n × PairedColumn K n)) (h : PairedEchelon ds)
-    (F : Vec K n → Vec K n) :
+    (F : (Fin n → K) → (Fin n → K)) :
     PairedEchelon (ds.map (fun (i, w) => (i, ⟨w.top, F w.bottom⟩))) := by
   constructor
   · intro iw hiw
@@ -368,7 +368,7 @@ theorem PairedEchelon.map_bottom {K : Type*} [Field K] {n : ℕ}
 
 /-- The subspace represented by the upper block of a paired table. -/
 def pairedTopSpan {K : Type*} [Field K] {n : ℕ}
-    (D : Array (Fin n × PairedColumn K n)) : Submodule K (Vec K n) :=
+    (D : Array (Fin n × PairedColumn K n)) : Submodule K (Fin n → K) :=
   Submodule.span K {w | ∃ iw ∈ D.toList, w = iw.2.top}
 
 /-- Appending a column adjoins precisely its upper vector to the upper span. -/
@@ -429,7 +429,7 @@ theorem pairedTopSpan_insertPairedColumn {K : Type*} [Field K] [DecidableEq K] {
 
 /-- Applying a map to lower columns leaves the represented upper span unchanged. -/
 theorem pairedTopSpan_map_bottom {K : Type*} [Field K] {n : ℕ}
-    (D : Array (Fin n × PairedColumn K n)) (F : Vec K n → Vec K n) :
+    (D : Array (Fin n × PairedColumn K n)) (F : (Fin n → K) → (Fin n → K)) :
     pairedTopSpan (D.map (fun (i, w) => (i, ⟨w.top, F w.bottom⟩))) = pairedTopSpan D := by
   unfold pairedTopSpan
   congr 1

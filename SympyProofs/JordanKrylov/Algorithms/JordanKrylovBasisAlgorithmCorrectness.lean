@@ -8,12 +8,12 @@ connects its early-return control flow to the verified descending-layer model.
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 abbrev EliminationState (K : Type) (n : ℕ) :=
-  (ℕ → Finset (Vec K n)) × (ℕ → List (PairedColumn K n)) × Array (Fin n × PairedColumn K n)
+  (ℕ → Finset (Fin n → K)) × (ℕ → List (PairedColumn K n)) × Array (Fin n × PairedColumn K n)
 
 def algorithmOuterIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ℓbar m k : ℕ)
-    (s : Option (Finset (Vec K n)) × EliminationState K n) :
-    ForInStep (Option (Finset (Vec K n)) × EliminationState K n) :=
+    (s : Option (Finset (Fin n → K)) × EliminationState K n) :
+    ForInStep (Option (Finset (Fin n → K)) × EliminationState K n) :=
   let ℓ := k + 1
   let basis := s.2.1
   let pending := s.2.2.1
@@ -46,7 +46,7 @@ theorem forIn_yield_eq_foldl {α β : Type} (xs : List α) (s : β) (step : β �
   List.forIn_pure_yield_eq_foldl (m := Id) (fun a b => step b a) s
 
 theorem initializePending_fold_eq {K : Type} {n : ℕ}
-    (F : Vec K n → Vec K n) (V : ℕ → List (Vec K n)) (ℓbar : ℕ) :
+    (F : (Fin n → K) → (Fin n → K)) (V : ℕ → List (Fin n → K)) (ℓbar : ℕ) :
     (List.range ℓbar).reverse.foldl
       (fun (pending : ℕ → List (PairedColumn K n)) k => Function.update pending (k + 1)
         ((V (k + 1)).foldl (fun layer v => layer ++
@@ -60,7 +60,7 @@ theorem initializePending_fold_eq {K : Type} {n : ℕ}
 theorem jordanKrylovBasisAlgorithm_eq_outerModel
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (V : ℕ → List (Vec K n)) (ℓbar m : ℕ) :
+    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) :
     jordanKrylovBasisAlgorithm K A f V ℓbar m =
       let out := (forIn (List.range ℓbar).reverse
         (none, (fun _ => ∅), initialPending (PolynomialOperations.applyMatrix f A) V ℓbar, #[])
@@ -70,8 +70,8 @@ theorem jordanKrylovBasisAlgorithm_eq_outerModel
   simp only [jordanKrylovBasisAlgorithm, algorithmOuterIteration, candidateIteration,
     Id.run, Bind.bind, Pure.pure, ← apply_ite]
   simp only [forIn_yield_eq_foldl, Prod.mk.eta, initializePending_fold_eq]
-  have hmatch (result : Option (Finset (Vec K n))) (fallback : Finset (Vec K n)) :
-      Break.runK (β := Id (Finset (Vec K n))) result (fun _ => fallback) (fun r => r) =
+  have hmatch (result : Option (Finset (Fin n → K))) (fallback : Finset (Fin n → K)) :
+      Break.runK (β := Id (Finset (Fin n → K))) result (fun _ => fallback) (fun r => r) =
         result.getD fallback := by
     cases result <;> rfl
   unfold Break.runK at hmatch
@@ -81,7 +81,7 @@ theorem jordanKrylovBasisAlgorithm_eq_outerModel
 theorem algorithmOuterIteration_ordinary
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ℓbar m k : ℕ)
-    (s : Option (Finset (Vec K n)) × EliminationState K n) (hne : k + 1 ≠ ℓbar) :
+    (s : Option (Finset (Fin n → K)) × EliminationState K n) (hne : k + 1 ≠ ℓbar) :
     algorithmOuterIteration K A f ℓbar m k s =
       ForInStep.yield (none, ordinaryLayerIteration K A f k s.2) := by
   simp only [algorithmOuterIteration, hne, ite_false, ordinaryLayerIteration]
@@ -138,7 +138,7 @@ theorem outerLoop_eq_ordinary_of_initial_yield
 
 theorem algorithm_correct_of_initial_yield
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n k m : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hops : PolynomialOperations.IsCorrect (K := K))
     (hf : Irreducible f) (hm : f.Monic)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f (k + 1))
@@ -149,7 +149,7 @@ theorem algorithm_correct_of_initial_yield
       ForInStep.yield (none, ordinaryLayerIteration K A f k
         ((fun _ => ∅), initialPending (PolynomialOperations.applyMatrix f A) V (k + 1), #[]))) :
     IsJordanKrylovBasis K A (powerKernel K A f (k + 1))
-      (jordanKrylovBasisAlgorithm K A f V (k + 1) m : Set (Vec K n)) := by
+      (jordanKrylovBasisAlgorithm K A f V (k + 1) m : Set (Fin n → K)) := by
   rw [jordanKrylovBasisAlgorithm_eq_outerModel,
     outerLoop_eq_ordinary_of_initial_yield K A f m k _ hfirst]
   simp only [Option.getD_none]
@@ -172,7 +172,7 @@ theorem algorithm_correct_of_initial_yield
 a generating family with the prescribed ranks and characteristic multiplicity. -/
 theorem jordanKrylovBasisAlgorithm_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar m : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hops : PolynomialOperations.IsCorrect (K := K))
     (hf : Irreducible f) (hm : f.Monic)
     (hmultiplicity : m = multiplicity f A.charpoly)
@@ -180,7 +180,7 @@ theorem jordanKrylovBasisAlgorithm_correct
       (algorithmInputSet V ℓbar))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ) :
     IsJordanKrylovBasis K A (powerKernel K A f ℓbar)
-      (jordanKrylovBasisAlgorithm K A f V ℓbar m : Set (Vec K n)) := by
+      (jordanKrylovBasisAlgorithm K A f V ℓbar m : Set (Fin n → K)) := by
   cases ℓbar with
   | zero =>
     rw [jordanKrylovBasisAlgorithm_eq_outerModel]

@@ -1,4 +1,3 @@
-import SympyProofs.JordanKrylov.Mathematics.Vec
 import SympyProofs.JordanKrylov.Mathematics.BasisExistence
 import SympyProofs.JordanKrylov.Mathematics.BasisChainDecomposition
 import Mathlib.LinearAlgebra.Eigenspace.Zero
@@ -43,7 +42,7 @@ theorem rootMultiplicity_map_eq_multiplicity
 theorem IsJordanKrylovBasis.sum_ranks_le_charpoly_multiplicity
     (K : Subfield ℂ) {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (B : Set (Vec K n)) (hB : IsJordanKrylovBasis K A (powerKernel K A f ℓbar) B)
+    (B : Set (Fin n → K)) (hB : IsJordanKrylovBasis K A (powerKernel K A f ℓbar) B)
     [Fintype B] (α : ℂ) (hα : f.eval₂ K.subtype α = 0) :
     (∑ b : B, vectorRank K A f b.val) ≤ multiplicity f A.charpoly := by
   classical
@@ -98,7 +97,7 @@ theorem finrank_powerKernel_le_charpoly_multiplicity
 full characteristic multiplicity already spans the primary kernel. -/
 theorem krylovSpace_eq_powerKernel_of_rank_eq_charpoly_multiplicity
     (K : Subfield ℂ) {n ℓbar : ℕ} (A : Matrix (Fin n) (Fin n) K)
-    (f : K[X]) (hf : Irreducible f) (hm : f.Monic) (v : Vec K n)
+    (f : K[X]) (hf : Irreducible f) (hm : f.Monic) (v : Fin n → K)
     (hv : v ≠ 0) (hker : v ∈ powerKernel K A f ℓbar)
     (hrank : vectorRank K A f v = multiplicity f A.charpoly) :
     krylovSpace K A v = powerKernel K A f ℓbar := by
@@ -109,12 +108,12 @@ theorem krylovSpace_eq_powerKernel_of_rank_eq_charpoly_multiplicity
 
 theorem singleton_isJordanKrylovBasis_of_rank_eq_charpoly_multiplicity
     (K : Subfield ℂ) {n ℓbar : ℕ} (A : Matrix (Fin n) (Fin n) K)
-    (f : K[X]) (hf : Irreducible f) (hm : f.Monic) (v : Vec K n)
+    (f : K[X]) (hf : Irreducible f) (hm : f.Monic) (v : Fin n → K)
     (hv : v ≠ 0) (hker : v ∈ powerKernel K A f ℓbar)
     (hrank : vectorRank K A f v = multiplicity f A.charpoly) :
     IsJordanKrylovBasis K A (powerKernel K A f ℓbar) {v} := by
   refine ⟨?_, Set.finite_singleton v, iSupIndep_subsingleton _⟩
-  change powerKernel K A f ℓbar = ⨆ w ∈ ({v} : Set (Vec K n)), krylovSpace K A w
+  change powerKernel K A f ℓbar = ⨆ w ∈ ({v} : Set (Fin n → K)), krylovSpace K A w
   simpa using (krylovSpace_eq_powerKernel_of_rank_eq_charpoly_multiplicity
     K A f hf hm v hv hker hrank).symm
 

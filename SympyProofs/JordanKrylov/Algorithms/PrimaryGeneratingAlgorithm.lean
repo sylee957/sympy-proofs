@@ -18,8 +18,8 @@ noncomputable def primaryCofactor (K : Subfield ℂ) (f p : K[X]) : K[X] :=
 
 /-- The layer `𝓥^(ℓ)` computed in one iteration. The zero layer is empty. -/
 noncomputable def primaryGeneratorLayer (K : Subfield ℂ) [DecidableEq K] {n m : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (e : Fin m → Vec K n)
-    (f : K[X]) (p : Fin m → K[X]) (ℓ : ℕ) : Finset (Vec K n) :=
+    (A : Matrix (Fin n) (Fin n) K) (e : Fin m → (Fin n → K))
+    (f : K[X]) (p : Fin m → K[X]) (ℓ : ℕ) : Finset (Fin n → K) :=
   (Finset.univ.filter (fun i => 0 < ℓ ∧ multiplicity f (p i) = ℓ)).image
     (fun i => aeval A (primaryCofactor K f (p i)) *ᵥ e i)
 
@@ -29,8 +29,8 @@ visited in increasing order inside each layer. -/
 def primaryGeneratingAlgorithm (K : Type*) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
-    (e : Fin m → Vec K n) (f : K[X]) (p : Fin m → K[X]) :
-    Finset (Vec K n) := Id.run do
+    (e : Fin m → (Fin n → K)) (f : K[X]) (p : Fin m → K[X]) :
+    Finset (Fin n → K) := Id.run do
   let ranks := fun i => PolynomialOperations.multiplicity f (p i)
   let maxRank := Finset.univ.sup ranks
   let mut generators := ∅
@@ -86,8 +86,8 @@ private theorem mem_foldl_union {V : Type*} [DecidableEq V]
 theorem mem_primaryGeneratingAlgorithm (K : Subfield ℂ) [DecidableEq K]
     [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect (K := K)) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
-    (e : Fin m → Vec K n) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) (v : Vec K n) :
+    (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
+    (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) (v : Fin n → K) :
     v ∈ primaryGeneratingAlgorithm K A e f p ↔
       ∃ ℓ, 1 ≤ ℓ ∧ ℓ ≤ Finset.univ.sup (fun i => multiplicity f (p i)) ∧
         v ∈ primaryGeneratorLayer K A e f p ℓ := by
@@ -101,9 +101,9 @@ theorem mem_primaryGeneratingAlgorithm (K : Subfield ℂ) [DecidableEq K]
   dsimp only
   simp only [hr, hops.pow_eq, hops.divMonic_eq _ _ (hm.pow _),
     Polynomial.divByMonic_eq_div _ (hm.pow _), hops.applyMatrix_eq, forIn_insert_filter, pure_bind]
-  change v ∈ (forIn (List.range L).reverse (∅ : Finset (Vec K n))
+  change v ∈ (forIn (List.range L).reverse (∅ : Finset (Fin n → K))
     (fun k s => pure (ForInStep.yield (s ∪ layer (k + 1)))) :
-      Id (Finset (Vec K n))).run ↔ _
+      Id (Finset (Fin n → K))).run ↔ _
   rw [List.forIn_pure_yield_eq_foldl (m := Id)]
   change v ∈ (List.range L).reverse.foldl (fun s k => s ∪ layer (k + 1)) ∅ ↔ _
   simp only [mem_foldl_union, Finset.notMem_empty, false_or, List.mem_reverse,
@@ -118,9 +118,9 @@ theorem mem_primaryGeneratingAlgorithm (K : Subfield ℂ) [DecidableEq K]
 theorem primaryGeneratingAlgorithm_eq (K : Subfield ℂ) [DecidableEq K]
     [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect (K := K)) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
-    (e : Fin m → Vec K n) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
+    (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) :
-    (primaryGeneratingAlgorithm K A e f p : Set (Vec K n)) =
+    (primaryGeneratingAlgorithm K A e f p : Set (Fin n → K)) =
       primaryGeneratingSet K A e (fun i => multiplicity f (p i))
         (fun i => primaryCofactor K f (p i)) := by
   classical
@@ -149,10 +149,10 @@ minimal annihilating polynomials. -/
 theorem primaryGeneratingAlgorithm_correct (K : Subfield ℂ) [DecidableEq K]
     [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect (K := K)) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
-    (e : Fin m → Vec K n) (he : Submodule.span K (Set.range e) = ⊤) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
+    (e : Fin m → (Fin n → K)) (he : Submodule.span K (Set.range e) = ⊤) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i)) :
     IsKrylovGeneratingSet K A (powerKernel K A f (multiplicity f (minpoly K A)))
-      (primaryGeneratingAlgorithm K A e f p : Set (Vec K n)) := by
+      (primaryGeneratingAlgorithm K A e f p : Set (Fin n → K)) := by
   rw [primaryGeneratingAlgorithm_eq K hops A e f hf hm p
     (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)]
   have hp' : p = fun i => minimalAnnihilatingPolynomial K A (e i) := funext hp
@@ -163,7 +163,7 @@ theorem primaryGeneratingAlgorithm_correct (K : Subfield ℂ) [DecidableEq K]
 /-- The cofactor vector has exactly the exponent removed from its annihilator. -/
 theorem vectorRank_primaryCofactor (K : Subfield ℂ) {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f)
-    (u : Vec K n) :
+    (u : Fin n → K) :
     vectorRank K A f (aeval A (primaryCofactor K f
       (minimalAnnihilatingPolynomial K A u)) *ᵥ u) =
       multiplicity f (minimalAnnihilatingPolynomial K A u) := by
@@ -195,10 +195,10 @@ theorem vectorRank_primaryCofactor (K : Subfield ℂ) {n : ℕ}
 theorem primaryGeneratorLayer_eq_rankSubset (K : Subfield ℂ) [DecidableEq K]
     [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect (K := K)) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
-    (e : Fin m → Vec K n) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
+    (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
     (ℓ : ℕ) (hℓ : 1 ≤ ℓ) :
-    (primaryGeneratorLayer K A e f p ℓ : Set (Vec K n)) =
+    (primaryGeneratorLayer K A e f p ℓ : Set (Fin n → K)) =
       rankSubset K A f (primaryGeneratingAlgorithm K A e f p) ℓ := by
   classical
   rw [primaryGeneratingAlgorithm_eq K hops A e f hf hm p

@@ -21,11 +21,11 @@ an empty top layer is skipped, and only strictly lower positive residual ranks
 are queued. Correctness as a Jordan–Krylov basis requires a separate proof. -/
 def jordanKrylovBasisAlgorithm (K : Type*) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (V : ℕ → List (Vec K n)) (ℓbar m : ℕ) : Finset (Vec K n) := Id.run do
+    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) : Finset (Fin n → K) := Id.run do
   let F := PolynomialOperations.applyMatrix f A
   -- Read the finite coefficient support directly, without a noncomputable instance.
   let d := f.toFinsupp.coeff.support.sup id
-  let mut basis : ℕ → Finset (Vec K n) := fun _ => ∅
+  let mut basis : ℕ → Finset (Fin n → K) := fun _ => ∅
   let mut pending : ℕ → List (PairedColumn K n) := fun _ => []
   -- Lines 2–4: form the paired generators of every positive rank.
   for k in (List.range ℓbar).reverse do

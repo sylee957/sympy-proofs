@@ -9,7 +9,7 @@ open Matrix Polynomial
 /-- Proof model for a rank layer after the top-layer special case. -/
 def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
-    (s : (ℕ → Finset (Vec K n)) × (ℕ → List (PairedColumn K n)) ×
+    (s : (ℕ → Finset (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n)) :=
   let out := (s.2.1 (k + 1)).foldl
     (fun t v => candidateIteration K A f k t.1 t.2.1 t.2.2 v)
@@ -22,7 +22,7 @@ def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOpera
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
     (hops : PolynomialOperations.IsCorrect (K := K))
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (k : ℕ) (basis : ℕ → Finset (Vec K n)) (pending : ℕ → List (PairedColumn K n))
+    (k : ℕ) (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (hle : k + 1 ≤ ℓbar)
     (h : EliminationWorkInvariant K A f ℓbar (k + 1) (acceptedGenerators basis) D
       (pending (k + 1)) (Function.update pending (k + 1) [])) :
@@ -47,7 +47,7 @@ def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOpera
 theorem ordinaryLayerIteration_support
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (s : (ℕ → Finset (Vec K n)) × (ℕ → List (PairedColumn K n)) ×
+    (s : (ℕ → Finset (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n))
     (hs : BasisLayerSupport ℓbar s.1) (hle : k + 1 ≤ ℓbar) :
     BasisLayerSupport ℓbar (ordinaryLayerIteration K A f k s).1 :=
@@ -56,7 +56,7 @@ theorem ordinaryLayerIteration_support
 theorem remainingLayers_support
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ks : List ℕ)
-    (s : (ℕ → Finset (Vec K n)) × (ℕ → List (PairedColumn K n)) ×
+    (s : (ℕ → Finset (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n))
     (hs : BasisLayerSupport ℓbar s.1) (hle : ∀ k ∈ ks, k + 1 ≤ ℓbar) :
     BasisLayerSupport ℓbar
@@ -68,12 +68,12 @@ theorem remainingLayers_support
       (fun j hj => hle j (List.mem_cons_of_mem _ hj))
 
 /-- Closed form of the already-verified initialization loop. -/
-def initialPending {K : Type} {n : ℕ} (F : Vec K n → Vec K n)
-    (V : ℕ → List (Vec K n)) (ℓbar ℓ : ℕ) : List (PairedColumn K n) :=
+def initialPending {K : Type} {n : ℕ} (F : (Fin n → K) → (Fin n → K))
+    (V : ℕ → List (Fin n → K)) (ℓbar ℓ : ℕ) : List (PairedColumn K n) :=
   if 1 ≤ ℓ ∧ ℓ ≤ ℓbar then (V ℓ).map (fun v => ⟨F^[ℓ - 1] v, v⟩) else []
 
 theorem pairedListSpace_map_pair (K : Subfield ℂ) {n : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (top : Vec K n → Vec K n) (vs : List (Vec K n)) :
+    (A : Matrix (Fin n) (Fin n) K) (top : (Fin n → K) → (Fin n → K)) (vs : List (Fin n → K)) :
     pairedListSpace K A (vs.map (fun v => ⟨top v, v⟩)) =
       ⨆ v ∈ vs, krylovSpace K A v := by
   induction vs with
@@ -83,8 +83,8 @@ theorem pairedListSpace_map_pair (K : Subfield ℂ) {n : ℕ}
     simp
 
 theorem pendingSpace_initialPending (K : Subfield ℂ) {n : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (F : Vec K n → Vec K n)
-    (V : ℕ → List (Vec K n)) (ℓbar : ℕ) :
+    (A : Matrix (Fin n) (Fin n) K) (F : (Fin n → K) → (Fin n → K))
+    (V : ℕ → List (Fin n → K)) (ℓbar : ℕ) :
     pendingSpace K A (initialPending F V ℓbar) =
       generatorSpace K A (algorithmInputSet V ℓbar) := by
   apply le_antisymm
@@ -109,7 +109,7 @@ theorem pendingSpace_initialPending (K : Subfield ℂ) {n : ℕ}
 
 theorem initialPending_valid
     (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hops : PolynomialOperations.IsCorrect (K := K))
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
       (algorithmInputSet V ℓbar))
@@ -144,7 +144,7 @@ theorem EliminationTableInvariant.empty
 /-- The paper's input contract establishes the full work invariant at the top layer. -/
 theorem initial_workInvariant
     (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Vec K n))
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hops : PolynomialOperations.IsCorrect (K := K))
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
       (algorithmInputSet V ℓbar))
@@ -153,7 +153,7 @@ theorem initial_workInvariant
     EliminationWorkInvariant K A f ℓbar ℓbar (acceptedGenerators (fun _ => ∅)) #[]
       (pending ℓbar) (Function.update pending ℓbar []) := by
   dsimp only
-  have he : acceptedGenerators (fun _ => (∅ : Finset (Vec K n))) = ∅ := by
+  have he : acceptedGenerators (fun _ => (∅ : Finset (Fin n → K))) = ∅ := by
     ext v; simp [acceptedGenerators]
   rw [he]
   refine ⟨EliminationTableInvariant.empty K A f, ?_, ?_, ?_⟩
