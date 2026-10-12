@@ -1,4 +1,4 @@
-import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisAlgorithmInvariant
+import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisInvariant
 /-! # Verification of the imperative candidate loop
 
 The proof model `candidateIteration` is used only to expose the loop state for

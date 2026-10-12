@@ -1,7 +1,7 @@
-import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisAlgorithmOuter
+import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisOuter
 /-! # Full correctness of Algorithm 2
 
-`jordanKrylovBasisAlgorithm_correct` proves the postcondition of the actual
+`computeJordanKrylovBasis_correct` proves the postcondition of the actual
 imperative algorithm under the explicit input hypotheses. The proof
 connects its early-return control flow to the verified descending-layer model.
 -/
@@ -57,17 +57,17 @@ theorem initializePending_fold_eq {K : Type} {n : ℕ}
   simp only [Id.run, Bind.bind, Pure.pure, forIn_yield_eq_foldl] at h
   exact h
 
-theorem jordanKrylovBasisAlgorithm_eq_outerModel
+theorem computeJordanKrylovBasis_eq_outerModel
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) :
-    jordanKrylovBasisAlgorithm K A f V ℓbar m =
+    computeJordanKrylovBasis K A f V ℓbar m =
       let out := (forIn (List.range ℓbar).reverse
         (none, (fun _ => ∅), initialPending (PolynomialOperations.applyMatrix f A) V ℓbar, #[])
         (fun k s => algorithmOuterIteration K A f ℓbar m k s) : Id _)
       out.1.getD ((List.range ℓbar).foldl (fun result k => result ∪ out.2.1 (k + 1)) ∅) := by
   dsimp only
-  simp only [jordanKrylovBasisAlgorithm, algorithmOuterIteration, candidateIteration,
+  simp only [computeJordanKrylovBasis, algorithmOuterIteration, candidateIteration,
     Id.run, Bind.bind, Pure.pure, ← apply_ite]
   simp only [forIn_yield_eq_foldl, Prod.mk.eta, initializePending_fold_eq]
   have hmatch (result : Option (Finset (Fin n → K))) (fallback : Finset (Fin n → K)) :
@@ -136,7 +136,7 @@ theorem outerLoop_eq_ordinary_of_initial_yield
   simp only [List.mem_reverse, List.mem_range] at hj
   omega
 
-theorem algorithm_correct_of_initial_yield
+theorem computeJordanKrylovBasis_correct_of_initial_yield
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n k m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hops : PolynomialOperations.IsCorrect (K := K))
@@ -149,8 +149,8 @@ theorem algorithm_correct_of_initial_yield
       ForInStep.yield (none, ordinaryLayerIteration K A f k
         ((fun _ => ∅), initialPending (PolynomialOperations.applyMatrix f A) V (k + 1), #[]))) :
     IsJordanKrylovBasis K A (powerKernel K A f (k + 1))
-      (jordanKrylovBasisAlgorithm K A f V (k + 1) m : Set (Fin n → K)) := by
-  rw [jordanKrylovBasisAlgorithm_eq_outerModel,
+      (computeJordanKrylovBasis K A f V (k + 1) m : Set (Fin n → K)) := by
+  rw [computeJordanKrylovBasis_eq_outerModel,
     outerLoop_eq_ordinary_of_initial_yield K A f m k _ hfirst]
   simp only [Option.getD_none]
   let s : EliminationState K n := ((fun _ => ∅),
@@ -170,7 +170,7 @@ theorem algorithm_correct_of_initial_yield
 
 /-- Algorithm 2 returns a Jordan–Krylov basis of the primary power kernel from
 a generating family with the prescribed ranks and characteristic multiplicity. -/
-theorem jordanKrylovBasisAlgorithm_correct
+theorem computeJordanKrylovBasis_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (hops : PolynomialOperations.IsCorrect (K := K))
@@ -180,10 +180,10 @@ theorem jordanKrylovBasisAlgorithm_correct
       (algorithmInputSet V ℓbar))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ) :
     IsJordanKrylovBasis K A (powerKernel K A f ℓbar)
-      (jordanKrylovBasisAlgorithm K A f V ℓbar m : Set (Fin n → K)) := by
+      (computeJordanKrylovBasis K A f V ℓbar m : Set (Fin n → K)) := by
   cases ℓbar with
   | zero =>
-    rw [jordanKrylovBasisAlgorithm_eq_outerModel]
+    rw [computeJordanKrylovBasis_eq_outerModel]
     simp [List.forIn_nil, Pure.pure, powerKernel_zero]
   | succ k =>
     let pending := initialPending (PolynomialOperations.applyMatrix f A) V (k + 1)
@@ -194,7 +194,7 @@ theorem jordanKrylovBasisAlgorithm_correct
       exact hnot (hh.2.2.1.2.symm.trans hz)
     cases he : pending (k + 1) with
     | nil =>
-      apply algorithm_correct_of_initial_yield K A f V hops hf hm hgenerating hranks
+      apply computeJordanKrylovBasis_correct_of_initial_yield K A f V hops hf hm hgenerating hranks
       change algorithmOuterIteration K A f (k + 1) m k (none, (fun _ => ∅), pending, #[]) =
         ForInStep.yield (none, ordinaryLayerIteration K A f k ((fun _ => ∅), pending, #[]))
       simp [algorithmOuterIteration, ordinaryLayerIteration, he]
@@ -211,11 +211,11 @@ theorem jordanKrylovBasisAlgorithm_correct
             ForInStep.done (some {v.bottom}, Function.update (fun _ => ∅) (k + 1) {v.bottom},
               Function.update pending (k + 1) [], #[]) := by
           simp only [algorithmOuterIteration, ite_true, he, ite_eq_left hearly]
-        rw [jordanKrylovBasisAlgorithm_eq_outerModel]
+        rw [computeJordanKrylovBasis_eq_outerModel]
         rw [List.range_succ, List.reverse_append, List.reverse_singleton,
           List.singleton_append, List.forIn_cons, hfirst]
         simpa only [Bind.bind, Pure.pure, Option.getD_some, Finset.coe_singleton] using hb
-      · apply algorithm_correct_of_initial_yield K A f V hops hf hm hgenerating hranks
+      · apply computeJordanKrylovBasis_correct_of_initial_yield K A f V hops hf hm hgenerating hranks
         exact algorithmOuterIteration_initial_noEarly K A f m k pending hearly hcolumns
 
 end SympyProofs.JordanKrylov

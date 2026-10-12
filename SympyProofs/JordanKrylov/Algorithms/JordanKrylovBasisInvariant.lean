@@ -1,4 +1,4 @@
-import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisAlgorithmLemmas
+import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisLemmas
 /-! # Invariants for the Jordan–Krylov basis algorithm
 
 The table invariant records independence and the terminal-column representation.

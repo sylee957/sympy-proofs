@@ -26,7 +26,7 @@ noncomputable def primaryGeneratorLayer (K : Subfield ℂ) [DecidableEq K] {n m 
 /-- Algorithm 1: compute the maximum multiplicity, process ranks in descending
 order, and return the union of their cofactor vectors. The input indices are
 visited in increasing order inside each layer. -/
-def primaryGeneratingAlgorithm (K : Type*) [Field K] [DecidableEq K]
+def computePrimaryGenerators (K : Type*) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (p : Fin m → K[X]) :
@@ -83,12 +83,12 @@ private theorem mem_foldl_union {V : Type*} [DecidableEq V]
   | cons k ks ih => simp [List.foldl_cons, ih, or_assoc]
 
 /-- Membership in the algorithm's output is membership in a positive layer. -/
-theorem mem_primaryGeneratingAlgorithm (K : Subfield ℂ) [DecidableEq K]
+theorem mem_computePrimaryGenerators (K : Subfield ℂ) [DecidableEq K]
     [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect (K := K)) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) (v : Fin n → K) :
-    v ∈ primaryGeneratingAlgorithm K A e f p ↔
+    v ∈ computePrimaryGenerators K A e f p ↔
       ∃ ℓ, 1 ≤ ℓ ∧ ℓ ≤ Finset.univ.sup (fun i => multiplicity f (p i)) ∧
         v ∈ primaryGeneratorLayer K A e f p ℓ := by
   classical
@@ -96,7 +96,7 @@ theorem mem_primaryGeneratingAlgorithm (K : Subfield ℂ) [DecidableEq K]
   let layer := primaryGeneratorLayer K A e f p
   have hr (i : Fin m) := hops.multiplicity_eq f (p i)
     (Polynomial.natDegree_pos_iff_degree_pos.mpr (Polynomial.degree_pos_of_irreducible hf)) hm (hp i)
-  unfold primaryGeneratingAlgorithm
+  unfold computePrimaryGenerators
   rw [← Fin.sort_univ]
   dsimp only
   simp only [hr, hops.pow_eq, hops.divMonic_eq _ _ (hm.pow _),
@@ -115,18 +115,18 @@ theorem mem_primaryGeneratingAlgorithm (K : Subfield ℂ) [DecidableEq K]
     exact ⟨ℓ - 1, by omega, by simpa [Nat.sub_add_cancel hpos] using hv⟩
 
 /-- The descending imperative loop returns exactly the cofactor generating set. -/
-theorem primaryGeneratingAlgorithm_eq (K : Subfield ℂ) [DecidableEq K]
+theorem computePrimaryGenerators_eq (K : Subfield ℂ) [DecidableEq K]
     [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect (K := K)) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) :
-    (primaryGeneratingAlgorithm K A e f p : Set (Fin n → K)) =
+    (computePrimaryGenerators K A e f p : Set (Fin n → K)) =
       primaryGeneratingSet K A e (fun i => multiplicity f (p i))
         (fun i => primaryCofactor K f (p i)) := by
   classical
   ext v
-  change v ∈ primaryGeneratingAlgorithm K A e f p ↔ _
-  rw [mem_primaryGeneratingAlgorithm K hops A e f hf hm p hp]
+  change v ∈ computePrimaryGenerators K A e f p ↔ _
+  rw [mem_computePrimaryGenerators K hops A e f hf hm p hp]
   simp only [primaryGeneratorLayer, Finset.mem_image, Finset.mem_filter,
     Finset.mem_univ, true_and, primaryGeneratingSet, Set.mem_image,
     primaryBasisIndices, Set.mem_ofPred_eq]
@@ -146,14 +146,14 @@ theorem primaryCofactor_factorization (K : Subfield ℂ) (f p : K[X]) (hf : f �
 
 /-- Algorithm 1 is correct when its polynomial inputs are a spanning family's
 minimal annihilating polynomials. -/
-theorem primaryGeneratingAlgorithm_correct (K : Subfield ℂ) [DecidableEq K]
+theorem computePrimaryGenerators_correct (K : Subfield ℂ) [DecidableEq K]
     [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect (K := K)) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (he : Submodule.span K (Set.range e) = ⊤) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i)) :
     IsKrylovGeneratingSet K A (powerKernel K A f (multiplicity f (minpoly K A)))
-      (primaryGeneratingAlgorithm K A e f p : Set (Fin n → K)) := by
-  rw [primaryGeneratingAlgorithm_eq K hops A e f hf hm p
+      (computePrimaryGenerators K A e f p : Set (Fin n → K)) := by
+  rw [computePrimaryGenerators_eq K hops A e f hf hm p
     (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)]
   have hp' : p = fun i => minimalAnnihilatingPolynomial K A (e i) := funext hp
   subst p
@@ -199,9 +199,9 @@ theorem primaryGeneratorLayer_eq_rankSubset (K : Subfield ℂ) [DecidableEq K]
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
     (ℓ : ℕ) (hℓ : 1 ≤ ℓ) :
     (primaryGeneratorLayer K A e f p ℓ : Set (Fin n → K)) =
-      rankSubset K A f (primaryGeneratingAlgorithm K A e f p) ℓ := by
+      rankSubset K A f (computePrimaryGenerators K A e f p) ℓ := by
   classical
-  rw [primaryGeneratingAlgorithm_eq K hops A e f hf hm p
+  rw [computePrimaryGenerators_eq K hops A e f hf hm p
     (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)]
   ext v
   simp only [primaryGeneratorLayer, Finset.mem_coe, Finset.mem_image,

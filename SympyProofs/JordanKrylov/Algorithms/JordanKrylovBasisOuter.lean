@@ -1,4 +1,4 @@
-import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisAlgorithmLoop
+import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisLoop
 /-! # Descending-layer verification for Algorithm 2
 
 The proof model exposes the outer loop for induction. Initialization supplies

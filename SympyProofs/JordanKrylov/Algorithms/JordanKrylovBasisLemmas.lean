@@ -1,4 +1,4 @@
-import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisAlgorithm
+import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasis
 import SympyProofs.JordanKrylov.Mathematics.IndependentExtension
 import SympyProofs.JordanKrylov.Mathematics.PrimaryKernelDimension
 
@@ -7,7 +7,7 @@ import SympyProofs.JordanKrylov.Mathematics.PrimaryKernelDimension
 The input contract contains mathematical input assumptions only. These lemmas
 verify initialization, column insertion, reduction, bounded rank descent, and
 the characteristic-multiplicity early return. The full executable correctness
-theorem is in `JordanKrylovBasisAlgorithmCorrectness`.
+theorem is in `JordanKrylovBasisCorrectness`.
 -/
 namespace SympyProofs.JordanKrylov
 open Polynomial Matrix

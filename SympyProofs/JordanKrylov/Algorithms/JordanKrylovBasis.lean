@@ -19,7 +19,7 @@ open Polynomial Matrix
 `PolynomialOperations K`. The definition is total even outside the input contract:
 an empty top layer is skipped, and only strictly lower positive residual ranks
 are queued. Correctness as a Jordan–Krylov basis requires a separate proof. -/
-def jordanKrylovBasisAlgorithm (K : Type*) [Field K] [DecidableEq K]
+def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) : Finset (Fin n → K) := Id.run do
   let F := PolynomialOperations.applyMatrix f A
