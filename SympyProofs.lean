@@ -24,3 +24,5 @@ import SympyProofs.JordanKrylov.IndependentExtension
 import SympyProofs.JordanKrylov.PrimaryGeneratingSet
 import SympyProofs.JordanKrylov.BasisMinimalPolynomial
 import SympyProofs.JordanKrylov.PrimaryGeneratingAlgorithm
+import SympyProofs.JordanKrylov.JordanKrylovBasisAlgorithm
+import SympyProofs.JordanKrylov.JordanKrylovBasisAlgorithmCorrectness

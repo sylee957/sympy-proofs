@@ -378,7 +378,6 @@ theorem regionCount_of_root_limits (p : ℕ → ℂ[X]) (q : ℂ[X]) (n c : ℕ)
       conv_rhs => rw [hfac]
       exact (regionCount_factorization P n r₀ _ (leadingCoeff_ne_zero.mpr hq)).symm
 
-set_option maxHeartbeats 800000 in
 /-- Roots approaching an imaginary-axis root under a positive derivative
 perturbation cannot approach it from the open right half-plane. Multiplicity
 is arbitrary: repeated roots may remain on the axis. -/
