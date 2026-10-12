@@ -10,26 +10,31 @@ namespace SympyProofs.JordanKrylov
 open Polynomial Matrix
 
 /-- Algorithm 1: compute the maximum multiplicity, process ranks in descending
-order, and return the union of their cofactor vectors. The input indices are
-visited in increasing order inside each layer. -/
+order, and return their lists of cofactor vectors indexed by rank.
+The array has `maxRank + 1` entries, with an empty zero layer.
+Input order and repetitions are preserved within each layer. -/
 def computePrimaryGenerators (K : Type*) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (p : Fin m → K[X]) :
-    Finset (Fin n → K) := Id.run do
-  let ranks := fun i => PolynomialOperations.multiplicity f (p i)
-  let maxRank := Finset.univ.sup ranks
-  let mut generators := ∅
-  for k in (List.range maxRank).reverse do
-    let ℓ := k + 1
-    let mut layer := ∅
+    Array (List (Fin n → K)) := Id.run do
+  let ranks := Vector.ofFn (fun i => PolynomialOperations.multiplicity f (p i))
+  let maxRank := Finset.univ.sup (fun i : Fin m => ranks[i.val])
+  let mut generators : { a : Array (List (Fin n → K)) // a.size = maxRank + 1 } :=
+    ⟨Array.replicate (maxRank + 1) [], by simp⟩
+  for k in (List.finRange maxRank).reverse do
+    let ℓ := k.val + 1
+    let mut layer := []
     for i in List.finRange m do
-      if 0 < ℓ ∧ ranks i = ℓ then
-        let divisor := PolynomialOperations.pow f (ranks i)
+      if 0 < ℓ ∧ ranks[i.val] = ℓ then
+        let divisor := PolynomialOperations.pow f (ranks[i.val])
         let cofactor := PolynomialOperations.divMonic divisor (p i)
         let vector := PolynomialOperations.applyMatrix cofactor A (e i)
-        layer := insert vector layer
-    generators := generators ∪ layer
-  return generators
+        layer := layer ++ [vector]
+    generators := ⟨generators.val.set ℓ layer (by
+      have := generators.property
+      have := k.isLt
+      omega), by simpa using generators.property⟩
+  return generators.val
 
 end SympyProofs.JordanKrylov

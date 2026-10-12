@@ -9,6 +9,11 @@ the definition does not require the summands to be independent.
 
 namespace SympyProofs.JordanKrylov
 
+/-- The generators in the positive layers of a rank-indexed family. -/
+def algorithmInputSet {K : Type*} {n : ℕ} (V : ℕ → List (Fin n → K))
+    (ℓbar : ℕ) : Set (Fin n → K) := {v | ∃ ℓ, 1 ≤ ℓ ∧ ℓ ≤ ℓbar ∧ v ∈ V ℓ}
+
+
 /-- A set S generates W by taking the sum of the Krylov spaces of its vectors.
 The condition S ⊆ W follows from this equality, since w ∈ L_A(w). -/
 def IsKrylovGeneratingSet (K : Subfield ℂ) {n : ℕ}

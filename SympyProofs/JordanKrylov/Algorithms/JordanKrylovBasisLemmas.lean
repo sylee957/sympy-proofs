@@ -12,10 +12,6 @@ theorem is in `JordanKrylovBasisCorrectness`.
 namespace SympyProofs.JordanKrylov
 open Polynomial Matrix
 
-/-- The generators in the positive layers inspected by Algorithm 2. -/
-def algorithmInputSet {K : Type*} {n : ℕ} (V : ℕ → List (Fin n → K))
-    (ℓbar : ℕ) : Set (Fin n → K) := {v | ∃ ℓ, 1 ≤ ℓ ∧ ℓ ≤ ℓbar ∧ v ∈ V ℓ}
-
 /-- The generation precondition puts every processed vector in the primary kernel. -/
 theorem algorithmInput_mem_powerKernel
     (K : Subfield ℂ) {n ℓbar : ℕ}

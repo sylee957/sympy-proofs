@@ -1,3 +1,4 @@
+import SympyProofs.JordanKrylov.Algorithms.PrimaryGeneratingCorrectness
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisOuter
 /-! # Full correctness of Algorithm 2
 
@@ -217,5 +218,27 @@ theorem computeJordanKrylovBasis_correct
         simpa only [Bind.bind, Pure.pure, Option.getD_some, Finset.coe_singleton] using hb
       · apply computeJordanKrylovBasis_correct_of_initial_yield K A f V hops hf hm hgenerating hranks
         exact algorithmOuterIteration_initial_noEarly K A f m k pending hearly hcolumns
+
+/-- Algorithm 1's array supplies Algorithm 2's rank-indexed input by lookup. -/
+theorem computeJordanKrylovBasis_fromPrimaryGenerators_correct
+    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n s : ℕ}
+    (A : Matrix (Fin n) (Fin n) K) (e : Fin s → (Fin n → K))
+    (he : Submodule.span K (Set.range e) = ⊤)
+    (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
+    (p : Fin s → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
+    (hops : PolynomialOperations.IsCorrect K) :
+    IsJordanKrylovBasis K A (powerKernel K A f (multiplicity f (minpoly K A)))
+      (computeJordanKrylovBasis K A f (fun ℓ => (computePrimaryGenerators K A e f p)[ℓ]?.getD [])
+        (multiplicity f (minpoly K A)) (multiplicity f A.charpoly) : Set (Fin n → K)) := by
+  apply computeJordanKrylovBasis_correct K A f _ hops hf hm rfl
+  · rw [computePrimaryGenerators_inputSet_eq K hops A e f hf hm p
+      (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)
+      (fun i => by
+        rw [multiplicity_minpoly_eq_max_spanning K A e he f hf hm, hp i]
+        exact Finset.le_sup (f := fun j => multiplicity f
+          (minimalAnnihilatingPolynomial K A (e j))) (Finset.mem_univ i))]
+    exact computePrimaryGenerators_correct K hops A e he f hf hm p hp
+  · intro ℓ _ _ v hv
+    exact computePrimaryGenerators_ranks K hops A e f hf hm p hp ℓ v hv
 
 end SympyProofs.JordanKrylov
