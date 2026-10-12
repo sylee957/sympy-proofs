@@ -1,0 +1,33 @@
+import SympyProofs.JordanKrylov.Mathematics.BasisChainDecomposition
+import SympyProofs.JordanKrylov.Mathematics.BasisExistence
+import SympyProofs.JordanKrylov.Mathematics.BasisMinimalPolynomial
+import SympyProofs.JordanKrylov.Mathematics.ChainPolynomial
+import SympyProofs.JordanKrylov.Mathematics.ChainSpace
+import SympyProofs.JordanKrylov.Mathematics.ChainSpaceIndependence
+import SympyProofs.JordanKrylov.Mathematics.Definition
+import SympyProofs.JordanKrylov.Mathematics.EigenvectorPolynomial
+import SympyProofs.JordanKrylov.Mathematics.Existence
+import SympyProofs.JordanKrylov.Mathematics.GeneralizedEigenvectors
+import SympyProofs.JordanKrylov.Mathematics.IndependentExtension
+import SympyProofs.JordanKrylov.Mathematics.JordanChain
+import SympyProofs.JordanKrylov.Mathematics.JordanChainRecurrence
+import SympyProofs.JordanKrylov.Mathematics.JordanKrylovBasis
+import SympyProofs.JordanKrylov.Mathematics.KernelChain
+import SympyProofs.JordanKrylov.Mathematics.KrylovDecomposition
+import SympyProofs.JordanKrylov.Mathematics.KrylovGeneratingSet
+import SympyProofs.JordanKrylov.Mathematics.KrylovPolynomial
+import SympyProofs.JordanKrylov.Mathematics.KrylovSpace
+import SympyProofs.JordanKrylov.Mathematics.MinimalAnnihilatingPolynomial
+import SympyProofs.JordanKrylov.Mathematics.PrimaryCyclicDecomposition
+import SympyProofs.JordanKrylov.Mathematics.PrimaryGeneratingSet
+import SympyProofs.JordanKrylov.Mathematics.PrimaryKernelDimension
+import SympyProofs.JordanKrylov.Mathematics.RankMultiplicity
+import SympyProofs.JordanKrylov.Mathematics.RankPartition
+import SympyProofs.JordanKrylov.Mathematics.Vec
+import SympyProofs.JordanKrylov.Mathematics.VectorPolynomial
+import SympyProofs.JordanKrylov.Mathematics.VectorRank
+
+/-!
+Mathematical definitions and theorems for Jordan–Krylov decomposition.
+This layer is independent of the algorithm implementations.
+-/
