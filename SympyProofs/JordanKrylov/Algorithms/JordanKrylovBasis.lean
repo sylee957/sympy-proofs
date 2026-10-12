@@ -23,23 +23,20 @@ def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) : Finset (Fin n → K) := Id.run do
   let F := PolynomialOperations.applyMatrix f A
-  -- Read the finite coefficient support directly, without a noncomputable instance.
-  let d := f.toFinsupp.coeff.support.sup id
+  let d := f.natDegree
   let mut basis : ℕ → Finset (Fin n → K) := fun _ => ∅
   let mut pending : ℕ → List (PairedColumn K n) := fun _ => []
   -- Lines 2–4: form the paired generators of every positive rank.
-  for k in (List.range ℓbar).reverse do
-    let ℓ := k + 1
+  for ℓ in (List.range ℓbar).reverse.map Nat.succ do
     let mut layer := []
     for v in V ℓ do
       let mut top := v
-      for _ in List.range k do
+      for _ in List.range (ℓ - 1) do
         top := F top
-      layer := layer ++ [⟨top, v⟩]
+      layer := layer ++ [{ top := top, bottom := v }]
     pending := Function.update pending ℓ layer
   let mut D : Array (Fin n × PairedColumn K n) := #[]
-  for k in (List.range ℓbar).reverse do
-    let ℓ := k + 1
+  for ℓ in (List.range ℓbar).reverse.map Nat.succ do
     let mut layer := pending ℓ
     pending := Function.update pending ℓ []
     -- Lines 6–13: initialize from the first generator in the highest layer.
@@ -54,7 +51,7 @@ def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
         let mut w := v
         for _ in List.range d do
           D := insertPairedColumn D w
-          w := ⟨A *ᵥ w.top, A *ᵥ w.bottom⟩
+          w := { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }
     -- Lines 14–24: each candidate is removed once. Residuals go to later layers.
     for v in layer do
       let r := reducePairedColumn D v
@@ -63,13 +60,13 @@ def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
         let mut w := r
         for _ in List.range d do
           D := insertPairedColumn D w
-          w := ⟨A *ᵥ w.top, A *ᵥ w.bottom⟩
+          w := { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }
       else if r.bottom ≠ 0 ∧ 1 < ℓ then
         -- Find the first power that kills the residual, bounded by ℓ - 1.
         let mut rank : ℕ := 0
         let mut terminal := r.bottom
         let mut w := r.bottom
-        for j in List.range k do
+        for j in List.range (ℓ - 1) do
           if rank = 0 then
             let next := F w
             if next = 0 then

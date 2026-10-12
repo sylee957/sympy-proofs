@@ -35,7 +35,7 @@ def algorithmOuterIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOper
       let basis := Function.update basis ℓ {v.bottom}
       if ℓ = m then .done (some {v.bottom}, basis, pending, D)
       else
-        let out := (List.range (f.toFinsupp.coeff.support.sup id)).foldl
+        let out := (List.range (f.natDegree)).foldl
           (fun (t : Array (Fin n × PairedColumn K n) × PairedColumn K n) _ =>
             (insertPairedColumn t.1 t.2, ⟨A *ᵥ t.2.top, A *ᵥ t.2.bottom⟩)) (D, v)
         finish basis out.1 rest
@@ -70,7 +70,8 @@ theorem computeJordanKrylovBasis_eq_outerModel
   dsimp only
   simp only [computeJordanKrylovBasis, algorithmOuterIteration, candidateIteration,
     Id.run, Bind.bind, Pure.pure, ← apply_ite]
-  simp only [forIn_yield_eq_foldl, Prod.mk.eta, initializePending_fold_eq]
+  simp only [List.forIn_map, forIn_yield_eq_foldl, List.foldl_map, Nat.succ_eq_add_one, Nat.add_sub_cancel,
+    Prod.mk.eta, initializePending_fold_eq]
   have hmatch (result : Option (Finset (Fin n → K))) (fallback : Finset (Fin n → K)) :
       Break.runK (β := Id (Finset (Fin n → K))) result (fun _ => fallback) (fun r => r) =
         result.getD fallback := by

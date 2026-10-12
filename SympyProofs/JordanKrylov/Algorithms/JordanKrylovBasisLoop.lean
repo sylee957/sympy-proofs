@@ -12,7 +12,7 @@ def candidateIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperation
     (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n) := Id.run do
   let F := PolynomialOperations.applyMatrix f A
-  let d := f.toFinsupp.coeff.support.sup id
+  let d := f.natDegree
   let ℓ := k + 1
   let mut basis := basis
   let mut pending := pending
@@ -54,7 +54,7 @@ theorem candidateIteration_correct
     EliminationWorkInvariant K A f ℓbar (k + 1) (acceptedGenerators out.1) out.2.2
       todo out.2.1 := by
   by_cases ht : (reducePairedColumn D v).top ≠ 0
-  · simp only [candidateIteration, coefficientSupport_sup_eq_natDegree,
+  · simp only [candidateIteration,
       List.forIn_pure_yield_eq_foldl, Id.run, pure_bind]
     rw [ite_eq_left ht]
     have hh := h.accept K A f hf hm _ D v todo pending (by omega) hle ht
@@ -152,7 +152,7 @@ theorem candidateLayer_eq_fold
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n)) :
     (Id.run do
       let F := PolynomialOperations.applyMatrix f A
-      let d := f.toFinsupp.coeff.support.sup id
+      let d := f.natDegree
       let ℓ := k + 1
       let mut basis := basis
       let mut pending := pending

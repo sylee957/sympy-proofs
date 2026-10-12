@@ -482,18 +482,6 @@ theorem algorithmInput_early_return
     (algorithmInput_ne_zero K A f V hranks hpos le_rfl hv) (algorithmInput_mem_powerKernel K A f V hgenerating hpos le_rfl hv)
   exact (hranks ℓbar hpos le_rfl v hv).trans (hearly.trans hmultiplicity)
 
-/-- The coefficient-support bound used by the executable loop is the polynomial degree. -/
-theorem coefficientSupport_sup_eq_natDegree {K : Type*} [Field K] (f : K[X]) :
-    f.toFinsupp.coeff.support.sup id = f.natDegree := by
-  classical
-  apply le_antisymm
-  · apply Finset.sup_le
-    intro j hj
-    exact Polynomial.le_natDegree_of_mem_supp j hj
-  · by_cases hz : f = 0
-    · simp [hz]
-    · exact Finset.le_sup (f := id) (Polynomial.natDegree_mem_support_of_nonzero hz)
-
 /-- The end-of-layer update retains terminal columns and lowers the lower-block
 kernel bound and the exponent in the paired-column relation by one. -/
 theorem lowerPairedTable_invariant
