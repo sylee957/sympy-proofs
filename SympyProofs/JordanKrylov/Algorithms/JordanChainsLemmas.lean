@@ -5,6 +5,39 @@ namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 universe u
 
+private theorem forIn_rcc {β : Type} (a b : ℕ) (init : β)
+    (step : ℕ → β → Id (ForInStep β)) :
+    forIn (a...=b) init step = forIn (a...=b).toList init step := by
+  change forIn' (a...=b) init (fun k _ s => step k s) = _
+  rw [Std.Rcc.forIn'_eq_forIn'_toList]
+  rfl
+
+private theorem forIn_rco {β : Type} (n : ℕ) (init : β)
+    (step : ℕ → β → Id (ForInStep β)) :
+    forIn (0...n) init step = forIn (List.range n) init step := by
+  change forIn' (0...n) init (fun k _ s => step k s) = _
+  rw [Std.Rco.forIn'_eq_forIn'_toList, ← List.range_eq_toList_rco]
+  rfl
+
+private theorem descending_layers (n : ℕ) :
+    (List.range n).map (fun i => n - i) = (List.range n).reverse.map Nat.succ := by
+  apply List.ext_getElem
+  · simp
+  · intro i hi hj
+    simp only [List.length_map, List.length_range] at hi
+    simp [List.getElem_reverse]
+    omega
+
+private theorem descending_entries (n : ℕ) :
+    (List.range (n - 1)).map (fun i => n - i) =
+      (List.range (n - 1)).reverse.map (· + 2) := by
+  apply List.ext_getElem
+  · simp
+  · intro i hi hj
+    simp only [List.length_map, List.length_range] at hi
+    simp [List.getElem_reverse]
+    omega
+
 /-- Recursive proof model of a single descending chain. -/
 def jordanChainModel {V P : Type u} (F : V → V) (Q : ℕ → V → P) : ℕ → V → List P
   | 0, _ => []
@@ -12,40 +45,34 @@ def jordanChainModel {V P : Type u} (F : V → V) (Q : ℕ → V → P) : ℕ �
 
 private theorem chain_fold {V P : Type u} (F : V → V) (Q : ℕ → V → P)
     (ℓ : ℕ) (acc : List P) (b : V) :
-    ((List.range ℓ).reverse.foldl (fun (s : List P × V) k =>
-      (s.1 ++ [Q (k+1) s.2], if 0 < k then F s.2 else s.2)) (acc, b)).1 =
-      acc ++ jordanChainModel F Q ℓ b := by
+    let out := ((List.range ℓ).reverse.map (· + 2)).foldl
+      (fun (s : List P × V) k => (s.1 ++ [Q k s.2], F s.2)) (acc, b)
+    out.1 ++ [Q 1 out.2] = acc ++ jordanChainModel F Q (ℓ + 1) b := by
   induction ℓ generalizing acc b with
   | zero => simp [jordanChainModel]
   | succ k ih =>
-    rw [List.range_succ, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, List.foldl_cons]
-    dsimp only
+    simp only [List.range_succ, List.reverse_append, List.reverse_singleton,
+      List.singleton_append, List.map_cons, List.foldl_cons]
     rw [ih]
-    cases k with
-    | zero => simp [jordanChainModel]
-    | succ k => simp [jordanChainModel, List.append_assoc]
+    simp [jordanChainModel, List.append_assoc]
 
-theorem jordanChain_loop_eq_model {V P : Type u} (F : V → V) (Q : ℕ → V → P)
+theorem jordanChain_loop_eq_model {V P : Type} (F : V → V) (Q : ℕ → V → P)
     (ℓ : ℕ) (b : V) :
     (Id.run do
       let mut chain := []
       let mut current := b
-      for k in (List.range ℓ).reverse do
-        chain := chain ++ [Q (k + 1) current]
-        if 0 < k then
-          current := F current
-      return chain) = jordanChainModel F Q ℓ b := by
-  have hy {α : Type} {β : Type u} (xs : List α) (init : β) (step : α → β → β) :
-      (forIn xs init (fun a b => ForInStep.yield (step a b)) : Id β) =
-        xs.foldl (fun b a => step a b) init :=
-    List.forIn_pure_yield_eq_foldl (m := Id) step init
-  simp only [Id.run, Bind.bind, Pure.pure, ← apply_ite]
-  change ((forIn (List.range ℓ).reverse ([], b) (fun k s =>
-    ForInStep.yield (s.1 ++ [Q (k+1) s.2], if 0 < k then F s.2 else s.2)) :
-      Id (List P × V)).1) = _
-  rw [hy]
-  simpa only [List.nil_append] using chain_fold F Q ℓ [] b
+      for offset in 0...(ℓ - 1) do
+        chain := chain ++ [Q (ℓ - offset) current]
+        current := F current
+      chain := chain ++ [Q 1 current]
+      return chain) = jordanChainModel F Q (ℓ - 1 + 1) b := by
+  simp only [forIn_rco, List.forIn_pure_yield_eq_foldl, Id.run, pure_bind]
+  have hmap := descending_entries ℓ
+  have hfold := congrArg (fun xs => xs.foldl
+    (fun (s : List P × V) k => (s.1 ++ [Q k s.2], F s.2)) ([], b)) hmap
+  simp only [List.foldl_map] at hfold
+  rw [hfold]
+  simpa only [List.nil_append, Pure.pure, List.foldl_map] using chain_fold F Q (ℓ - 1) [] b
 
 theorem jordanChainModel_eq_ofFn {V P : Type u} (F : V → V) (Q : ℕ → V → P)
     (ℓ : ℕ) (b : V) :
@@ -63,11 +90,15 @@ theorem jordanChainModel_eq_ofFn {V P : Type u} (F : V → V) (Q : ℕ → V →
     simp [Function.iterate_succ_apply]
 
 /-- Proof model of the precomputed polynomial action. -/
-def chainPowerAction (K : Type*) [Field K] [PolynomialOperations K] {n : ℕ}
+def chainPowerAction (K : Type) [Field K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ℓbar k : ℕ) (v : Fin n → K) :=
-  let powers := Vector.ofFn (fun j : Fin (ℓbar + 1) =>
-    PolynomialOperations.reducedPower f j.val)
-  PolynomialOperations.applyBivariateMatrix (powers[k]?.getD powers[0]) A v
+  let zeroPower := PolynomialOperations.reducedPower f 0
+  let powers := Id.run do
+    let mut powers := #[zeroPower]
+    for j in 1...=ℓbar do
+      powers := powers.push (PolynomialOperations.reducedPower f j)
+    return powers
+  PolynomialOperations.applyBivariateMatrix (powers[k]?.getD zeroPower) A v
 
 theorem chainPowerAction_eq
     (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar k : ℕ}
@@ -75,8 +106,16 @@ theorem chainPowerAction_eq
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K) (hk : k ≤ ℓbar) :
     chainPowerAction K A f ℓbar k v =
       (ψPower K f k).eval₂ (Matrix.scalar (Fin n)) (A.map C) *ᵥ (fun i => C (v i)) := by
-  simp [chainPowerAction, show k < ℓbar + 1 by omega,
-    hops.reducedPower_eq K, hops.applyBivariateMatrix_eq]
+  cases k with
+  | zero =>
+    simp [chainPowerAction, forIn_rcc, Nat.toList_rcc_eq_toList_rco,
+      Nat.toList_rco_succ_succ, ← List.range_eq_toList_rco, List.forIn_pure_yield_eq_foldl,
+      hops.reducedPower_eq K, hops.applyBivariateMatrix_eq]
+  | succ k =>
+    have hk' : k < ℓbar := by omega
+    simp [chainPowerAction, forIn_rcc, Nat.toList_rcc_eq_toList_rco,
+      Nat.toList_rco_succ_succ, ← List.range_eq_toList_rco, List.forIn_pure_yield_eq_foldl, hk',
+      hops.reducedPower_eq K, hops.applyBivariateMatrix_eq]
 
 /-- The computed chain is precisely the paper's polynomial-coordinate formula. -/
 theorem jordanChainModel_eq_coordinates
@@ -107,9 +146,14 @@ private theorem mem_union_fold {α : Type*} [DecidableEq α] (xs : List ℕ)
   | nil => simp
   | cons j xs ih => simp [List.foldl_cons, ih, or_assoc]
 
+private theorem array_getElem_eq_getD {α : Type*} (fallback : α)
+    (xs : Array α) (i : ℕ) (h : i < xs.size) :
+    xs[i] = xs[i]?.getD fallback := by
+  simp [h]
+
 /-- Exact coverage of the assembly loop, before replacing operations by their specifications. -/
 theorem mem_computeJordanChains
-    (K : Type*) [Field K] [DecidableEq K] [PolynomialOperations K]
+    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (B : ℕ → List (Fin n → K)) (ℓbar : ℕ) (c : List (Fin n → K[X])) :
     c ∈ computeJordanChains K A f B ℓbar ↔
@@ -119,18 +163,29 @@ theorem mem_computeJordanChains
   let loop := fun ℓ b => Id.run do
     let mut chain := []
     let mut current := b
-    for k in (List.range ℓ).reverse do
-      chain := chain ++ [chainPowerAction K A f ℓbar (k + 1) current]
-      if 0 < k then
-        current := PolynomialOperations.applyMatrix f A current
+    for offset in 0...(ℓ - 1) do
+      chain := chain ++ [chainPowerAction K A f ℓbar (ℓ - offset) current]
+      current := PolynomialOperations.applyMatrix f A current
+    chain := chain ++ [chainPowerAction K A f ℓbar 1 current]
     return chain
-  have heq : loop = jordanChainModel (PolynomialOperations.applyMatrix f A)
-      (chainPowerAction K A f ℓbar) := by
+  have heq : loop = fun ℓ => jordanChainModel (PolynomialOperations.applyMatrix f A)
+      (chainPowerAction K A f ℓbar) (ℓ - 1 + 1) := by
     funext ℓ b
     exact jordanChain_loop_eq_model _ _ ℓ b
-  change c ∈ Id.run (forIn ((List.range ℓbar).reverse.map Nat.succ) ∅ (fun ℓ out => do
-    let out ← forIn (B ℓ) out (fun b out => pure (ForInStep.yield (insert (loop ℓ b) out)))
+  simp only [computeJordanChains,
+    array_getElem_eq_getD (PolynomialOperations.reducedPower f 0)]
+  change c ∈ Id.run (forIn (0...ℓbar) ∅ (fun offset out => do
+    let out ← forIn (B (ℓbar - offset)) out
+      (fun b out => pure (ForInStep.yield (insert (loop (ℓbar - offset) b) out)))
     pure (ForInStep.yield out)) : Id (Finset (List (Fin n → K[X])))) ↔ _
+  rw [forIn_rco]
+  have houter := List.forIn_map (m := Id) (l := List.range ℓbar)
+    (g := fun offset => ℓbar - offset) (init := (∅ : Finset (List (Fin n → K[X]))))
+    (f := fun ℓ out => do
+      let out ← forIn (B ℓ) out
+        (fun b out => pure (ForInStep.yield (insert (loop ℓ b) out)))
+      pure (ForInStep.yield out))
+  rw [← houter, descending_layers]
   simp only [List.forIn_pure_yield_eq_foldl, pure_bind, Id.run]
   change c ∈ ((List.range ℓbar).reverse.map Nat.succ).foldl
     (fun out j => (B j).foldl (fun out b => insert (loop j b) out) out) (∅ : Finset (List (Fin n → K[X]))) ↔ _
@@ -141,9 +196,9 @@ theorem mem_computeJordanChains
     List.mem_range, List.mem_toFinset, List.mem_map]
   constructor
   · rintro ⟨j, ⟨k, hk, rfl⟩, b, hb, he⟩
-    exact ⟨k+1, by omega, by omega, b, hb, he⟩
+    exact ⟨k+1, by omega, by omega, b, hb, by simpa using he⟩
   · rintro ⟨j, hp, hl, b, hb, he⟩
-    exact ⟨j, ⟨j-1, by omega, by omega⟩, b, hb, he⟩
+    exact ⟨j, ⟨j-1, by omega, by omega⟩, b, hb, by simpa [Nat.sub_add_cancel hp] using he⟩
 
 /-- Every returned chain is the formula for an input generator, and every input
 generator in the processed layers contributes its chain. -/
