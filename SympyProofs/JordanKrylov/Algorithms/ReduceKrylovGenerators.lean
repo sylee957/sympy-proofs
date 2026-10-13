@@ -15,19 +15,20 @@ def boundedVectorRank {K : Type} [Field K] [DecidableEq K] {n : ℕ}
         return j + 1
     return 0
 
-/-- Ordinary column reduction, retaining only independent nonzero columns. -/
-def reduceGeneratorColumns {K : Type} [Field K] [DecidableEq K] {n : ℕ}
-    (vs : List (Fin n → K)) : List (Fin n → K) := Id.run do
-  let mut D : Array (Fin n × PairedColumn K n) := #[]
-  for v in vs do
-    D := insertPairedColumn D { top := v, bottom := v }
-  return D.toList.map (fun iw => iw.2.top)
-
 /-- Procedure 4: reduce the highest remaining layer and redistribute its ranks. -/
 def reduceKrylovGenerators {K : Type} [Field K] [DecidableEq K] {n : ℕ}
     (F : (Fin n → K) → (Fin n → K))
     (V : ℕ → List (Fin n → K)) (ℓ : ℕ) : ℕ → List (Fin n → K) := Id.run do
-  let columns := reduceGeneratorColumns (V ℓ)
+  let mut D : Array (Fin n × (Fin n → K)) := #[]
+  for v in V ℓ do
+    let mut r := v
+    for (i, w) in D do
+      r := r - (r i / w i) • w
+    for i in List.finRange n do
+      if r i ≠ 0 then
+        D := D.push (i, r)
+        break
+  let columns := D.toList.map Prod.snd
   let mut pending := Function.update V ℓ []
   for v in columns do
     if v ≠ 0 then

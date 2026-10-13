@@ -58,6 +58,100 @@ theorem boundedVectorRank_correct
   rw [rankSearch_early_exit, hproject]
   exact congrArg Prod.fst hscan
 
+/-- Proof model of the column-reduction stage of Procedure 4. -/
+def reduceGeneratorColumns {K : Type} [Field K] [DecidableEq K] {n : ℕ}
+    (vs : List (Fin n → K)) : List (Fin n → K) := Id.run do
+  let mut D : Array (Fin n × (Fin n → K)) := #[]
+  for v in vs do
+    let mut r := v
+    for (i, w) in D do
+      r := r - (r i / w i) • w
+    for i in List.finRange n do
+      if r i ≠ 0 then
+        D := D.push (i, r)
+        break
+  return D.toList.map Prod.snd
+
+/-- One iteration of ordinary elimination, used only to organize its proof. -/
+private def generatorColumnStep {K : Type} [Field K] [DecidableEq K] {n : ℕ}
+    (D : Array (Fin n × (Fin n → K))) (v : Fin n → K) :
+    Array (Fin n × (Fin n → K)) := Id.run do
+  let mut D := D
+  let mut r := v
+  for (i, w) in D do
+    r := r - (r i / w i) • w
+  for i in List.finRange n do
+    if r i ≠ 0 then
+      D := D.push (i, r)
+      break
+  return D
+
+private theorem generatorPivotScan_eq_find {K : Type} [Field K] [DecidableEq K] {n : ℕ}
+    (D : Array (Fin n × (Fin n → K))) (r : Fin n → K) (is : List (Fin n)) :
+    (forIn (m := Id) is D (fun i E => if r i ≠ 0 then
+      ForInStep.done (E.push (i, r)) else ForInStep.yield E)) =
+    match is.find? (fun i => r i ≠ 0) with
+    | none => D
+    | some i => D.push (i, r) := by
+  induction is with
+  | nil => rfl
+  | cons i is ih =>
+    by_cases hi : r i = 0
+    · simpa [hi, List.forIn_cons, Bind.bind, Pure.pure] using ih
+    · simp [hi, List.forIn_cons, Bind.bind, Pure.pure]
+
+/-- Ordinary insertion computes exactly the upper half of paired insertion. -/
+private theorem generatorColumnStep_eq_top {K : Type} [Field K] [DecidableEq K] {n : ℕ}
+    (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n) :
+    generatorColumnStep (D.map (fun iw => (iw.1, iw.2.top))) v.top =
+      (insertPairedColumn D v).map (fun iw => (iw.1, iw.2.top)) := by
+  have hscan (E : Array (Fin n × (Fin n → K))) (u : Fin n → K) :
+      generatorColumnStep E u =
+      let r := E.toList.foldl (fun r iw => r - (r iw.1 / iw.2 iw.1) • iw.2) u
+      match (List.finRange n).find? (fun i => r i ≠ 0) with
+      | none => E
+      | some i => E.push (i, r) := by
+    have hl := Array.forIn_pure_yield_eq_foldl (m := Id) (xs := E)
+      (fun iw r => r - (r iw.1 / iw.2 iw.1) • iw.2) u
+    simp only [Pure.pure, ← Array.foldl_toList] at hl
+    simp only [generatorColumnStep, hl,
+      Id.run, Bind.bind, Pure.pure]
+    exact generatorPivotScan_eq_find E _ _
+  have ht : (D.map (fun iw => (iw.1, iw.2.top))).toList.foldl
+      (fun r iw => r - (r iw.1 / iw.2 iw.1) • iw.2) v.top =
+      (reducePairedColumn D v).top := by
+    rw [reducePairedColumn_eq_foldl]
+    simp only [Array.toList_map, List.foldl_map]
+    exact (List.foldl_hom PairedColumn.top
+      (g₁ := fun (r : PairedColumn K n) iw =>
+        ⟨r.top - (r.top iw.1 / iw.2.top iw.1) • iw.2.top,
+          r.bottom - (r.top iw.1 / iw.2.top iw.1) • iw.2.bottom⟩)
+      (g₂ := fun r iw => r - (r iw.1 / iw.2.top iw.1) • iw.2.top)
+      (l := D.toList) (init := v) (by intros; rfl))
+  rw [hscan, ht, insertPairedColumn_eq_find]
+  dsimp only
+  cases (List.finRange n).find? (fun i => (reducePairedColumn D v).top i ≠ 0) <;>
+    simp only [Array.map_push]
+
+/-- The single-column reduction agrees with the upper projection of paired reduction. -/
+theorem reduceGeneratorColumns_eq_top {K : Type} [Field K] [DecidableEq K] {n : ℕ}
+    (vs : List (Fin n → K)) :
+    reduceGeneratorColumns vs =
+      (vs.foldl (fun D v => insertPairedColumn D ⟨v, v⟩) #[]).toList.map (fun iw => iw.2.top) := by
+  have h := List.foldl_hom (fun D : Array (Fin n × PairedColumn K n) =>
+      D.map (fun iw => (iw.1, iw.2.top)))
+    (g₁ := fun D v => insertPairedColumn D ⟨v, v⟩)
+    (g₂ := generatorColumnStep) (l := vs) (init := #[])
+    (by intro D v; exact generatorColumnStep_eq_top D ⟨v, v⟩)
+  change (forIn (m := Id) vs #[] (fun v D => pure (ForInStep.yield
+    (generatorColumnStep D v))) : Id (Array (Fin n × (Fin n → K)))).toList.map Prod.snd = _
+  rw [List.forIn_pure_yield_eq_foldl]
+  change (vs.foldl generatorColumnStep #[]).toList.map Prod.snd = _
+  simp only [Array.map_empty] at h
+  rw [h]
+  simp only [Array.toList_map, List.map_map]
+  rfl
+
 /-- Ordinary column reduction preserves the linear span. -/
 theorem reduceGeneratorColumns_span {K : Type} [Field K] [DecidableEq K] {n : ℕ}
     (vs : List (Fin n → K)) :
@@ -80,9 +174,7 @@ theorem reduceGeneratorColumns_span {K : Type} [Field K] [DecidableEq K] {n : �
     constructor
     · rintro ⟨iw, hiw, rfl⟩; exact ⟨iw, hiw, rfl⟩
     · rintro ⟨iw, hiw, rfl⟩; exact ⟨iw, hiw, rfl⟩
-  simp only [reduceGeneratorColumns, List.forIn_pure_yield_eq_foldl, Id.run, pure_bind]
-  change Submodule.span K {v | v ∈ (vs.foldl
-    (fun D v => insertPairedColumn D ⟨v, v⟩) #[]).toList.map (fun iw => iw.2.top)} = _
+  rw [reduceGeneratorColumns_eq_top]
   rw [he, h]
   simp [pairedTopSpan]
 
