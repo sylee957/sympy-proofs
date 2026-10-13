@@ -4,6 +4,31 @@ import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisOuter
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 
+/-- Early exit agrees with a scan that keeps its first successful rank. -/
+theorem rankSearch_early_exit {K : Type} [Field K] [DecidableEq K] {n : ℕ}
+    (F : (Fin n → K) → (Fin n → K)) (xs : List ℕ) (w : Fin n → K) :
+    ((forIn (m := Id) xs (none, w) (fun j s =>
+      if F s.2 = 0 then ForInStep.done (some (j + 1), F s.2)
+      else ForInStep.yield (none, F s.2)) : Id (Option ℕ × (Fin n → K))).1.getD 0) =
+    (xs.foldl (fun s j => if s.1 = 0 then
+      if F s.2 = 0 then (j + 1, s.2) else (s.1, F s.2)
+      else s) (0, w)).1 := by
+  have hstop (ys : List ℕ) (r : ℕ) (hr : r ≠ 0) (u : Fin n → K) :
+      ys.foldl (fun s j => if s.1 = 0 then
+        if F s.2 = 0 then (j + 1, s.2) else (s.1, F s.2)
+        else s) (r, u) = (r, u) := by
+    induction ys with
+    | nil => rfl
+    | cons j ys ih => simpa only [List.foldl_cons, hr, ite_false] using ih
+  induction xs generalizing w with
+  | nil => rfl
+  | cons j xs ih =>
+    simp only [List.forIn_cons, List.foldl_cons, ite_true, Bind.bind, Pure.pure]
+    by_cases hz : F w = 0
+    · simp only [hz, ite_true, hstop xs (j+1) (by omega) w]
+      rfl
+    · simpa only [hz, ite_false] using ih (F w)
+
 /-- The bounded search computes the exact rank for a nonzero bounded vector. -/
 theorem boundedVectorRank_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n k : ℕ}
@@ -26,9 +51,11 @@ theorem boundedVectorRank_correct
       split <;> simp_all only
       split <;> rfl)
   simp only [Id.run, ← apply_ite, List.forIn_pure_yield_eq_foldl, pure_bind] at hscan
-  simp only [boundedVectorRank, Id.run, ← apply_ite, List.forIn_pure_yield_eq_foldl, pure_bind]
-  change ((List.range k).foldl _ (0, v)).1 = _
-  rw [hproject]
+  simp only [boundedVectorRank, Id.run, Bind.bind, Pure.pure]
+  change ((forIn (m := Id) (List.range k) (none, v) (fun j s =>
+    if F s.2 = 0 then ForInStep.done (some (j + 1), F s.2)
+    else ForInStep.yield (none, F s.2)) : Id (Option ℕ × (Fin n → K))).1.getD 0) = _
+  rw [rankSearch_early_exit, hproject]
   exact congrArg Prod.fst hscan
 
 /-- Ordinary column reduction preserves the linear span. -/

@@ -8,16 +8,12 @@ open Matrix Polynomial
 def boundedVectorRank {K : Type} [Field K] [DecidableEq K] {n : ℕ}
     (F : (Fin n → K) → (Fin n → K)) (v : Fin n → K) (bound : ℕ) : ℕ :=
   Id.run do
-    let mut rank := 0
     let mut w := v
     for j in List.range bound do
-      if rank = 0 then
-        let next := F w
-        if next = 0 then
-          rank := j + 1
-        else
-          w := next
-    return rank
+      w := F w
+      if w = 0 then
+        return j + 1
+    return 0
 
 /-- Ordinary column reduction, retaining only independent nonzero columns. -/
 def reduceGeneratorColumns {K : Type} [Field K] [DecidableEq K] {n : ℕ}
