@@ -23,6 +23,7 @@ import SympyProofs.JordanKrylov.Mathematics.PrimaryGeneratingSet
 import SympyProofs.JordanKrylov.Mathematics.PrimaryKernelDimension
 import SympyProofs.JordanKrylov.Mathematics.RankMultiplicity
 import SympyProofs.JordanKrylov.Mathematics.RankPartition
+import SympyProofs.JordanKrylov.Mathematics.RankSum
 import SympyProofs.JordanKrylov.Mathematics.VectorPolynomial
 import SympyProofs.JordanKrylov.Mathematics.VectorRank
 
