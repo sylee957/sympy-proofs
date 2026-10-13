@@ -5,6 +5,7 @@ import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisLemmas
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisLoop
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisOuter
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovElimination
+import SympyProofs.JordanKrylov.Algorithms.JordanKrylovEliminationCorrectness
 import SympyProofs.JordanKrylov.Algorithms.PolynomialOperations
 import SympyProofs.JordanKrylov.Algorithms.PrimaryGenerating
 import SympyProofs.JordanKrylov.Algorithms.PrimaryGeneratingCorrectness

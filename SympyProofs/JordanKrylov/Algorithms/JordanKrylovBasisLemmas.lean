@@ -1,4 +1,5 @@
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasis
+import SympyProofs.JordanKrylov.Algorithms.JordanKrylovEliminationCorrectness
 import SympyProofs.JordanKrylov.Mathematics.IndependentExtension
 import SympyProofs.JordanKrylov.Mathematics.PrimaryKernelDimension
 

@@ -41,9 +41,7 @@ def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
     pending := Function.update pending ℓ []
     -- Lines 6–13: initialize from the first generator in the highest layer.
     if ℓ = ℓbar then
-      match layer with
-      | [] => pure PUnit.unit
-      | v :: rest =>
+      if let v :: rest := layer then
         layer := rest
         basis := Function.update basis ℓ {v.bottom}
         if ℓ = m then

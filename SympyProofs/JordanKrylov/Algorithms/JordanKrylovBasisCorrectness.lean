@@ -29,9 +29,7 @@ def algorithmOuterIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOper
         (i, (⟨w.top, PolynomialOperations.applyMatrix f A w.bottom⟩ : PairedColumn K n)))
       else out.2.2)
   if ℓ = ℓbar then
-    match layer with
-    | [] => finish basis D layer
-    | v :: rest =>
+    if let v :: rest := layer then
       let basis := Function.update basis ℓ {v.bottom}
       if ℓ = m then .done (some {v.bottom}, basis, pending, D)
       else
@@ -39,6 +37,7 @@ def algorithmOuterIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOper
           (fun (t : Array (Fin n × PairedColumn K n) × PairedColumn K n) _ =>
             (insertPairedColumn t.1 t.2, ⟨A *ᵥ t.2.top, A *ᵥ t.2.bottom⟩)) (D, v)
         finish basis out.1 rest
+    else finish basis D layer
   else finish basis D layer
 
 /-- An Id loop whose body always yields is a left fold. -/
