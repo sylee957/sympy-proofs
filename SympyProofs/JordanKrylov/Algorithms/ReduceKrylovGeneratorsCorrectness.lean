@@ -11,7 +11,25 @@ theorem boundedVectorRank_correct
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K)
     (hv : v ≠ 0) (hk : v ∈ powerKernel K A f k) :
     boundedVectorRank (PolynomialOperations.applyMatrix f A) v k = vectorRank K A f v := by
-  exact congrArg Prod.fst (residualRankSearch_correct K hops A f v hv hk)
+  let F := PolynomialOperations.applyMatrix f A
+  have hscan := residualRankSearch_correct K hops A f v hv hk
+  have hproject := List.foldl_hom
+    (fun s : ℕ × (Fin n → K) × (Fin n → K) => (s.1, s.2.2))
+    (g₁ := fun s j => if s.1 = 0 then
+      if F s.2.2 = 0 then (j + 1, s.2.2, s.2.2) else (s.1, s.2.1, F s.2.2)
+      else s)
+    (g₂ := fun s j => if s.1 = 0 then
+      if F s.2 = 0 then (j + 1, s.2) else (s.1, F s.2)
+      else s)
+    (l := List.range k) (init := (0, v, v)) (by
+      intro s j
+      split <;> simp_all only
+      split <;> rfl)
+  simp only [Id.run, ← apply_ite, List.forIn_pure_yield_eq_foldl, pure_bind] at hscan
+  simp only [boundedVectorRank, Id.run, ← apply_ite, List.forIn_pure_yield_eq_foldl, pure_bind]
+  change ((List.range k).foldl _ (0, v)).1 = _
+  rw [hproject]
+  exact congrArg Prod.fst hscan
 
 /-- Ordinary column reduction preserves the linear span. -/
 theorem reduceGeneratorColumns_span {K : Type} [Field K] [DecidableEq K] {n : ℕ}

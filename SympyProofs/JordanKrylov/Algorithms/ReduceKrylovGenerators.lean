@@ -7,19 +7,17 @@ open Matrix Polynomial
 /-- Find the first vanishing power, up to the supplied bound. -/
 def boundedVectorRank {K : Type} [Field K] [DecidableEq K] {n : ℕ}
     (F : (Fin n → K) → (Fin n → K)) (v : Fin n → K) (bound : ℕ) : ℕ :=
-  (Id.run do
+  Id.run do
     let mut rank := 0
-    let mut terminal := v
     let mut w := v
     for j in List.range bound do
       if rank = 0 then
         let next := F w
         if next = 0 then
           rank := j + 1
-          terminal := w
         else
           w := next
-    return (rank, terminal, w)).1
+    return rank
 
 /-- Ordinary column reduction, retaining only independent nonzero columns. -/
 def reduceGeneratorColumns {K : Type} [Field K] [DecidableEq K] {n : ℕ}
