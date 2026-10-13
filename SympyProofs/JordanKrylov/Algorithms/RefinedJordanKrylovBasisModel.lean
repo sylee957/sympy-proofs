@@ -4,37 +4,32 @@ import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisLemmas
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 
-/-- The last state update is unnecessary when only the accumulated table is returned. -/
-theorem fold_krylov_skip_last {α β : Type} (insert : α → β → α) (next : β → β)
-    (d : ℕ) (s : α × β) :
-    ((List.range d).foldl (fun s j =>
-      (insert s.1 s.2, if j + 1 < d then next s.2 else s.2)) s).1 =
+/-- Insert the first column separately, then advance before each remaining insertion. -/
+theorem fold_krylov_insert_first {α β : Type} (insert : α → β → α) (next : β → β)
+    (d : ℕ) (hd : 0 < d) (s : α × β) :
+    ((List.range (d - 1)).foldl (fun s _ =>
+      (insert s.1 (next s.2), next s.2)) (insert s.1 s.2, s.2)).1 =
     ((List.range d).foldl (fun s _ => (insert s.1 s.2, next s.2)) s).1 := by
-  cases d with
-  | zero => rfl
-  | succ k =>
-    have hp (xs : List ℕ) (h : ∀ j ∈ xs, j < k) (s : α × β) :
-        xs.foldl (fun s j =>
-          (insert s.1 s.2, if j + 1 < k + 1 then next s.2 else s.2)) s =
-        xs.foldl (fun s _ => (insert s.1 s.2, next s.2)) s := by
-      induction xs generalizing s with
-      | nil => rfl
-      | cons j xs ih =>
-        simp only [List.foldl_cons, show j + 1 < k + 1 from Nat.succ_lt_succ (h j (by simp)), ite_true]
-        exact ih (fun j hj => h j (by simp [hj])) _
-    simp only [List.range_succ, List.foldl_append, List.foldl_cons, List.foldl_nil]
-    rw [hp (List.range k) (fun j hj => List.mem_range.mp hj)]
+  obtain ⟨k, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : d ≠ 0)
+  have h := List.foldl_hom (fun s : α × β => (insert s.1 s.2, s.2))
+    (g₁ := fun s (_ : ℕ) => (insert s.1 s.2, next s.2))
+    (g₂ := fun s (_ : ℕ) => (insert s.1 (next s.2), next s.2))
+    (l := List.range k) (init := s) (by intros; rfl)
+  simp only [Nat.succ_sub_one]
+  rw [h, List.range_succ, List.foldl_append]
+  rfl
 
-theorem paired_krylov_skip_last {K : Type} [Field K] [DecidableEq K] {n : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (d : ℕ)
-    (s : Array (Fin n × PairedColumn K n) × PairedColumn K n) :
-    ((List.range d).foldl (fun s j =>
-      (insertPairedColumn s.1 s.2, if j + 1 < d then
-        { top := A *ᵥ s.2.top, bottom := A *ᵥ s.2.bottom } else s.2)) s).1 =
+theorem paired_krylov_insert_first {K : Type} [Field K] [DecidableEq K] {n : ℕ}
+    (A : Matrix (Fin n) (Fin n) K) (d : ℕ) (hd : 0 < d)
+    (D : Array (Fin n × PairedColumn K n)) (w : PairedColumn K n) :
+    ((List.range (d - 1)).foldl (fun s _ =>
+      (insertPairedColumn s.1 { top := A *ᵥ s.2.top, bottom := A *ᵥ s.2.bottom },
+        { top := A *ᵥ s.2.top, bottom := A *ᵥ s.2.bottom }))
+      (insertPairedColumn D w, w)).1 =
     ((List.range d).foldl (fun s _ =>
-      (insertPairedColumn s.1 s.2, { top := A *ᵥ s.2.top, bottom := A *ᵥ s.2.bottom })) s).1 :=
-  fold_krylov_skip_last insertPairedColumn
-    (fun w => { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }) d s
+      (insertPairedColumn s.1 s.2, { top := A *ᵥ s.2.top, bottom := A *ᵥ s.2.bottom })) (D, w)).1 :=
+  fold_krylov_insert_first insertPairedColumn
+    (fun w => { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }) d hd (D, w)
 
 /-- Optional preprocessing before entering a lower layer. -/
 def refinedPreprocess (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
@@ -223,40 +218,11 @@ theorem refined_forIn_yield {α β : Type} (xs : List α) (s : β) (step : β �
     (forIn (m := Id) xs s (fun a b => ForInStep.yield (step b a))) = xs.foldl step s :=
   List.forIn_pure_yield_eq_foldl (m := Id) (fun a b => step b a) s
 
-/-- Normalize a conditional state update inside a loop. -/
-theorem refined_forIn_conditional_update {α β : Type} (xs : List ℕ) (s : α × β)
-    (insert : α → β → α) (next : β → β) (d : ℕ) :
-    (forIn (m := Id) xs s (fun j s => if j + 1 < d then
-      ForInStep.yield (insert s.1 s.2, next s.2) else
-      ForInStep.yield (insert s.1 s.2, s.2))) =
-    xs.foldl (fun s j => (insert s.1 s.2, if j + 1 < d then next s.2 else s.2)) s := by
-  have h : (fun (j : ℕ) (s : α × β) => if j + 1 < d then
-      ForInStep.yield (insert s.1 s.2, next s.2) else
-      ForInStep.yield (insert s.1 s.2, s.2)) =
-      (fun j s => ForInStep.yield (insert s.1 s.2, if j + 1 < d then next s.2 else s.2)) := by
-    funext j s
-    split <;> rfl
-  rw [h]
-  exact refined_forIn_yield xs s _
-
-theorem paired_forIn_conditional_update {K : Type} [Field K] [DecidableEq K] {n : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (d : ℕ)
-    (s : Array (Fin n × PairedColumn K n) × PairedColumn K n) :
-    (forIn (m := Id) (List.range d) s (fun j s => if j + 1 < d then
-      ForInStep.yield (insertPairedColumn s.1 s.2,
-        { top := A *ᵥ s.2.top, bottom := A *ᵥ s.2.bottom }) else
-      ForInStep.yield (insertPairedColumn s.1 s.2, s.2))).1 =
-    ((List.range d).foldl (fun s _ =>
-      (insertPairedColumn s.1 s.2, { top := A *ᵥ s.2.top, bottom := A *ᵥ s.2.bottom })) s).1 := by
-  have h := refined_forIn_conditional_update (List.range d) s insertPairedColumn
-    (fun w => ({ top := A *ᵥ w.top, bottom := A *ᵥ w.bottom } : PairedColumn K n)) d
-  rw [h, paired_krylov_skip_last]
-
 /-- The imperative definition elaborates to the nested loop proof model. -/
 theorem computeRefinedJordanKrylovBasis_eq_loops
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool) :
+    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool) (hd : 0 < f.natDegree) :
     computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess =
       let U := fun j => if 1 ≤ j ∧ j ≤ ℓbar then V j else []
       let U := if preprocess then reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) U ℓbar else U
@@ -279,7 +245,7 @@ theorem computeRefinedJordanKrylovBasis_eq_loops
     Nat.succ_eq_add_one, Nat.add_sub_cancel, Bind.bind, Pure.pure]
   dsimp only [Pure.pure] at ht
   cases preprocess <;> simp only [Bool.false_eq_true, ite_false, ite_true]
-  all_goals simp only [paired_forIn_conditional_update, refined_forIn_yield, ht]
+  all_goals simp only [refined_forIn_yield, ht, paired_krylov_insert_first A f.natDegree hd]
   all_goals split
   all_goals rename_i heq
   all_goals first | rw [heq] | (
@@ -319,7 +285,7 @@ theorem computeRefinedJordanKrylovBasis_eq_loops
 theorem computeRefinedJordanKrylovBasis_eq_model
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool) :
+    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool) (hd : 0 < f.natDegree) :
     computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess =
       let U := fun j => if 1 ≤ j ∧ j ≤ ℓbar then V j else []
       let U := if preprocess then reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) U ℓbar else U
@@ -334,7 +300,7 @@ theorem computeRefinedJordanKrylovBasis_eq_model
               (insertPairedColumn s.1 s.2, ⟨A *ᵥ s.2.top, A *ᵥ s.2.bottom⟩))
             (#[], ⟨(PolynomialOperations.applyMatrix f A)^[ℓbar - 1] v, v⟩)).1
           run (Function.update U ℓbar rest) {v} ℓbar D := by
-  rw [computeRefinedJordanKrylovBasis_eq_loops]
+  rw [computeRefinedJordanKrylovBasis_eq_loops K A f V ℓbar m preprocess hd]
   simp only [refined_outer_eq_model, refinedPreprocess, lt_self_iff_false, false_and, and_false, ite_false]
 
 end SympyProofs.JordanKrylov

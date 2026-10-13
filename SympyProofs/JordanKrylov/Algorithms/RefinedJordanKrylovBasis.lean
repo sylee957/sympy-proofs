@@ -32,10 +32,10 @@ def computeRefinedJordanKrylovBasis (K : Type) [Field K] [DecidableEq K]
     for _ in List.range (ℓbar - 1) do
       top := F top
     let mut w : PairedColumn K n := { top := top, bottom := v }
-    for j in List.range f.natDegree do
+    D := insertPairedColumn D w
+    for _ in List.range (f.natDegree - 1) do
+      w := { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }
       D := insertPairedColumn D w
-      if j + 1 < f.natDegree then
-        w := { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }
   for ℓ in (List.range ℓbar).reverse.map Nat.succ do
     -- Lines 8–10: simplify each nonempty lower layer before elimination.
     if preprocess ∧ ℓ < ℓbar ∧ pending ℓ ≠ [] then
@@ -54,10 +54,10 @@ def computeRefinedJordanKrylovBasis (K : Type) [Field K] [DecidableEq K]
         used := used + ℓ
         if used = m then return basis
         let mut w := r
-        for j in List.range f.natDegree do
+        D := insertPairedColumn D w
+        for _ in List.range (f.natDegree - 1) do
+          w := { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }
           D := insertPairedColumn D w
-          if j + 1 < f.natDegree then
-            w := { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }
       else if r.bottom ≠ 0 ∧ 1 < ℓ then
         -- Lines 21–22: move the residual to its lower rank layer.
         let rank := boundedVectorRank F r.bottom (ℓ - 1)

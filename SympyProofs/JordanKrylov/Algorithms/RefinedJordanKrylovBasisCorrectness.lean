@@ -323,7 +323,7 @@ theorem computeRefinedJordanKrylovBasis_correct_of_generating
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ) :
     IsJordanKrylovBasis K A (powerKernel K A f ℓbar)
       (computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess : Set (Fin n → K)) := by
-  rw [computeRefinedJordanKrylovBasis_eq_model]
+  rw [computeRefinedJordanKrylovBasis_eq_model K A f V ℓbar m preprocess hf.natDegree_pos]
   let U := fun j => if 1 ≤ j ∧ j ≤ ℓbar then V j else []
   have hu : algorithmInputSet U ℓbar = algorithmInputSet V ℓbar := by
     ext v
