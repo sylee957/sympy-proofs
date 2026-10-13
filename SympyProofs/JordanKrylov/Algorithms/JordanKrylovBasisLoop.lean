@@ -125,6 +125,41 @@ theorem candidateIteration_basis
     · split <;> rfl
     · rfl
 
+theorem candidateIteration_ranks
+    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X])
+    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
+    (todo : List (PairedColumn K n))
+    (h : EliminationWorkInvariant K A f ℓbar (k+1) (acceptedGenerators basis) D (v :: todo) pending)
+    (hr : BasisLayerRanks K A f basis) :
+    BasisLayerRanks K A f (candidateIteration K A f k basis pending D v).1 := by
+  rw [candidateIteration_basis]
+  split
+  · rename_i ht
+    have hv := h.current v (List.mem_cons_self ..)
+    exact hr.insert K A f basis (k+1) _ (by omega)
+      (reducePairedColumn_rank_eq K A f (by omega) D v h.table.paired hv.2 h.table.bounded hv.1 ht)
+  · exact hr
+
+theorem candidateLayer_ranks
+    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
+    (hops : PolynomialOperations.IsCorrect K)
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
+    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n))
+    (hle : k + 1 ≤ ℓbar)
+    (h : EliminationWorkInvariant K A f ℓbar (k+1) (acceptedGenerators basis) D todo pending)
+    (hr : BasisLayerRanks K A f basis) :
+    BasisLayerRanks K A f
+      (todo.foldl (fun s v => candidateIteration K A f k s.1 s.2.1 s.2.2 v)
+        (basis, pending, D)).1 := by
+  induction todo generalizing basis pending D with
+  | nil => exact hr
+  | cons v todo ih =>
+    exact ih _ _ _ (candidateIteration_correct K hops A f hf hm basis pending D v todo hle h)
+      (candidateIteration_ranks K A f basis pending D v todo h hr)
+
 /-- Only positive layers up to the prescribed bound can contain accepted vectors. -/
 def BasisLayerSupport {K : Type} {n : ℕ} (ℓbar : ℕ) (basis : ℕ → Finset (Fin n → K)) : Prop :=
   ∀ j v, v ∈ basis j → 1 ≤ j ∧ j ≤ ℓbar

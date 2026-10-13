@@ -9,22 +9,23 @@ accepting rank `ℓ` adds `ℓ`, and `used = m` is the stopping test.
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 
-/-- Algorithm 3, with optional Procedure 4 preprocessing at each nonempty layer. -/
+/-- Algorithm 3, returning generators by rank, with optional Procedure 4
+preprocessing at each nonempty layer. -/
 def computeRefinedJordanKrylovBasis (K : Type) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool := false) :
-    Finset (Fin n → K) := Id.run do
+    (ℕ → Finset (Fin n → K)) := Id.run do
   let F := PolynomialOperations.applyMatrix f A
   let mut pending := fun j => if 1 ≤ j ∧ j ≤ ℓbar then V j else []
   if preprocess then
     pending := reduceKrylovGenerators F pending ℓbar
-  let mut basis : Finset (Fin n → K) := ∅
+  let mut basis : ℕ → Finset (Fin n → K) := fun _ => ∅
   let mut used := 0
   let mut D : Array (Fin n × PairedColumn K n) := #[]
   -- Lines 2–5: select the first generator and test the singleton case immediately.
   if let v :: rest := pending ℓbar then
     pending := Function.update pending ℓbar rest
-    basis := {v}
+    basis := Function.update basis ℓbar {v}
     used := ℓbar
     if used = m then return basis
     -- Line 6: construct the initial simultaneous Krylov columns of W and S.
@@ -50,7 +51,7 @@ def computeRefinedJordanKrylovBasis (K : Type) [Field K] [DecidableEq K]
       let r := reducePairedColumn D { top := top, bottom := v }
       if r.top ≠ 0 then
         -- Lines 15–20: accept a generator and stop when its rank completes m.
-        basis := insert r.bottom basis
+        basis := Function.update basis ℓ (insert r.bottom (basis ℓ))
         used := used + ℓ
         if used = m then return basis
         let mut w := r

@@ -3,7 +3,7 @@ import SympyProofs.JordanKrylov.Algorithms.JordanKrylovElimination
 /-! # Algorithm 2: Jordan–Krylov basis construction
 
 `V ℓ` lists the input generators of rank `ℓ`. Lists provide a deterministic
-choice order; the output is a finite set. Only layers `1, …, ℓbar` are processed.
+choice order; the output retains the rank layers. Only layers `1, …, ℓbar` are processed.
 The input contract from the paper is that these layers generate the full primary
 kernel, `f` is monic irreducible, and `m` is its characteristic multiplicity.
 These are correctness assumptions, not arguments needed by the computation.
@@ -15,13 +15,14 @@ half is multiplication by `diag(I,f(A))`.
 namespace SympyProofs.JordanKrylov
 open Polynomial Matrix
 
-/-- Algorithm 2 in imperative form. The polynomial operations are supplied by
+/-- Algorithm 2 in imperative form, returning generators by rank.
+The polynomial operations are supplied by
 `PolynomialOperations K`. The definition is total even outside the input contract:
 an empty top layer is skipped, and only strictly lower positive residual ranks
 are queued. Correctness as a Jordan–Krylov basis requires a separate proof. -/
 def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) : Finset (Fin n → K) := Id.run do
+    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) : ℕ → Finset (Fin n → K) := Id.run do
   let F := PolynomialOperations.applyMatrix f A
   let d := f.natDegree
   let mut basis : ℕ → Finset (Fin n → K) := fun _ => ∅
@@ -45,7 +46,7 @@ def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
         layer := rest
         basis := Function.update basis ℓ {v.bottom}
         if ℓ = m then
-          return {v.bottom}
+          return basis
         let mut w := v
         for _ in List.range d do
           D := insertPairedColumn D w
@@ -78,9 +79,6 @@ def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
     -- Lines 25–27: retain the top block, lower the rank of the bottom block.
     if 1 < ℓ then
       D := D.map (fun (i, w) => (i, ⟨w.top, F w.bottom⟩))
-  let mut result := ∅
-  for k in List.range ℓbar do
-    result := result ∪ basis (k + 1)
-  return result
+  return basis
 
 end SympyProofs.JordanKrylov

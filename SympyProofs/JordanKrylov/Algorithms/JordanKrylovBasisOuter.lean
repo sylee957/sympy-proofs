@@ -44,6 +44,35 @@ def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOpera
     simpa only [List.range_succ, List.reverse_append, List.reverse_singleton,
       List.foldl_cons, List.foldl_append, List.foldl_nil, ordinaryLayerIteration,
       show 1 < k + 1 + 1 by omega, ite_true] using hr
+theorem remainingLayers_ranks
+    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
+    (hops : PolynomialOperations.IsCorrect K)
+    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
+    (k : ℕ) (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (D : Array (Fin n × PairedColumn K n)) (hle : k + 1 ≤ ℓbar)
+    (h : EliminationWorkInvariant K A f ℓbar (k+1) (acceptedGenerators basis) D
+      (pending (k+1)) (Function.update pending (k+1) []))
+    (hr : BasisLayerRanks K A f basis) :
+    BasisLayerRanks K A f
+      ((List.range (k+1)).reverse.foldl
+        (fun s j => ordinaryLayerIteration K A f j s) (basis, pending, D)).1 := by
+  induction k generalizing basis pending D with
+  | zero =>
+    have hh := candidateLayer_ranks K hops A f hf hm basis
+      (Function.update pending 1 []) D (pending 1) hle h hr
+    simpa only [List.range_succ, List.range_zero, List.nil_append, List.reverse_singleton,
+      List.foldl_cons, List.foldl_nil, ordinaryLayerIteration] using hh
+  | succ k ih =>
+    have hh := candidateLayer_correct K hops A f hf hm basis
+      (Function.update pending (k+1+1) []) D (pending (k+1+1)) hle h
+    have hr' := candidateLayer_ranks K hops A f hf hm basis
+      (Function.update pending (k+1+1) []) D (pending (k+1+1)) hle h hr
+    have hn := hh.next_layer K hops A f (by omega) _ _ _
+    have hout := ih _ _ _ (by omega) hn hr'
+    simpa only [List.range_succ, List.reverse_append, List.reverse_singleton,
+      List.foldl_cons, List.foldl_append, List.foldl_nil, ordinaryLayerIteration,
+      show 1 < k+1+1 by omega, ite_true] using hout
+
 theorem ordinaryLayerIteration_support
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
