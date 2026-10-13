@@ -9,7 +9,7 @@ open Matrix Polynomial
 /-- A proof model of one iteration, matching the imperative body of Algorithm 2. -/
 def candidateIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n) := Id.run do
   let F := PolynomialOperations.applyMatrix f A
   let d := f.natDegree
@@ -19,7 +19,7 @@ def candidateIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperation
   let mut D := D
   let r := reducePairedColumn D v
   if r.top ≠ 0 then
-    basis := Function.update basis ℓ (insert r.bottom (basis ℓ))
+    basis := Function.update basis ℓ (r.bottom :: (basis ℓ))
     let mut w := r
     for _ in List.range d do
       D := insertPairedColumn D w
@@ -45,7 +45,7 @@ theorem candidateIteration_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (todo : List (PairedColumn K n)) (hle : k + 1 ≤ ℓbar)
     (h : EliminationWorkInvariant K A f ℓbar (k + 1) (acceptedGenerators basis) D
@@ -59,7 +59,7 @@ theorem candidateIteration_correct
     rw [ite_eq_left ht]
     have hh := h.accept K A f hf hm _ D v todo pending (by omega) hle ht
     dsimp only at hh
-    rw [← acceptedGenerators_insert basis (k + 1)] at hh
+    rw [← acceptedGenerators_cons basis (k + 1)] at hh
     exact hh
   · have hz : (reducePairedColumn D v).top = 0 := not_ne_iff.mp ht
     by_cases hb : (reducePairedColumn D v).bottom ≠ 0 ∧ 1 < k + 1
@@ -95,7 +95,7 @@ theorem candidateLayer_correct
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n))
     (hle : k + 1 ≤ ℓbar)
     (h : EliminationWorkInvariant K A f ℓbar (k + 1) (acceptedGenerators basis) D todo pending) :
@@ -111,11 +111,11 @@ theorem candidateLayer_correct
 theorem candidateIteration_basis
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n) :
     (candidateIteration K A f k basis pending D v).1 =
       if (reducePairedColumn D v).top ≠ 0 then
-        Function.update basis (k + 1) (insert (reducePairedColumn D v).bottom (basis (k + 1)))
+        Function.update basis (k + 1) ((reducePairedColumn D v).bottom :: basis (k + 1))
       else basis := by
   unfold candidateIteration
   dsimp only [Id.run, Bind.bind, Pure.pure]
@@ -128,7 +128,7 @@ theorem candidateIteration_basis
 theorem candidateIteration_ranks
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (todo : List (PairedColumn K n))
     (h : EliminationWorkInvariant K A f ℓbar (k+1) (acceptedGenerators basis) D (v :: todo) pending)
@@ -138,7 +138,7 @@ theorem candidateIteration_ranks
   split
   · rename_i ht
     have hv := h.current v (List.mem_cons_self ..)
-    exact hr.insert K A f basis (k+1) _ (by omega)
+    exact hr.cons K A f basis (k+1) _ (by omega)
       (reducePairedColumn_rank_eq K A f (by omega) D v h.table.paired hv.2 h.table.bounded hv.1 ht)
   · exact hr
 
@@ -146,7 +146,7 @@ theorem candidateLayer_ranks
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n))
     (hle : k + 1 ≤ ℓbar)
     (h : EliminationWorkInvariant K A f ℓbar (k+1) (acceptedGenerators basis) D todo pending)
@@ -161,13 +161,13 @@ theorem candidateLayer_ranks
       (candidateIteration_ranks K A f basis pending D v todo h hr)
 
 /-- Only positive layers up to the prescribed bound can contain accepted vectors. -/
-def BasisLayerSupport {K : Type} {n : ℕ} (ℓbar : ℕ) (basis : ℕ → Finset (Fin n → K)) : Prop :=
+def BasisLayerSupport {K : Type} {n : ℕ} (ℓbar : ℕ) (basis : ℕ → List (Fin n → K)) : Prop :=
   ∀ j v, v ∈ basis j → 1 ≤ j ∧ j ≤ ℓbar
 
 theorem candidateIteration_support
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
     (hs : BasisLayerSupport ℓbar basis) (hle : k + 1 ≤ ℓbar) :
     BasisLayerSupport ℓbar (candidateIteration K A f k basis pending D v).1 := by
@@ -183,7 +183,7 @@ theorem candidateIteration_support
 theorem candidateLayer_eq_fold
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n)) :
     (Id.run do
       let F := PolynomialOperations.applyMatrix f A
@@ -195,7 +195,7 @@ theorem candidateLayer_eq_fold
       for v in todo do
         let r := reducePairedColumn D v
         if r.top ≠ 0 then
-          basis := Function.update basis ℓ (insert r.bottom (basis ℓ))
+          basis := Function.update basis ℓ (r.bottom :: (basis ℓ))
           let mut w := r
           for _ in List.range d do
             D := insertPairedColumn D w
@@ -227,7 +227,7 @@ theorem candidateLayer_eq_fold
 theorem candidateLayer_support
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n))
     (hs : BasisLayerSupport ℓbar basis) (hle : k + 1 ≤ ℓbar) :
     BasisLayerSupport ℓbar
@@ -239,8 +239,8 @@ theorem candidateLayer_support
     exact ih _ _ _ (candidateIteration_support K A f basis pending D v hs hle)
 
 private theorem mem_basis_union_fold {K : Type} [DecidableEq K] {n : ℕ}
-    (basis : ℕ → Finset (Fin n → K)) (ks : List ℕ) (acc : Finset (Fin n → K)) (v : Fin n → K) :
-    v ∈ ks.foldl (fun s k => s ∪ basis (k + 1)) acc ↔
+    (basis : ℕ → List (Fin n → K)) (ks : List ℕ) (acc : Finset (Fin n → K)) (v : Fin n → K) :
+    v ∈ ks.foldl (fun s k => s ∪ (basis (k + 1)).toFinset) acc ↔
       v ∈ acc ∨ ∃ k ∈ ks, v ∈ basis (k + 1) := by
   induction ks generalizing acc with
   | nil => simp
@@ -248,16 +248,16 @@ private theorem mem_basis_union_fold {K : Type} [DecidableEq K] {n : ℕ}
 
 /-- The final union loop returns exactly the accepted set tracked by the invariant. -/
 theorem collectBasis_eq_acceptedGenerators
-    {K : Type} [DecidableEq K] {n ℓbar : ℕ} (basis : ℕ → Finset (Fin n → K))
+    {K : Type} [DecidableEq K] {n ℓbar : ℕ} (basis : ℕ → List (Fin n → K))
     (hs : BasisLayerSupport ℓbar basis) :
     ((Id.run do
       let mut result : Finset (Fin n → K) := ∅
       for k in List.range ℓbar do
-        result := result ∪ basis (k + 1)
+        result := result ∪ (basis (k + 1)).toFinset
       return result) : Set (Fin n → K)) = acceptedGenerators basis := by
   ext v
   simp only [List.forIn_pure_yield_eq_foldl, Id.run, pure_bind]
-  change v ∈ (List.range ℓbar).foldl (fun s k => s ∪ basis (k + 1)) ∅ ↔ _
+  change v ∈ (List.range ℓbar).foldl (fun s k => s ∪ (basis (k + 1)).toFinset) ∅ ↔ _
   simp only [mem_basis_union_fold, Finset.notMem_empty, false_or, List.mem_range,
     acceptedGenerators, Set.mem_ofPred_eq]
   constructor

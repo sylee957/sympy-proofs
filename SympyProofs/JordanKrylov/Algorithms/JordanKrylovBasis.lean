@@ -22,10 +22,10 @@ an empty top layer is skipped, and only strictly lower positive residual ranks
 are queued. Correctness as a Jordan–Krylov basis requires a separate proof. -/
 def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
     [PolynomialOperations K] {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) : ℕ → Finset (Fin n → K) := Id.run do
+    (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) : ℕ → List (Fin n → K) := Id.run do
   let F := PolynomialOperations.applyMatrix f A
   let d := f.natDegree
-  let mut basis : ℕ → Finset (Fin n → K) := fun _ => ∅
+  let mut basis : ℕ → List (Fin n → K) := fun _ => []
   let mut pending : ℕ → List (PairedColumn K n) := fun _ => []
   -- Lines 2–4: form the paired generators of every positive rank.
   for ℓ in (List.range ℓbar).reverse.map Nat.succ do
@@ -44,7 +44,7 @@ def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
     if ℓ = ℓbar then
       if let v :: rest := layer then
         layer := rest
-        basis := Function.update basis ℓ {v.bottom}
+        basis := Function.update basis ℓ [v.bottom]
         if ℓ = m then
           return basis
         let mut w := v
@@ -55,7 +55,7 @@ def computeJordanKrylovBasis (K : Type*) [Field K] [DecidableEq K]
     for v in layer do
       let r := reducePairedColumn D v
       if r.top ≠ 0 then
-        basis := Function.update basis ℓ (insert r.bottom (basis ℓ))
+        basis := Function.update basis ℓ (r.bottom :: (basis ℓ))
         let mut w := r
         for _ in List.range d do
           D := insertPairedColumn D w

@@ -9,7 +9,7 @@ open Matrix Polynomial
 /-- Proof model for a rank layer after the top-layer special case. -/
 def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
-    (s : (ℕ → Finset (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
+    (s : (ℕ → List (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n)) :=
   let out := (s.2.1 (k + 1)).foldl
     (fun t v => candidateIteration K A f k t.1 t.2.1 t.2.2 v)
@@ -22,7 +22,7 @@ def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOpera
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
     (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (k : ℕ) (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (k : ℕ) (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (hle : k + 1 ≤ ℓbar)
     (h : EliminationWorkInvariant K A f ℓbar (k + 1) (acceptedGenerators basis) D
       (pending (k + 1)) (Function.update pending (k + 1) [])) :
@@ -48,7 +48,7 @@ theorem remainingLayers_ranks
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
     (hops : PolynomialOperations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (k : ℕ) (basis : ℕ → Finset (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
+    (k : ℕ) (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (hle : k + 1 ≤ ℓbar)
     (h : EliminationWorkInvariant K A f ℓbar (k+1) (acceptedGenerators basis) D
       (pending (k+1)) (Function.update pending (k+1) []))
@@ -76,7 +76,7 @@ theorem remainingLayers_ranks
 theorem ordinaryLayerIteration_support
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
-    (s : (ℕ → Finset (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
+    (s : (ℕ → List (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n))
     (hs : BasisLayerSupport ℓbar s.1) (hle : k + 1 ≤ ℓbar) :
     BasisLayerSupport ℓbar (ordinaryLayerIteration K A f k s).1 :=
@@ -85,7 +85,7 @@ theorem ordinaryLayerIteration_support
 theorem remainingLayers_support
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ks : List ℕ)
-    (s : (ℕ → Finset (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
+    (s : (ℕ → List (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n))
     (hs : BasisLayerSupport ℓbar s.1) (hle : ∀ k ∈ ks, k + 1 ≤ ℓbar) :
     BasisLayerSupport ℓbar
@@ -179,10 +179,10 @@ theorem initial_workInvariant
       (algorithmInputSet V ℓbar))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ) :
     let pending := initialPending (PolynomialOperations.applyMatrix f A) V ℓbar
-    EliminationWorkInvariant K A f ℓbar ℓbar (acceptedGenerators (fun _ => ∅)) #[]
+    EliminationWorkInvariant K A f ℓbar ℓbar (acceptedGenerators (fun _ => [])) #[]
       (pending ℓbar) (Function.update pending ℓbar []) := by
   dsimp only
-  have he : acceptedGenerators (fun _ => (∅ : Finset (Fin n → K))) = ∅ := by
+  have he : acceptedGenerators (fun _ => ([] : List (Fin n → K))) = ∅ := by
     ext v; simp [acceptedGenerators]
   rw [he]
   refine ⟨EliminationTableInvariant.empty K A f, ?_, ?_, ?_⟩

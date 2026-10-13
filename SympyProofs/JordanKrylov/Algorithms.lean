@@ -1,3 +1,6 @@
+import SympyProofs.JordanKrylov.Algorithms.JordanChains
+import SympyProofs.JordanKrylov.Algorithms.JordanChainsLemmas
+import SympyProofs.JordanKrylov.Algorithms.JordanChainsCorrectness
 import SympyProofs.JordanKrylov.Algorithms.ReduceKrylovGenerators
 import SympyProofs.JordanKrylov.Algorithms.ReduceKrylovGeneratorsCorrectness
 import SympyProofs.JordanKrylov.Algorithms.RefinedJordanKrylovBasis

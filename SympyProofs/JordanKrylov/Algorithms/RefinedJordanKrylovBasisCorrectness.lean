@@ -168,7 +168,7 @@ theorem refinedElimination_correct
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (m : ℕ) (hmult : m = multiplicity f A.charpoly) (preprocess : Bool) (limit : ℕ)
     (ℓ : ℕ) (todo : List (Fin n → K)) (pending : ℕ → List (Fin n → K))
-    (B : ℕ → Finset (Fin n → K)) (used : ℕ) (D : Array (Fin n × PairedColumn K n))
+    (B : ℕ → List (Fin n → K)) (used : ℕ) (D : Array (Fin n × PairedColumn K n))
     (hrB : BasisLayerRanks K A f B)
     (hp : 1 ≤ ℓ) (hle : ℓ ≤ ℓbar)
     (flat : Finset (Fin n → K)) (hflat : acceptedGenerators B = (flat : Set (Fin n → K)))
@@ -219,10 +219,10 @@ theorem refinedElimination_correct
         have hnew : r.bottom ∉ flat := hh.table.remainder_not_mem K A f _ D hp pair hv ht
         have hsum : used + (k+1) = ∑ w ∈ insert r.bottom flat, vectorRank K A f w := by
           rw [Finset.sum_insert hnew, hrank, ← hs, Nat.add_comm]
-        have hflat' : acceptedGenerators (Function.update B (k+1) (insert r.bottom (B (k+1)))) =
+        have hflat' : acceptedGenerators (Function.update B (k+1) (r.bottom :: (B (k+1)))) =
             (insert r.bottom flat : Finset (Fin n → K)) := by
-          rw [acceptedGenerators_insert, hflat, Finset.coe_insert]
-        have hrB' := hrB.insert K A f B (k+1) r.bottom (by omega) hrank
+          rw [acceptedGenerators_cons, hflat, Finset.coe_insert]
+        have hrB' := hrB.cons K A f B (k+1) r.bottom (by omega) hrank
         by_cases hstop : used + (k+1) = m
         · rw [ite_eq_left hstop]
           refine ⟨?_, hrB'⟩
@@ -232,7 +232,7 @@ theorem refinedElimination_correct
             (by simpa only [Finset.coe_insert] using ha.table.primary)
           exact hsum.symm.trans (hstop.trans hmult)
         · rw [ite_eq_right hstop]
-          exact inner pending (Function.update B (k+1) (insert r.bottom (B (k+1)))) (used+(k+1)) _ hrB'
+          exact inner pending (Function.update B (k+1) (r.bottom :: (B (k+1)))) (used+(k+1)) _ hrB'
             (insert r.bottom flat) hflat' hsum
             (by simpa only [Finset.coe_insert] using ha)
       · rw [ite_eq_right ht]
@@ -287,7 +287,7 @@ theorem refined_initial_invariant
   dsimp only at h
   rw [he] at h
   simpa only [terminalPairs_update, terminalPairs_nil, acceptedGenerators,
-    Finset.notMem_empty, exists_false, Set.ofPred_false] using h
+    List.not_mem_nil, exists_false, Set.ofPred_false] using h
 
 /-- Selecting the initial generator directly agrees with elimination against an empty table. -/
 theorem refined_initialization_eq
@@ -298,15 +298,15 @@ theorem refined_initialization_eq
     (let run := fun W B used D => refinedElimination K A f m preprocess ℓbar ℓbar
         (W ℓbar) (Function.update W ℓbar []) B used D
       match W ℓbar with
-      | [] => run W (fun _ => ∅) 0 #[]
+      | [] => run W (fun _ => []) 0 #[]
       | v :: rest =>
-        if ℓbar = m then Function.update (fun _ => ∅) ℓbar {v} else
+        if ℓbar = m then Function.update (fun _ => []) ℓbar [v] else
           let D := ((List.range f.natDegree).foldl
             (fun (s : Array (Fin n × PairedColumn K n) × PairedColumn K n) _ =>
               (insertPairedColumn s.1 s.2, ⟨A *ᵥ s.2.top, A *ᵥ s.2.bottom⟩))
             (#[], ⟨(PolynomialOperations.applyMatrix f A)^[ℓbar - 1] v, v⟩)).1
-          run (Function.update W ℓbar rest) (Function.update (fun _ => ∅) ℓbar {v}) ℓbar D) =
-      refinedElimination K A f m preprocess ℓbar ℓbar (W ℓbar) (Function.update W ℓbar []) (fun _ => ∅) 0 #[] := by
+          run (Function.update W ℓbar rest) (Function.update (fun _ => []) ℓbar [v]) ℓbar D) =
+      refinedElimination K A f m preprocess ℓbar ℓbar (W ℓbar) (Function.update W ℓbar []) (fun _ => []) 0 #[] := by
   cases hw : W ℓbar with
   | nil => simp only [hw]
   | cons v rest =>
@@ -363,14 +363,14 @@ theorem computeRefinedJordanKrylovBasis_correct_of_generating
       (hg : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar) (algorithmInputSet W ℓbar))
       (hr : RankedLayers K A f W) (hs : ∀ j v, v ∈ W j → 1 ≤ j ∧ j ≤ ℓbar) :
       IsJordanKrylovBasis K A (powerKernel K A f ℓbar)
-        (acceptedGenerators (refinedElimination K A f m preprocess ℓbar ℓbar (W ℓbar) (Function.update W ℓbar []) (fun _ => ∅) 0 #[])) ∧
+        (acceptedGenerators (refinedElimination K A f m preprocess ℓbar ℓbar (W ℓbar) (Function.update W ℓbar []) (fun _ => []) 0 #[])) ∧
       BasisLayerRanks K A f
-        (refinedElimination K A f m preprocess ℓbar ℓbar (W ℓbar) (Function.update W ℓbar []) (fun _ => ∅) 0 #[]) := by
+        (refinedElimination K A f m preprocess ℓbar ℓbar (W ℓbar) (Function.update W ℓbar []) (fun _ => []) 0 #[]) := by
     by_cases hz : ℓbar = 0
     · subst ℓbar
       simp only [refinedElimination, Id.run, Pure.pure, acceptedGenerators_empty, powerKernel_zero, basisLayerRanks_empty, and_true]
       exact ⟨empty_isKrylovGeneratingSet_bot K A, isJordanKrylovIndependent_empty K A⟩
-    exact refinedElimination_correct K hops A f hf hm m hmultiplicity preprocess ℓbar ℓbar _ _ (fun _ => ∅) 0 #[]
+    exact refinedElimination_correct K hops A f hf hm m hmultiplicity preprocess ℓbar ℓbar _ _ (fun _ => []) 0 #[]
       (basisLayerRanks_empty K A f) (by omega) le_rfl ∅ (by simp) (by simp) (by simpa only [Finset.coe_empty] using refined_initial_invariant K A f W hops hg hr hs)
   cases preprocess with
   | false =>

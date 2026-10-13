@@ -9,12 +9,12 @@ connects its early-return control flow to the verified descending-layer model.
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 abbrev EliminationState (K : Type) (n : ℕ) :=
-  (ℕ → Finset (Fin n → K)) × (ℕ → List (PairedColumn K n)) × Array (Fin n × PairedColumn K n)
+  (ℕ → List (Fin n → K)) × (ℕ → List (PairedColumn K n)) × Array (Fin n × PairedColumn K n)
 
 def algorithmOuterIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ℓbar m k : ℕ)
-    (s : Option (ℕ → Finset (Fin n → K)) × EliminationState K n) :
-    ForInStep (Option (ℕ → Finset (Fin n → K)) × EliminationState K n) :=
+    (s : Option (ℕ → List (Fin n → K)) × EliminationState K n) :
+    ForInStep (Option (ℕ → List (Fin n → K)) × EliminationState K n) :=
   let ℓ := k + 1
   let basis := s.2.1
   let pending := s.2.2.1
@@ -30,7 +30,7 @@ def algorithmOuterIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOper
       else out.2.2)
   if ℓ = ℓbar then
     if let v :: rest := layer then
-      let basis := Function.update basis ℓ {v.bottom}
+      let basis := Function.update basis ℓ [v.bottom]
       if ℓ = m then .done (some basis, basis, pending, D)
       else
         let out := (List.range (f.natDegree)).foldl
@@ -63,7 +63,7 @@ theorem computeJordanKrylovBasis_eq_outerModel
     (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) :
     computeJordanKrylovBasis K A f V ℓbar m =
       let out := (forIn (List.range ℓbar).reverse
-        (none, (fun _ => ∅), initialPending (PolynomialOperations.applyMatrix f A) V ℓbar, #[])
+        (none, (fun _ => []), initialPending (PolynomialOperations.applyMatrix f A) V ℓbar, #[])
         (fun k s => algorithmOuterIteration K A f ℓbar m k s) : Id _)
       out.1.getD out.2.1 := by
   dsimp only
@@ -71,8 +71,8 @@ theorem computeJordanKrylovBasis_eq_outerModel
     Id.run, Bind.bind, Pure.pure, ← apply_ite]
   simp only [List.forIn_map, forIn_yield_eq_foldl, List.foldl_map, Nat.succ_eq_add_one, Nat.add_sub_cancel,
     Prod.mk.eta, initializePending_fold_eq]
-  have hmatch (result : Option (ℕ → Finset (Fin n → K))) (fallback : ℕ → Finset (Fin n → K)) :
-      Break.runK (β := Id (ℕ → Finset (Fin n → K))) result (fun _ => fallback) (fun r => r) =
+  have hmatch (result : Option (ℕ → List (Fin n → K))) (fallback : ℕ → List (Fin n → K)) :
+      Break.runK (β := Id (ℕ → List (Fin n → K))) result (fun _ => fallback) (fun r => r) =
         result.getD fallback := by
     cases result <;> rfl
   unfold Break.runK at hmatch
@@ -82,7 +82,7 @@ theorem computeJordanKrylovBasis_eq_outerModel
 theorem algorithmOuterIteration_ordinary
     (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ℓbar m k : ℕ)
-    (s : Option (ℕ → Finset (Fin n → K)) × EliminationState K n) (hne : k + 1 ≠ ℓbar) :
+    (s : Option (ℕ → List (Fin n → K)) × EliminationState K n) (hne : k + 1 ≠ ℓbar) :
     algorithmOuterIteration K A f ℓbar m k s =
       ForInStep.yield (none, ordinaryLayerIteration K A f k s.2) := by
   simp only [algorithmOuterIteration, hne, ite_false, ordinaryLayerIteration]
@@ -109,8 +109,8 @@ theorem algorithmOuterIteration_initial_noEarly
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m k : ℕ)
     (pending : ℕ → List (PairedColumn K n)) (hne : k + 1 ≠ m)
     (hcolumns : ∀ v ∈ pending (k + 1), v.top ≠ 0) :
-    algorithmOuterIteration K A f (k + 1) m k (none, (fun _ => ∅), pending, #[]) =
-      ForInStep.yield (none, ordinaryLayerIteration K A f k ((fun _ => ∅), pending, #[])) := by
+    algorithmOuterIteration K A f (k + 1) m k (none, (fun _ => []), pending, #[]) =
+      ForInStep.yield (none, ordinaryLayerIteration K A f k ((fun _ => []), pending, #[])) := by
   cases he : pending (k + 1) with
   | nil => simp [algorithmOuterIteration, ordinaryLayerIteration, he]
   | cons v rest =>
@@ -118,7 +118,7 @@ theorem algorithmOuterIteration_initial_noEarly
     simp only [algorithmOuterIteration, ordinaryLayerIteration, he, ite_true, hne,
       ite_false, List.foldl_cons, candidateIteration, reducePairedColumn_empty,
       Id.run, Bind.bind, Pure.pure, ← apply_ite, forIn_yield_eq_foldl,
-      Finset.insert_empty, Prod.mk.eta]
+      Prod.mk.eta]
     rw [ite_eq_left hv]
 
 theorem outerLoop_eq_ordinary_of_initial_yield
@@ -146,16 +146,16 @@ theorem computeJordanKrylovBasis_correct_of_initial_yield
       (algorithmInputSet V (k + 1)))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ (k + 1) → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ)
     (hfirst : algorithmOuterIteration K A f (k + 1) m k
-        (none, (fun _ => ∅), initialPending (PolynomialOperations.applyMatrix f A) V (k + 1), #[]) =
+        (none, (fun _ => []), initialPending (PolynomialOperations.applyMatrix f A) V (k + 1), #[]) =
       ForInStep.yield (none, ordinaryLayerIteration K A f k
-        ((fun _ => ∅), initialPending (PolynomialOperations.applyMatrix f A) V (k + 1), #[]))) :
+        ((fun _ => []), initialPending (PolynomialOperations.applyMatrix f A) V (k + 1), #[]))) :
     IsJordanKrylovBasis K A (powerKernel K A f (k + 1))
       (acceptedGenerators (computeJordanKrylovBasis K A f V (k + 1) m)) ∧
       BasisLayerRanks K A f (computeJordanKrylovBasis K A f V (k+1) m) := by
   rw [computeJordanKrylovBasis_eq_outerModel,
     outerLoop_eq_ordinary_of_initial_yield K A f m k _ hfirst]
   simp only [Option.getD_none]
-  let s : EliminationState K n := ((fun _ => ∅),
+  let s : EliminationState K n := ((fun _ => []),
     initialPending (PolynomialOperations.applyMatrix f A) V (k + 1), #[])
   let out := (List.range (k + 1)).reverse.foldl (fun t j => ordinaryLayerIteration K A f j t) s
   exact ⟨remainingLayers_correct K hops A f hf hm k
@@ -192,8 +192,8 @@ theorem computeJordanKrylovBasis_correct
     cases he : pending (k + 1) with
     | nil =>
       apply computeJordanKrylovBasis_correct_of_initial_yield K A f V hops hf hm hgenerating hranks
-      change algorithmOuterIteration K A f (k + 1) m k (none, (fun _ => ∅), pending, #[]) =
-        ForInStep.yield (none, ordinaryLayerIteration K A f k ((fun _ => ∅), pending, #[]))
+      change algorithmOuterIteration K A f (k + 1) m k (none, (fun _ => []), pending, #[]) =
+        ForInStep.yield (none, ordinaryLayerIteration K A f k ((fun _ => []), pending, #[]))
       simp [algorithmOuterIteration, ordinaryLayerIteration, he]
     | cons v rest =>
       by_cases hearly : k + 1 = m
@@ -204,17 +204,16 @@ theorem computeJordanKrylovBasis_correct
             hf hm v.bottom hh.2.2.2.1 hh.2.2.1.1
             (hh.2.2.2.2.trans (hearly.trans hmultiplicity))
         have hfirst : algorithmOuterIteration K A f (k + 1) m k
-            (none, (fun _ => ∅), pending, #[]) =
-            ForInStep.done (some (Function.update (fun _ => ∅) (k + 1) {v.bottom}), Function.update (fun _ => ∅) (k + 1) {v.bottom},
+            (none, (fun _ => []), pending, #[]) =
+            ForInStep.done (some (Function.update (fun _ => []) (k + 1) [v.bottom]), Function.update (fun _ => []) (k + 1) [v.bottom],
               Function.update pending (k + 1) [], #[]) := by
           simp only [algorithmOuterIteration, ite_true, he, ite_eq_left hearly]
         rw [computeJordanKrylovBasis_eq_outerModel]
         rw [List.range_succ, List.reverse_append, List.reverse_singleton,
           List.singleton_append, List.forIn_cons, hfirst]
-        have hr := (basisLayerRanks_empty K A f).insert K A f (fun _ => ∅) (k+1) v.bottom
+        have hr := (basisLayerRanks_empty K A f).cons K A f (fun _ => []) (k+1) v.bottom
           (by omega) hh.2.2.2.2
-        simpa only [Bind.bind, Pure.pure, Option.getD_some, acceptedGenerators_singleton,
-          Finset.insert_empty] using And.intro hb hr
+        simpa only [Bind.bind, Pure.pure, Option.getD_some, acceptedGenerators_singleton] using And.intro hb hr
       · apply computeJordanKrylovBasis_correct_of_initial_yield K A f V hops hf hm hgenerating hranks
         exact algorithmOuterIteration_initial_noEarly K A f m k pending hearly hcolumns
 
