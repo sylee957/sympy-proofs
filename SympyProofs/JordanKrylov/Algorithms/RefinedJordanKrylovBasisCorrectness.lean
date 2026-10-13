@@ -1,5 +1,6 @@
-import SympyProofs.JordanKrylov.Algorithms.RefinedJordanKrylovBasis
+import SympyProofs.JordanKrylov.Algorithms.RefinedJordanKrylovBasisModel
 import SympyProofs.JordanKrylov.Algorithms.ReduceKrylovGeneratorsCorrectness
+import SympyProofs.JordanKrylov.Algorithms.PrimaryGeneratingCorrectness
 import SympyProofs.JordanKrylov.Mathematics.RankSum
 
 namespace SympyProofs.JordanKrylov
@@ -53,30 +54,6 @@ theorem independent_finset_stop
     IsJordanKrylovBasis K A (powerKernel K A f ℓbar) (B : Set (Fin n → K)) := by
   apply hB.isBasis_of_sum_ranks_eq K A f hf hm (B : Set (Fin n → K)) hk
   exact (Finset.sum_subtype B (fun _ => Iff.rfl) (vectorRank K A f)).symm.trans hs
-
- theorem refinedElimination_cons
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
-    (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m k : ℕ)
-    (v : Fin n → K) (todo : List (Fin n → K)) (pending : ℕ → List (Fin n → K))
-    (B : Finset (Fin n → K)) (used : ℕ) (D : Array (Fin n × PairedColumn K n)) :
-    refinedElimination K A f m (k+1) (v :: todo) pending B used D =
-      let r := reducePairedColumn D ⟨(PolynomialOperations.applyMatrix f A)^[k] v, v⟩
-      if r.top ≠ 0 then
-        if used + (k+1) = m then insert r.bottom B else
-          refinedElimination K A f m (k+1) todo pending (insert r.bottom B) (used+(k+1))
-            ((List.range f.natDegree).foldl
-              (fun (s : Array (Fin n × PairedColumn K n) × PairedColumn K n) _ =>
-                (insertPairedColumn s.1 s.2, ⟨A *ᵥ s.2.top, A *ᵥ s.2.bottom⟩)) (D,r)).1
-      else if r.bottom ≠ 0 ∧ 1 < k+1 then
-        let rank := boundedVectorRank (PolynomialOperations.applyMatrix f A) r.bottom k
-        refinedElimination K A f m (k+1) todo
-          (Function.update pending rank (pending rank ++ [r.bottom])) B used D
-      else refinedElimination K A f m (k+1) todo pending B used D := by
-  rw [refinedElimination]
-  have ht := iterate_loop_eq (PolynomialOperations.applyMatrix f A) v k
-  simp only [Id.run, List.forIn_pure_yield_eq_foldl, pure_bind] at ht ⊢
-  dsimp only [Bind.bind, Pure.pure] at ht ⊢
-  rw [ht]
 
 /-- The recursive refinement maintains the elimination invariant and stops only
 at a complete basis, either by exhaustion or by the rank-sum test. -/
@@ -190,9 +167,8 @@ theorem refined_initial_invariant
   simpa only [terminalPairs_update, terminalPairs_nil, acceptedGenerators,
     Finset.notMem_empty, exists_false, Set.ofPred_false] using h
 
-/-- Algorithm 3 returns a Jordan–Krylov basis, with or without the optional
-initial Procedure 4 reduction. Input hypotheses are the same as Algorithm 2. -/
-theorem computeRefinedJordanKrylovBasis_correct
+/-- Correctness for an arbitrary generating family with prescribed rank layers. -/
+theorem computeRefinedJordanKrylovBasis_correct_of_generating
     (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (preprocess : Bool)
@@ -204,9 +180,10 @@ theorem computeRefinedJordanKrylovBasis_correct
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ) :
     IsJordanKrylovBasis K A (powerKernel K A f ℓbar)
       (computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess : Set (Fin n → K)) := by
+  rw [computeRefinedJordanKrylovBasis_eq_model]
   by_cases hz : ℓbar = 0
   · subst ℓbar
-    simp only [computeRefinedJordanKrylovBasis, refinedElimination, Id.run, Pure.pure,
+    simp only [refinedElimination, Id.run, Pure.pure,
       Finset.coe_empty, powerKernel_zero]
     exact ⟨empty_isKrylovGeneratingSet_bot K A, isJordanKrylovIndependent_empty K A⟩
   let U := fun j => if 1 ≤ j ∧ j ≤ ℓbar then V j else []
@@ -247,5 +224,29 @@ theorem computeRefinedJordanKrylovBasis_correct
     have hc := reduceKrylovGenerators_correct K hops A f U ℓbar _ hug hur hus
     exact finish _ hc.1 hc.2
       (reduceKrylovGenerators_support K hops A f U ℓbar (fun v hv => (hur ℓbar v hv).2.2) hus)
+
+/-- Algorithms 1 and 3 produce a Jordan–Krylov basis from a spanning family
+and its minimal annihilating polynomials, with or without preprocessing. -/
+theorem computeRefinedJordanKrylovBasis_correct
+    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n s : ℕ}
+    (A : Matrix (Fin n) (Fin n) K) (e : Fin s → (Fin n → K))
+    (he : Submodule.span K (Set.range e) = ⊤)
+    (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
+    (p : Fin s → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
+    (preprocess : Bool) (hops : PolynomialOperations.IsCorrect K) :
+    IsJordanKrylovBasis K A (powerKernel K A f (multiplicity f (minpoly K A)))
+      (computeRefinedJordanKrylovBasis K A f (computePrimaryGenerators K A e f p)
+        (multiplicity f (minpoly K A)) (multiplicity f A.charpoly) preprocess :
+          Set (Fin n → K)) := by
+  apply computeRefinedJordanKrylovBasis_correct_of_generating K A f _ preprocess hops hf hm rfl
+  · rw [computePrimaryGenerators_inputSet_eq K hops A e f hf hm p
+      (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)
+      (fun i => by
+        rw [multiplicity_minpoly_eq_max_spanning K A e he f hf hm, hp i]
+        exact Finset.le_sup (f := fun j => multiplicity f
+          (minimalAnnihilatingPolynomial K A (e j))) (Finset.mem_univ i))]
+    exact computePrimaryGenerators_correct K hops A e he f hf hm p hp
+  · intro ℓ _ _ v hv
+    exact computePrimaryGenerators_ranks K hops A e f hf hm p hp ℓ v hv
 
 end SympyProofs.JordanKrylov
