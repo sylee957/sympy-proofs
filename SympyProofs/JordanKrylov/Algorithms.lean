@@ -1,3 +1,5 @@
+import SympyProofs.JordanKrylov.Algorithms.GeneralizedEigenspace
+import SympyProofs.JordanKrylov.Algorithms.GeneralizedEigenspaceCorrectness
 import SympyProofs.JordanKrylov.Algorithms.JordanChains
 import SympyProofs.JordanKrylov.Algorithms.JordanChainsLemmas
 import SympyProofs.JordanKrylov.Algorithms.JordanChainsCorrectness
