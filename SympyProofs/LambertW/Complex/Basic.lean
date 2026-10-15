@@ -6,9 +6,8 @@ import SympyProofs.LambertW.RealPrincipal
 # Local complex foundations for Lambert W
 
 The entire forward map `mulExp` has its only critical point at `-1`.
-`localPrincipal` is an analytic inverse near zero, constructed using mathlib's
-inverse function theorem. Its values away from this neighborhood are unspecified;
-this module does not construct a global complex branch or choose branch cuts.
+Analytic local inverses exist at every noncritical point, by mathlib's
+inverse function theorem. This module is shared by the complex branches.
 -/
 
 namespace LambertW.Complex
@@ -63,32 +62,5 @@ theorem exists_analytic_localInverse {w : ℂ} (hw : w ≠ -1) :
   exact ⟨h.hasStrictDerivAt.localInverse mulExp (deriv mulExp w) w hn,
     h.analyticAt_localInverse hn, h.hasStrictDerivAt.eventually_left_inverse hn,
     h.hasStrictDerivAt.eventually_right_inverse hn⟩
-
-/-- The local principal inverse near zero, with no claims about values elsewhere. -/
-noncomputable def localPrincipal : ℂ → ℂ :=
-  (analyticAt_mulExp 0).hasStrictDerivAt.localInverse mulExp (deriv mulExp 0) 0
-    (by simp)
-
-theorem analyticAt_localPrincipal_zero : AnalyticAt ℂ localPrincipal 0 := by
-  simpa [localPrincipal] using (analyticAt_mulExp 0).analyticAt_localInverse (by simp)
-
-theorem eventually_localPrincipal_mulExp :
-    ∀ᶠ w in nhds (0 : ℂ), localPrincipal (mulExp w) = w := by
-  exact (analyticAt_mulExp 0).hasStrictDerivAt.eventually_left_inverse (by simp)
-
-theorem eventually_mulExp_localPrincipal :
-    ∀ᶠ z in nhds (0 : ℂ), mulExp (localPrincipal z) = z := by
-  simpa [localPrincipal] using
-    (analyticAt_mulExp 0).hasStrictDerivAt.eventually_right_inverse (by simp)
-
-@[simp] theorem localPrincipal_zero : localPrincipal 0 = 0 := by
-  simpa using eventually_localPrincipal_mulExp.self_of_nhds
-
-theorem hasDerivAt_localPrincipal_zero : HasDerivAt localPrincipal 1 0 := by
-  simpa [localPrincipal] using
-    ((analyticAt_mulExp 0).hasStrictDerivAt.to_localInverse (by simp)).hasDerivAt
-
-@[simp] theorem deriv_localPrincipal_zero : deriv localPrincipal 0 = 1 :=
-  hasDerivAt_localPrincipal_zero.deriv
 
 end LambertW.Complex
