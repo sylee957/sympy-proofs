@@ -1,4 +1,7 @@
 import SympyProofs.ComplexRouthHurwitz.Reference.Invariant
+import SympyProofs.RouthHurwitz.Imperative.Basic
+import Std.Tactic.Do
+import Std.WP
 
 /-! Root-count and stability capstones for the actual direct complex table. -/
 namespace RouthHurwitz.ComplexRouth
@@ -7,6 +10,7 @@ open scoped ComplexConjugate
 noncomputable section
 open Classical
 
+open scoped Std.WP in
 /-- The direct table counts roots in the open right half-plane and on the
 imaginary axis, with multiplicity, including all exceptional repair branches. -/
 theorem run_counts_correct (p : ℂ[X]) (hp : p ≠ 0) :
@@ -24,38 +28,47 @@ theorem run_counts_correct (p : ℂ[X]) (hp : p ≠ 0) :
       simp only [PositiveLeading, q, leadingCoeff_mul, leadingCoeff_C, Complex.mul_conj,
         Complex.ofReal_im, Complex.ofReal_re]
       exact ⟨by simp, Complex.normSq_pos.mpr (leadingCoeff_ne_zero.mpr hp)⟩
-    let s := (List.range p.natDegree).foldl
-      (fun s j => Proofs.step p.natDegree j s) (Proofs.initial q p.natDegree)
-    have hi := Proofs.loop_inv q p.natDegree (by omega) hqd hqm p.natDegree le_rfl
-    rw [Nat.sub_self] at hi
-    change Proofs.Inv q 0 s.1 s.2.1 s.2.2.2.2.1 s.2.2.2.2.2 at hi
-    have hf := hi.finish
-    let axis := axisTotal s.2.2.2.2.2 s.2.2.2.2.1
-    have hs := counts_C_mul p (conj p.leadingCoeff) ((_root_.map_ne_zero (starRingEnd ℂ)).mpr (leadingCoeff_ne_zero.mpr hp))
-    have hr : rightCount q = rightCount p := by simpa only [q, mul_comm] using hs.1
-    have ha : axisCount q = axisCount p := by simpa only [q, mul_comm] using hs.2
-    have hout : s.2.2.2.2.1 = rightCount p ∧
-        axis = axisCount p := by
-      change s.2.2.2.2.1 = rightCount q ∧ axis = axisCount q at hf
-      exact ⟨hf.1.trans hr, hf.2.trans ha⟩
-    let vs := (List.range p.natDegree).foldl
-      (fun s j => Proofs.vectorStep p.natDegree j s)
-      (Proofs.encode (p.natDegree+1) (Proofs.initial q p.natDegree))
-    have hvs : vs = Proofs.encode (p.natDegree+1) s :=
-      Proofs.vector_loop_eq q p.natDegree (by omega) hqd hqm p.natDegree le_rfl
-    have houtv : vs.2.2.2.2.1 = rightCount p ∧
-        axisTotal vs.2.2.2.2.2 vs.2.2.2.2.1 = axisCount p := by
-      rw [hvs]
-      exact hout
+    have hs : rightCount q = rightCount p ∧ axisCount q = axisCount p := by
+      simpa only [q, mul_comm] using counts_C_mul p (conj p.leadingCoeff)
+        ((_root_.map_ne_zero (starRingEnd ℂ)).mpr (leadingCoeff_ne_zero.mpr hp))
     have hcoeff : (Vector.ofFn (fun j : Fin (p.natDegree+1) =>
-        p.coeff j.val * (conj p.leadingCoeff))) = Coefficients.pack (p.natDegree+1) q := by
+        p.coeff j.val * conj p.leadingCoeff)) = Coefficients.pack (p.natDegree+1) q := by
       apply Vector.ext; intro j hj
       simp [Coefficients.pack, q]
-    simp only [run, ite_eq_right hn, hcoeff, Coefficients.scan_pack q p.natDegree]
-    simp only [← apply_ite (fun s : Proofs.VectorLocals (p.natDegree+1) =>
-      (pure (ForInStep.yield s) : Id _)), List.forIn_pure_yield_eq_foldl]
-    simpa only [vs, Proofs.vectorStep, Proofs.encode, Proofs.initial,
-      List.map_nil, pure_bind, Id.run_pure] using houtv
+    generalize h : run p = result
+    apply Std.WP.Id.of_run_eq_wp h
+    vcgen invariants
+    · fun pref _ s => ∃ t : Proofs.Locals,
+        Proofs.atLocals q (p.natDegree-pref.length) t ∧ s = Proofs.encode (p.natDegree+1) t
+    case vc1 => exact (hn ‹_ = 0›).elim
+    case vc2 =>
+      refine ⟨Proofs.initial q p.natDegree, ?_, ?_⟩
+      · simpa only [List.length_nil, Nat.sub_zero] using
+          Proofs.initial_inv q p.natDegree (by omega) hqd hqm
+      · simp +zetaDelta only [hcoeff, Coefficients.scan_pack, Proofs.encode, Proofs.initial,
+        List.map_nil]
+    case vc3 =>
+      obtain ⟨t, hi, he⟩ := ‹∃ t : Proofs.Locals, _›
+      simp +zetaDelta only [List.length_range, Nat.sub_self] at hi
+      have hf := hi.finish
+      have hc := congrArg (fun s : Proofs.VectorLocals (p.natDegree+1) => s.2.2.2.2.1) he
+      have ha := congrArg (fun s : Proofs.VectorLocals (p.natDegree+1) =>
+        axisTotal s.2.2.2.2.2 s.2.2.2.2.1) he
+      exact ⟨hc.trans (hf.1.trans hs.1), ha.trans (hf.2.trans hs.2)⟩
+    case vc4 | vc5 =>
+      rename_i pref k suff hsplit u v rs ps c aux hi _ _ _ _ hbranch
+      obtain ⟨hk, hlt⟩ := Imperative.Bounds.range_split hsplit
+      obtain ⟨t, ht, he⟩ := hi
+      rw [← hk] at ht
+      have heq : Proofs.vectorStep p.natDegree k (u, v, rs, ps, c, aux) =
+          Proofs.encode (p.natDegree+1) (Proofs.step p.natDegree k t) := by
+        rw [he]
+        exact Proofs.vectorStep_encode q p.natDegree k hlt t ht
+      refine ⟨Proofs.step p.natDegree k t, ?_, ?_⟩
+      · simpa only [List.length_append, List.length_singleton, ← hk] using
+          Proofs.step_inv q p.natDegree k hlt t ht
+      · dsimp only [d, n] at hbranch
+        simpa +zetaDelta only [Proofs.vectorStep, hbranch, ite_true, ite_false] using heq
 
 /-- Acceptance is exactly strict Hurwitz stability for nonzero complex polynomials. -/
 theorem run_stable_iff (p : ℂ[X]) (hp : p ≠ 0) :

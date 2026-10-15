@@ -336,7 +336,7 @@ PARAMETRIC(p):
 
 This is a single pass at the input's declared degree. It uses signed divisors and no repairs or absolute values. When a symbolic pivot becomes zero, it remains in the certificate and subsequent iterations do no arithmetic. The positivity condition then fails at every specialization.
 
-The initial rows belong to $q=a_np$, whose specialized leading coefficient is $f(a_n)^2$. This permits either sign of $f(a_n)$ without a symbolic sign decision. [`Parametric.run_positive_eq_firstColumn`](Parametric/Invariant.lean) proves that `positive` is exactly the first column of `rows`; the list is accumulated during execution.
+The initial rows belong to $q=a_np$, whose specialized leading coefficient is $f(a_n)^2$. This permits either sign of $f(a_n)$ without a symbolic sign decision. [`Parametric.run_positive_eq_firstColumn`](Parametric/Correctness.lean) proves that `positive` is exactly the first column of `rows`; the list is accumulated during execution.
 
 ### Correctness statement
 
@@ -369,9 +369,9 @@ The interface returns a condition, not a Boolean stability decision or a numeric
 
 ### Supporting theorem statements
 
-[`Parametric.run_exact_division`](Parametric/Invariant.lean) states that at every taken loop branch the divisor is nonzero and divides each elimination numerator in $A$. It requires no ordering or real specialization.
+[`Parametric.run_exact_division`](Parametric/Correctness.lean) states that at every taken loop branch the divisor is nonzero and divides each elimination numerator in $A$. It requires no ordering or real specialization.
 
-[`Parametric.run_positive_eq_firstColumn`](Parametric/Invariant.lean) states that the returned `positive` list is exactly the first column of the returned `rows`.
+[`Parametric.run_positive_eq_firstColumn`](Parametric/Correctness.lean) states that the returned `positive` list is exactly the first column of the returned `rows`.
 
 For a degree-$n$ polynomial $q(s)=\sum_{i=0}^n b_i s^i$, put $b_i=0$ outside $0\le i\le n$. Define the Hurwitz matrix and its leading minors by
 

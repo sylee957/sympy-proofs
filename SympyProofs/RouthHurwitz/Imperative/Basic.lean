@@ -55,6 +55,17 @@ theorem next_index_lt (n k j : ℕ) (h : j < activeWidth n (k + 2)) :
   have : 0 < (k + 2) / 2 := by omega
   omega
 
+/-- Identify the current index from the processed prefix of a range loop. -/
+theorem range_split {n k : ℕ} {pref suff : List ℕ}
+    (h : List.range n = pref ++ k :: suff) : k = pref.length ∧ k < n := by
+  have hlen := congrArg List.length h
+  simp only [List.length_range, List.length_append, List.length_cons] at hlen
+  have hi : pref.length < n := by omega
+  have he := congrArg (fun xs => xs[pref.length]?) h
+  have hk : k = pref.length := by
+    simpa [List.getElem?_range hi, List.getElem?_append_right] using he.symm
+  exact ⟨hk, hk ▸ hi⟩
+
 end Bounds
 
 open Bounds

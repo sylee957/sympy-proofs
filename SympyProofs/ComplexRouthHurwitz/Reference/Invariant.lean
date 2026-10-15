@@ -135,16 +135,6 @@ theorem initial_inv (p : ℂ[X]) (n : ℕ) (hn : 0 < n) (hd : p.natDegree = n) (
   rw [he] at hi
   exact ⟨by simpa [show n ≠ 0 by omega] using hi, by simp [parts_add], by simp [AxisData,parts_add]⟩
 
-theorem loop_inv (p : ℂ[X]) (n : ℕ) (hn : 0 < n) (hd : p.natDegree = n) (hp : PositiveLeading p)
-    (k : ℕ) (hk : k ≤ n) :
-    atLocals p (n-k) ((List.range k).foldl (fun s j => step n j s) (initial p n)) := by
-  induction k with
-  | zero => simpa using initial_inv p n hn hd hp
-  | succ k ih =>
-    rw [List.range_succ, List.foldl_append]
-    simp only [List.foldl_cons, List.foldl_nil]
-    exact step_inv p n k (by omega) _ (ih (by omega))
-
 theorem Inv.finish {p u v : ℂ[X]} {count : ℕ} {aux : Option Auxiliary}
     (h : Inv p 0 u v count aux) :
     count = rightCount p ∧
@@ -203,18 +193,6 @@ theorem vectorStep_encode (p : ℂ[X]) (n k : ℕ) (hk : k < n) (s : Locals)
     Coefficients.entry_pack _ hvr, Coefficients.entry_pack _ hur]
   split <;> simp [Coefficients.remainder_pack _ _ _ hur hvr,
     Coefficients.scale_pack, List.map_append]
-
-theorem vector_loop_eq (p : ℂ[X]) (n : ℕ) (hn : 0 < n) (hd : p.natDegree = n) (hp : PositiveLeading p)
-    (k : ℕ) (hk : k ≤ n) :
-    (List.range k).foldl (fun s j => vectorStep n j s) (encode (n+1) (initial p n)) =
-      encode (n+1) ((List.range k).foldl (fun s j => step n j s) (initial p n)) := by
-  induction k with
-  | zero => rfl
-  | succ k ih =>
-    rw [List.range_succ, List.foldl_append, List.foldl_append]
-    simp only [List.foldl_cons, List.foldl_nil]
-    rw [ih (by omega)]
-    exact vectorStep_encode p n k (by omega) _ (loop_inv p n hn hd hp k (by omega))
 
 end Proofs
 end

@@ -151,16 +151,6 @@ theorem step_valid (p : ℂ[X]) (n k : ℕ) (hk : k < n) (s : Locals (n+1))
     refine ⟨sq_pos_of_ne_zero hB, _, _, rfl, rfl, ?_⟩
     exact hn
 
-theorem loop_valid (p : ℂ[X]) (n : ℕ) (hn : 0 < n) (hd : p.natDegree = n)
-    (hp : 0 < p.leadingCoeff.re) (k : ℕ) (hk : k ≤ n) :
-    Valid p (n-k) ((List.range k).foldl (fun s j => step n j s) (initial p n)) := by
-  induction k with
-  | zero => simpa using initial_valid p n hn hd hp
-  | succ k ih =>
-    rw [List.range_succ, List.foldl_append]
-    simp only [List.foldl_cons, List.foldl_nil]
-    exact step_valid p n k (by omega) _ (ih (by omega))
-
 theorem finish {p : ℂ[X]} {N : ℕ} {s : Locals N} (h : Valid p 0 s) :
     s.2.2.2.2.1 = rightCount p ∧ axisTotal s.2.2.2.2.2.1 s.2.2.2.2.1 = axisCount p := by
   obtain ⟨_,u,v,_,_,hi⟩ := h

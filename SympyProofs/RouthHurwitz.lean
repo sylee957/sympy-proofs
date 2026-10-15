@@ -33,7 +33,7 @@ backends; existing Mathlib field-coefficient division takes priority.
 Mathlib polynomial arithmetic is noncomputable for code
 extraction; the polynomial backend is explicit leading-term cancellation.
 
-`Parametric.run` contains the order-free certificate loop. `Parametric.Invariant`
+`Parametric.run` contains the order-free certificate loop. `Parametric.Correctness`
 relates its rows to Hurwitz minors and proves every reached division exact. `FractionFree.Stability`
 connects those minors to the shared root mathematics. The other `FractionFree`
 modules provide the verified real model used to transport numeric correctness.

@@ -17,13 +17,6 @@ omit [Div A] [MulDivCancelClass A] [IsStrictOrderedRing A] in
 theorem lt_zero_iff_embed (a : A) : a < 0 ↔ D.embed a < 0 := by
   simpa only [map_zero] using (D.strictMono.lt_iff_lt (a := a) (b := 0)).symm
 
-omit [Div A] [MulDivCancelClass A] in
-private theorem embed_abs (a : A) : D.embed |a| = |D.embed a| := by
-  by_cases h : a < 0
-  · rw [abs_of_neg h, map_neg, abs_of_neg ((lt_zero_iff_embed D a).mp h)]
-  · rw [abs_of_nonneg (le_of_not_gt h),
-      abs_of_nonneg (le_of_not_gt (fun hh => h ((lt_zero_iff_embed D a).mpr hh)))]
-
 omit [Div A] [MulDivCancelClass A] [IsStrictOrderedRing A] in
 private theorem repair_map {W : ℕ} (d : ℕ) (w : Fin (W+2))
     (u r : Vector A (W+1)) :
@@ -53,21 +46,6 @@ private theorem initial_map (p : Polynomial ℝ) (coeff : ℕ → A)
 def mapLocals {n : ℕ} (s : Locals A n) : FractionFree.Proofs.Locals (K := ℝ) n :=
   (s.1.map D.embed, s.2.1.map D.embed, s.2.2.1.map (Vector.map D.embed),
     s.2.2.2.1, s.2.2.2.2.1, D.embed s.2.2.2.2.2.1, D.embed s.2.2.2.2.2.2)
-
-omit [Div A] [MulDivCancelClass A] [IsStrictOrderedRing A] in
-private theorem start_map (p : Polynomial ℝ) (coeff : ℕ → A)
-    (hc : ∀ j, D.embed (coeff j) = p.coeff j) :
-    mapLocals D (start p.natDegree coeff) = FractionFree.Proofs.initialLocals p := by
-  have hu := initial_map D p coeff hc 0
-  have hl := initial_map D p coeff hc 1
-  have hr := repair_map D p.natDegree ⟨width p.natDegree, Nat.lt_succ_self _⟩
-    (initialCoefficients p.natDegree coeff 0) (initialCoefficients p.natDegree coeff 1)
-  dsimp only [width] at hu hl hr ⊢
-  simp only [hu, hl] at hr
-  simp only [start, mapLocals, FractionFree.Proofs.initialLocals_eq, Id.run_pure]
-  dsimp only [width] at ⊢
-  simp only [← hu, ← hl, repair_map, Vector.getElem_map, List.map_cons, List.map_nil,
-    map_one, lt_zero_iff_embed D, map_mul]
 
 private theorem step_map (n k : ℕ) (s : Locals A n)
     (hex : FractionFree.ExactDivision D.embed n k (mapLocals D s)) :
@@ -129,39 +107,54 @@ private theorem step_map (n k : ℕ) (s : Locals A n)
   dsimp only [width] at w upper lower rows raw rawR hr hraw ⊢
   simp only [hr]
   simp only [← hraw, Vector.getElem_map, lt_zero_iff_embed D, map_mul]
+  have habs : D.embed |lower[0]'(width_pos n)| = |D.embed (lower[0]'(width_pos n))| := by
+    by_cases h : lower[0]'(width_pos n) < 0
+    · rw [abs_of_neg h, map_neg, abs_of_neg ((lt_zero_iff_embed D _).mp h)]
+    · rw [abs_of_nonneg (le_of_not_gt h),
+        abs_of_nonneg (le_of_not_gt (fun hh => h ((lt_zero_iff_embed D _).mpr hh)))]
   by_cases hz : raw[0]'(Nat.zero_lt_succ (n/2)) = 0
   all_goals simp only [embed_eq_zero, hz, ite_true, ite_false,
     Prod.mk.injEq, true_and]
-  all_goals simp only [map_one, embed_abs]
+  all_goals simp only [map_one, habs]
   all_goals repeat' first | erw [List.map_append] | erw [List.map_cons] | erw [List.map_nil]
   all_goals simp only [and_true]
   all_goals repeat' constructor
 
-private theorem loop_map (p : Polynomial ℝ) (coeff : ℕ → A)
-    (hc : ∀ j, D.embed (coeff j) = p.coeff j) (k : ℕ) (hk : k+1 ≤ p.natDegree) :
-    mapLocals D ((List.range k).foldl (fun s j => step p.natDegree j s)
-      (start p.natDegree coeff)) =
-      (List.range k).foldl (fun s j => FractionFree.Proofs.step p.natDegree j s)
-        (FractionFree.Proofs.initialLocals p) := by
-  induction k with
-  | zero => exact start_map D p coeff hc
-  | succ k ih =>
-    rw [List.range_succ, List.foldl_append, List.foldl_append]
-    simp only [List.foldl_cons, List.foldl_nil]
-    have hi := ih (by omega)
-    rw [step_map D _ _ _ (by
-      rw [hi]
-      exact FractionFree.run_exact_division D.embed p (fun j => ⟨coeff j, (hc j).symm⟩) k (by omega)), hi]
-
 private theorem outcome_map (p : Polynomial A) :
     ((run p).signChanges, (run p).degenerate) =
       ((run (p.map D.embed)).signChanges, (run (p.map D.embed)).degenerate) := by
+  have loop_map (p : Polynomial ℝ) (coeff : ℕ → A)
+      (hc : ∀ j, D.embed (coeff j) = p.coeff j) (k : ℕ) (hk : k+1 ≤ p.natDegree) :
+      mapLocals D ((List.range k).foldl (fun s j => step p.natDegree j s)
+        (start p.natDegree coeff)) =
+        (List.range k).foldl (fun s j => FractionFree.Proofs.step p.natDegree j s)
+          (FractionFree.Proofs.initialLocals p) := by
+    induction k with
+    | zero =>
+      simp only [List.range_zero, List.foldl_nil]
+      have hu := initial_map D p coeff hc 0
+      have hl := initial_map D p coeff hc 1
+      have hr := repair_map D p.natDegree ⟨width p.natDegree, Nat.lt_succ_self _⟩
+        (initialCoefficients p.natDegree coeff 0) (initialCoefficients p.natDegree coeff 1)
+      dsimp only [width] at hu hl hr ⊢
+      simp only [hu, hl] at hr
+      simp only [start, mapLocals, FractionFree.Proofs.initialLocals_eq, Id.run_pure]
+      dsimp only [width] at ⊢
+      simp only [← hu, ← hl, repair_map, Vector.getElem_map, List.map_cons, List.map_nil,
+        map_one, lt_zero_iff_embed D, map_mul]
+    | succ k ih =>
+      rw [List.range_succ, List.foldl_append, List.foldl_append]
+      simp only [List.foldl_cons, List.foldl_nil]
+      have hi := ih (by omega)
+      rw [step_map D _ _ _ (by
+        rw [hi]
+        exact FractionFree.run_exact_division D.embed p (fun j => ⟨coeff j, (hc j).symm⟩) k (by omega)), hi]
   have hd : (p.map D.embed).natDegree = p.natDegree := natDegree_map_eq_of_injective D.injective p
   have hc : ∀ j, D.embed (p.coeff j) = (p.map D.embed).coeff j :=
     fun j => (coeff_map _ _).symm
   by_cases hn : (p.map D.embed).natDegree = 0
   · simp only [run, ← hd, ite_eq_left hn, Id.run_pure, coeff_map, embed_eq_zero]
-  · have hi := loop_map D (p.map D.embed) p.coeff hc ((p.map D.embed).natDegree-1) (by omega)
+  · have hi := loop_map (p.map D.embed) p.coeff hc ((p.map D.embed).natDegree-1) (by omega)
     have hh := congrArg (fun s : FractionFree.Proofs.Locals (K := ℝ) (p.map D.embed).natDegree =>
       (s.2.2.2.1, s.2.2.2.2.1)) hi
     have he := congrArg (fun n =>

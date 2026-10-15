@@ -1,6 +1,7 @@
 name = "sympyProofs"
 version = "0.1.0"
 defaultTargets = ["SympyProofs"]
+leanOptions = { experimental.vcgen = true }
 
 [[require]]
 name = "mathlib"
