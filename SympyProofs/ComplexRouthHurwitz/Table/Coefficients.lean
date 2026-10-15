@@ -63,11 +63,11 @@ theorem remainder_pack {N : ℕ} (d : ℕ) (u v : ℂ[X])
     (hu : u.natDegree < N) (hv : v.natDegree < N) :
     remainder d (pack N u) (pack N v) = pack N (ComplexRouth.remainder d u v) := by
   apply Vector.ext; intro j hj
+  simp only [remainder, Vector.getElem_ofFn, Fin.getElem_fin, pack_get, entry_pack u hu, entry_pack v hv,
+    ComplexRouth.remainder, correction, ratio, coeff_sub, coeff_C_mul, mul_assoc]
   cases j with
-  | zero => simp [remainder, ComplexRouth.remainder, ratio, correction, entry_pack u hu,
-      entry_pack v hv, mul_assoc]
-  | succ j => simp [remainder, ComplexRouth.remainder, ratio, correction, entry_pack u hu,
-      entry_pack v hv, mul_assoc, coeff_X_mul]
+  | zero => simp only [coeff_X_mul_zero, ite_true, mul_zero]
+  | succ j => simp only [Nat.succ_ne_zero, ite_false, Nat.add_one_sub_one, coeff_X_mul]
 
 theorem repairOffset_pack {N : ℕ} (d : ℕ) (u v : ℂ[X])
     (hu : u.natDegree < N) (hv : v.natDegree < N) :
