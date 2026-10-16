@@ -1,3 +1,5 @@
+import SympyProofs.JordanKrylov.Algorithms.MinimalAnnihilatingPolynomials
+import SympyProofs.JordanKrylov.Algorithms.MinimalAnnihilatingPolynomialsCorrectness
 import SympyProofs.JordanKrylov.Algorithms.GeneralizedEigenspace
 import SympyProofs.JordanKrylov.Algorithms.GeneralizedEigenspaceCorrectness
 import SympyProofs.JordanKrylov.Algorithms.JordanChains

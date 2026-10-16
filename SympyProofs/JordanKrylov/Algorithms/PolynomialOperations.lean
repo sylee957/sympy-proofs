@@ -10,6 +10,10 @@ open Polynomial Matrix
 
 /-- Polynomial operations used by the Jordan–Krylov algorithms. -/
 class PolynomialOperations (K : Type*) [Field K] where
+  /-- Constant polynomial one. -/
+  one : K[X]
+  /-- Polynomial multiplication. -/
+  mul : K[X] → K[X] → K[X]
   /-- `pow p k` computes the polynomial power `p ^ k`. -/
   pow : K[X] → ℕ → K[X]
   /-- Multiplicity of monic, positive-degree `f` in nonzero `p`. -/
@@ -27,6 +31,8 @@ class PolynomialOperations (K : Type*) [Field K] where
 /-- Mathematical specifications of the supplied polynomial operations. -/
 structure PolynomialOperations.IsCorrect (K : Type*) [Field K]
     [PolynomialOperations K] : Prop where
+  one_eq : PolynomialOperations.one (K := K) = 1
+  mul_eq : ∀ p q : K[X], PolynomialOperations.mul p q = p * q
   pow_eq : ∀ (p : K[X]) (k : ℕ), PolynomialOperations.pow p k = p ^ k
   multiplicity_eq : ∀ (f p : K[X]), 0 < f.natDegree → f.Monic → p ≠ 0 →
     PolynomialOperations.multiplicity f p = _root_.multiplicity f p
