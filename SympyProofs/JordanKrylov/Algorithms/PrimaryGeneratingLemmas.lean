@@ -49,18 +49,18 @@ private theorem maximumRanks_eq {m : ℕ} (ranks : Fin m → ℕ) :
 /-- The routine agrees with the rank-level proof model and returns
 its maximum rank from the same input data. -/
 theorem computePrimaryGenerators_eq_model
-    (K : Type) [Field K] [DecidableEq K] [Operations K] {n m q : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (e : Fin m → (Fin n → K))
-    (f : K[X]) (j : Fin q)
+    (f : K[X])
     (polynomials : Vector K[X] m)
-    (multiplicities : Vector (Vector ℕ q) m) :
-    computePrimaryGenerators K A e f j polynomials multiplicities =
+    (ranks : Vector ℕ m) :
+    computePrimaryGenerators K A e f polynomials ranks =
       (primaryGeneratorsModel K A e f
-        (fun i : Fin m => polynomials[i]) (fun i : Fin m => multiplicities[i][j]),
-        Finset.univ.sup (fun i : Fin m => multiplicities[i][j])) := by
-  have hmax := maximumRanks_eq (fun i : Fin m => multiplicities[i][j])
+        (fun i : Fin m => polynomials[i]) (fun i : Fin m => ranks[i]),
+        Finset.univ.sup (fun i : Fin m => ranks[i])) := by
+  have hmax := maximumRanks_eq (fun i : Fin m => ranks[i])
   simp only [List.forIn_pure_yield_eq_foldl] at hmax
-  change (List.finRange m).foldl (fun bound i => max bound (multiplicities[i][j])) 0 = _ at hmax
+  change (List.finRange m).foldl (fun bound i => max bound (ranks[i])) 0 = _ at hmax
   simp only [computePrimaryGenerators, primaryGeneratorsModel,
     List.forIn_pure_yield_eq_foldl]
   rw [hmax]

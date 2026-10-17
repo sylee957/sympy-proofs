@@ -26,14 +26,13 @@ def computeJordanDecomposition (K : Type) [Field K] [DecidableEq K]
   let raw := computeBasisAnnihilators K A factors e
   have bounds := computeBasisAnnihilators_sizes K A factors e
   let polynomials : Vector K[X] n := ⟨raw.1, bounds.1⟩
-  let multiplicities : Vector (Vector ℕ factors.size) n := Vector.ofFn fun i : Fin n =>
-    let row := raw.2[i.val]'(Nat.lt_of_lt_of_eq i.isLt bounds.2.1.symm)
-    ⟨row, bounds.2.2 row (Array.getElem_mem _)⟩
   let mut components := #[]
   for j in List.finRange factors.size do
     let (f, m) := factors[j.val]
+    let column := raw.2[j.val]'(Nat.lt_of_lt_of_eq j.isLt bounds.2.1.symm)
+    let ranks : Vector ℕ n := ⟨column, bounds.2.2 column (Array.getElem_mem _)⟩
     -- Algorithm 1: primary generators and maximum rank from cached exponents.
-    let (V, ℓbar) := computePrimaryGenerators K A e f j polynomials multiplicities
+    let (V, ℓbar) := computePrimaryGenerators K A e f polynomials ranks
     -- Algorithm 3: refine the generators to a Jordan–Krylov basis.
     let B := computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess
     -- Algorithm 5: assemble the symbolic Jordan chains.

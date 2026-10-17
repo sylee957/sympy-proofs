@@ -42,34 +42,34 @@ theorem primaryGeneratorsModel_ranks (K : Subfield ℂ) [DecidableEq K]
 /-- The routine generates the selected primary kernel when the
 inputs contain the input vectors' minimal annihilators and their exponents. -/
 theorem computePrimaryGenerators_correct (K : Subfield ℂ) [DecidableEq K]
-    [Operations K] (hops : Operations.IsCorrect K) {n m q : ℕ}
+    [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (e : Fin m → (Fin n → K))
     (he : Submodule.span K (Set.range e) = ⊤)
-    (f : K[X]) (j : Fin q)
+    (f : K[X])
     (polynomials : Vector K[X] m)
-    (multiplicities : Vector (Vector ℕ q) m)
+    (ranks : Vector ℕ m)
     (hf : Irreducible f) (hm : f.Monic)
     (hp : ∀ i : Fin m, polynomials[i] = minimalAnnihilatingPolynomial K A (e i))
-    (hr : ∀ i : Fin m, multiplicities[i][j] = multiplicity f polynomials[i]) :
+    (hr : ∀ i : Fin m, ranks[i] = multiplicity f polynomials[i]) :
     IsKrylovGeneratingSet K A
       (powerKernel K A f (multiplicity f (minpoly K A)))
-      {v | ∃ ℓ, v ∈ (computePrimaryGenerators K A e f j polynomials multiplicities).1 ℓ} := by
+      {v | ∃ ℓ, v ∈ (computePrimaryGenerators K A e f polynomials ranks).1 ℓ} := by
   rw [computePrimaryGenerators_eq_model]
   simp only [hr]
   exact primaryGeneratorsModel_correct K hops A e he f hf hm _ hp
 
 /-- Each generated layer has its specified vector rank. -/
 theorem computePrimaryGenerators_ranks (K : Subfield ℂ) [DecidableEq K]
-    [Operations K] (hops : Operations.IsCorrect K) {n m q : ℕ}
+    [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (e : Fin m → (Fin n → K))
-    (f : K[X]) (j : Fin q)
+    (f : K[X])
     (polynomials : Vector K[X] m)
-    (multiplicities : Vector (Vector ℕ q) m)
+    (ranks : Vector ℕ m)
     (hf : Irreducible f) (hm : f.Monic)
     (hp : ∀ i : Fin m, polynomials[i] = minimalAnnihilatingPolynomial K A (e i))
-    (hr : ∀ i : Fin m, multiplicities[i][j] = multiplicity f polynomials[i])
+    (hr : ∀ i : Fin m, ranks[i] = multiplicity f polynomials[i])
     (ℓ : ℕ) (v : Fin n → K)
-    (hv : v ∈ (computePrimaryGenerators K A e f j polynomials multiplicities).1 ℓ) :
+    (hv : v ∈ (computePrimaryGenerators K A e f polynomials ranks).1 ℓ) :
     vectorRank K A f v = ℓ := by
   rw [computePrimaryGenerators_eq_model] at hv
   simp only [hr] at hv

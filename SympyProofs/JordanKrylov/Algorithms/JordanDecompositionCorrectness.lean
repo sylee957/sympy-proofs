@@ -50,18 +50,18 @@ theorem computeJordanDecomposition_eq
     have hp : (fun i : Fin n => polynomials[i]) =
         fun i => minimalAnnihilatingPolynomial K A (e i) := by
       funext i
-      simpa [polynomials, multiplicities, raw] using computeBasisAnnihilators_polynomial K hops A factors e hg
+      simpa [polynomials, raw] using computeBasisAnnihilators_polynomial K hops A factors e hg
         (hops.factorCharpoly_product A) i (hi := by omega)
-    have hranks : (fun i : Fin n => multiplicities[i][j]) =
+    have hranks : (fun i : Fin n => ranks[i]) =
         fun i => multiplicity factors[j.val].1 (minimalAnnihilatingPolynomial K A (e i)) := by
       funext i
       have he := computeBasisAnnihilators_rank K hops A factors e hg
         (hops.factorCharpoly_distinct A) i j
-        (hi := by omega) (hj := by
-          have hs := bounds.2.2 (raw.2[i.val]'(Nat.lt_of_lt_of_eq i.isLt bounds.2.1.symm)) (Array.getElem_mem _)
-          exact Nat.lt_of_lt_of_eq j.isLt hs.symm) (hp := by omega)
-      simpa [polynomials, multiplicities, raw, ← congrFun hp i] using he
-    have hprimary := computePrimaryGenerators_eq_model K A e factors[j.val].1 j polynomials multiplicities
+        (hj := Nat.lt_of_lt_of_eq j.isLt bounds.2.1.symm)
+        (hi := Nat.lt_of_lt_of_eq i.isLt (bounds.2.2 column (Array.getElem_mem _)).symm)
+        (hp := by omega)
+      simpa [polynomials, ranks, column, raw, ← congrFun hp i] using he
+    have hprimary := computePrimaryGenerators_eq_model K A e factors[j.val].1 polynomials ranks
     rw [hp, hranks] at hprimary
     apply Array.toList_inj.mp
     simp only [components, chains, B, hprimary, e, hout, Array.toList_push,
