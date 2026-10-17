@@ -1,5 +1,5 @@
 import Init.Data.Range.Polymorphic
-import SympyProofs.JordanKrylov.Algorithms.PolynomialOperations
+import SympyProofs.JordanKrylov.Algorithms.Operations
 
 /-! # Algorithm 5: symbolic Jordan-chain assembly
 
@@ -30,18 +30,18 @@ private theorem powerTable_index_lt {size bound k : ℕ}
 List traversal implements the paper's choice-and-removal loop in input order.
 Each individual chain retains the paper's descending order. -/
 def computeJordanChains (K : Type) [Field K] [DecidableEq K]
-    [PolynomialOperations K] {n : ℕ}
+    [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (B : ℕ → List (Fin n → K)) (ℓbar : ℕ) : Finset (List (Fin n → K[X])) := Id.run do
-  let zeroPower := PolynomialOperations.reducedPower f 0
+  let zeroPower := Operations.reducedPower f 0
   let powers := Id.run do
     let mut powers := #[zeroPower]
     for k in 1...=ℓbar do
-      powers := powers.push (PolynomialOperations.reducedPower f k)
+      powers := powers.push (Operations.reducedPower f k)
     return powers
   have powers_size : powers.size = ℓbar + 1 :=
-    powerTable_size (PolynomialOperations.reducedPower f) ℓbar
-  let F := PolynomialOperations.applyMatrix f A
+    powerTable_size (Operations.reducedPower f) ℓbar
+  let F := Operations.applyMatrix f A
   let mut chains := ∅
   for hOffset : offset in 0...ℓbar do
     let ℓ := ℓbar - offset
@@ -55,12 +55,12 @@ def computeJordanChains (K : Type) [Field K] [DecidableEq K]
         have index_lt : k < powers.size :=
           powerTable_index_lt powers_size ((Nat.sub_le ℓ step).trans layer_bounds.2)
         chain := chain ++
-          [PolynomialOperations.applyBivariateMatrix powers[k] A current]
+          [Operations.applyBivariateMatrix powers[k] A current]
         current := F current
       -- Line 10: finish with exponent 1, without another application of f(A).
       have one_lt : 1 < powers.size :=
         powerTable_index_lt powers_size (layer_bounds.1.trans layer_bounds.2)
-      chain := chain ++ [PolynomialOperations.applyBivariateMatrix powers[1] A current]
+      chain := chain ++ [Operations.applyBivariateMatrix powers[1] A current]
       chains := insert chain chains
   return chains
 

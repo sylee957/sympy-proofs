@@ -231,13 +231,13 @@ theorem EliminationTableInvariant.accept
     simp [sup_comm, r]
 
 theorem EliminationTableInvariant.lower
-    (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [Operations K] {n ℓbar k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hk : 1 ≤ k)
     (B : Set (Fin n → K)) (D : Array (Fin n × PairedColumn K n))
     (h : EliminationTableInvariant K A f ℓbar (k + 1) B D) :
     EliminationTableInvariant K A f ℓbar k B
-      (D.map (fun (i, w) => (i, ⟨w.top, PolynomialOperations.applyMatrix f A w.bottom⟩))) := by
+      (D.map (fun (i, w) => (i, ⟨w.top, Operations.applyMatrix f A w.bottom⟩))) := by
   have hh := lowerPairedTable_invariant K hops A f hk D h.echelon h.paired h.bounded
   refine ⟨h.independent, h.primary, hh.1, hh.2.2.1, hh.2.2.2, ?_, ?_⟩
   · intro iw hiw
@@ -374,14 +374,14 @@ structure EliminationWorkInvariant (K : Subfield ℂ) {n : ℕ}
 
 /-- After a layer is exhausted, lower the table and extract the next queue. -/
 theorem EliminationWorkInvariant.next_layer
-    (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [Operations K] {n ℓbar k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hk : 1 ≤ k)
     (B : Set (Fin n → K)) (D : Array (Fin n × PairedColumn K n))
     (pending : ℕ → List (PairedColumn K n))
     (h : EliminationWorkInvariant K A f ℓbar (k + 1) B D [] pending) :
     EliminationWorkInvariant K A f ℓbar k B
-      (D.map (fun (i, w) => (i, ⟨w.top, PolynomialOperations.applyMatrix f A w.bottom⟩)))
+      (D.map (fun (i, w) => (i, ⟨w.top, Operations.applyMatrix f A w.bottom⟩)))
       (pending k) (Function.update pending k []) := by
   refine ⟨h.table.lower K hops A f hk B D, ?_, ?_, ?_⟩
   · intro v hv

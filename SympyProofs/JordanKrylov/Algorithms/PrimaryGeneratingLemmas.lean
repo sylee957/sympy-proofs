@@ -49,7 +49,7 @@ private theorem foldl_store_layers {V : Type*} (ks : List ℕ)
 
 /-- Membership in a returned list is exactly membership in its mathematical layer. -/
 theorem mem_computePrimaryGenerators (K : Subfield ℂ) [DecidableEq K]
-    [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect K) {n m : ℕ}
+    [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) (ℓ : ℕ) (v : Fin n → K) :
@@ -93,7 +93,7 @@ theorem mem_computePrimaryGenerators (K : Subfield ℂ) [DecidableEq K]
 
 /-- The union of the output layers is exactly the cofactor generating set. -/
 theorem computePrimaryGenerators_eq (K : Subfield ℂ) [DecidableEq K]
-    [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect K) {n m : ℕ}
+    [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) :
@@ -115,7 +115,7 @@ theorem computePrimaryGenerators_eq (K : Subfield ℂ) [DecidableEq K]
 
 /-- The bounded input for Algorithm 2 equals the union of all output layers. -/
 theorem computePrimaryGenerators_inputSet_eq (K : Subfield ℂ) [DecidableEq K]
-    [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect K) {n m ℓbar : ℕ}
+    [Operations K] (hops : Operations.IsCorrect K) {n m ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0)
@@ -172,7 +172,7 @@ theorem vectorRank_primaryCofactor (K : Subfield ℂ) {n : ℕ}
 
 /-- Remark 2: each positive layer is exactly the rank-ℓ part of the returned set. -/
 theorem primaryGeneratorLayer_eq_rankSubset (K : Subfield ℂ) [DecidableEq K]
-    [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect K) {n m : ℕ}
+    [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))

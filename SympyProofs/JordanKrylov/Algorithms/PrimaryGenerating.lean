@@ -1,4 +1,4 @@
-import SympyProofs.JordanKrylov.Algorithms.PolynomialOperations
+import SympyProofs.JordanKrylov.Algorithms.Operations
 
 /-! # Computing primary Krylov generators
 
@@ -14,11 +14,11 @@ order, and return their lists of cofactor vectors indexed by rank.
 Unoccupied ranks, including zero, return an empty list.
 Input order and repetitions are preserved within each layer. -/
 def computePrimaryGenerators (K : Type*) [Field K] [DecidableEq K]
-    [PolynomialOperations K] {n m : ℕ}
+    [Operations K] {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (p : Fin m → K[X]) :
     ℕ → List (Fin n → K) := Id.run do
-  let ranks := Vector.ofFn (fun i => PolynomialOperations.multiplicity f (p i))
+  let ranks := Vector.ofFn (fun i => Operations.multiplicity f (p i))
   let maxRank := Finset.univ.sup (fun i : Fin m => ranks[i.val])
   let mut generators : ℕ → List (Fin n → K) := fun _ => []
   for k in (List.range maxRank).reverse do
@@ -26,9 +26,9 @@ def computePrimaryGenerators (K : Type*) [Field K] [DecidableEq K]
     let mut layer := []
     for i in List.finRange m do
       if 0 < ℓ ∧ ranks[i.val] = ℓ then
-        let divisor := PolynomialOperations.pow f (ranks[i.val])
-        let cofactor := PolynomialOperations.divMonic divisor (p i)
-        let vector := PolynomialOperations.applyMatrix cofactor A (e i)
+        let divisor := Operations.pow f (ranks[i.val])
+        let cofactor := Operations.divMonic divisor (p i)
+        let vector := Operations.applyMatrix cofactor A (e i)
         layer := layer ++ [vector]
     generators := Function.update generators ℓ layer
   return generators

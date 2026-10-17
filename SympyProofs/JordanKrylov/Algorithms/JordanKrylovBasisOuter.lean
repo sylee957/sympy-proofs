@@ -7,7 +7,7 @@ its invariant; rank one supplies the final basis property.
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 /-- Proof model for a rank layer after the top-layer special case. -/
-def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
+def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
     (s : (ℕ → List (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n)) :=
@@ -15,12 +15,12 @@ def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOpera
     (fun t v => candidateIteration K A f k t.1 t.2.1 t.2.2 v)
     (s.1, Function.update s.2.1 (k + 1) [], s.2.2)
   (out.1, out.2.1, if 1 < k + 1 then out.2.2.map
-    (fun (i, w) => (i, (⟨w.top, PolynomialOperations.applyMatrix f A w.bottom⟩ : PairedColumn K n)))
+    (fun (i, w) => (i, (⟨w.top, Operations.applyMatrix f A w.bottom⟩ : PairedColumn K n)))
     else out.2.2)
 
  theorem remainingLayers_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (k : ℕ) (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (hle : k + 1 ≤ ℓbar)
@@ -45,8 +45,8 @@ def ordinaryLayerIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOpera
       List.foldl_cons, List.foldl_append, List.foldl_nil, ordinaryLayerIteration,
       show 1 < k + 1 + 1 by omega, ite_true] using hr
 theorem remainingLayers_ranks
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (k : ℕ) (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (hle : k + 1 ≤ ℓbar)
@@ -74,7 +74,7 @@ theorem remainingLayers_ranks
       show 1 < k+1+1 by omega, ite_true] using hout
 
 theorem ordinaryLayerIteration_support
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (s : (ℕ → List (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n))
@@ -83,7 +83,7 @@ theorem ordinaryLayerIteration_support
   candidateLayer_support K A f s.1 _ s.2.2 _ hs hle
 
 theorem remainingLayers_support
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ks : List ℕ)
     (s : (ℕ → List (Fin n → K)) × (ℕ → List (PairedColumn K n)) ×
       Array (Fin n × PairedColumn K n))
@@ -137,14 +137,14 @@ theorem pendingSpace_initialPending (K : Subfield ℂ) {n : ℕ}
     exact le_iSup_of_le v (le_iSup_of_le hv le_rfl)
 
 theorem initialPending_valid
-    (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar : ℕ}
+    (K : Subfield ℂ) [Operations K] {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
       (algorithmInputSet V ℓbar))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ)
     (j : ℕ) (v : PairedColumn K n)
-    (hv : v ∈ initialPending (PolynomialOperations.applyMatrix f A) V ℓbar j) :
+    (hv : v ∈ initialPending (Operations.applyMatrix f A) V ℓbar j) :
     1 ≤ j ∧ j ≤ ℓbar ∧ ValidLayerColumn K A f j v ∧
       v.bottom ≠ 0 ∧ vectorRank K A f v.bottom = j := by
   unfold initialPending at hv
@@ -172,13 +172,13 @@ theorem EliminationTableInvariant.empty
 
 /-- The paper's input contract establishes the full work invariant at the top layer. -/
 theorem initial_workInvariant
-    (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar : ℕ}
+    (K : Subfield ℂ) [Operations K] {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
       (algorithmInputSet V ℓbar))
     (hranks : ∀ ℓ, 1 ≤ ℓ → ℓ ≤ ℓbar → ∀ v ∈ V ℓ, vectorRank K A f v = ℓ) :
-    let pending := initialPending (PolynomialOperations.applyMatrix f A) V ℓbar
+    let pending := initialPending (Operations.applyMatrix f A) V ℓbar
     EliminationWorkInvariant K A f ℓbar ℓbar (acceptedGenerators (fun _ => [])) #[]
       (pending ℓbar) (Function.update pending ℓbar []) := by
   dsimp only
@@ -195,7 +195,7 @@ theorem initial_workInvariant
       have hh := initialPending_valid K A f V hops hgenerating hranks j v hv
       exact ⟨hh.1, by omega, hh.2.2.1⟩
   · have hh : powerKernel K A f ℓbar =
-        pendingSpace K A (initialPending (PolynomialOperations.applyMatrix f A) V ℓbar) := by
+        pendingSpace K A (initialPending (Operations.applyMatrix f A) V ℓbar) := by
       rw [pendingSpace_initialPending]
       exact hgenerating
     rw [hh, pendingSpace_extract K A _ ℓbar]

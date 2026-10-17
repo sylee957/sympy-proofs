@@ -57,11 +57,11 @@ theorem independent_finset_stop
 
 /-- Preprocessing preserves bounds even when pending vectors have smaller rank than their bucket. -/
 theorem reduceKrylovGenerators_bounded
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n : ℕ}
-    (hops : PolynomialOperations.IsCorrect K) (A : Matrix (Fin n) (Fin n) K) (f : K[X])
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n : ℕ}
+    (hops : Operations.IsCorrect K) (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (ℓ : ℕ)
     (hV : ∀ j v, v ∈ V j → 1 ≤ j ∧ j ≤ ℓ ∧ v ∈ powerKernel K A f j) :
-    ∀ j v, v ∈ reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) V ℓ j →
+    ∀ j v, v ∈ reduceKrylovGenerators (Operations.applyMatrix f A) V ℓ j →
       1 ≤ j ∧ j ≤ ℓ ∧ v ∈ powerKernel K A f j := by
   intro j v hv
   have hs := reduceKrylovGenerators_support K hops A f V ℓ
@@ -70,8 +70,8 @@ theorem reduceKrylovGenerators_bounded
   simp only [reduceKrylovGenerators, ← apply_ite, List.forIn_pure_yield_eq_foldl,
     Id.run, pure_bind] at hv
   change v ∈ ((reduceGeneratorColumns (V ℓ)).foldl (fun W v => if v ≠ 0 then
-    Function.update W (boundedVectorRank (PolynomialOperations.applyMatrix f A) v ℓ)
-      (W (boundedVectorRank (PolynomialOperations.applyMatrix f A) v ℓ) ++ [v]) else W)
+    Function.update W (boundedVectorRank (Operations.applyMatrix f A) v ℓ)
+      (W (boundedVectorRank (Operations.applyMatrix f A) v ℓ) ++ [v]) else W)
     (Function.update V ℓ [])) j at hv
   rw [redistribute_mem] at hv
   rcases hv with hv | ⟨hv, hn, hr⟩
@@ -122,18 +122,18 @@ theorem reduced_generatorSpace
 
 /-- Procedure 4 preserves the work invariant at the start of a layer. -/
 theorem EliminationWorkInvariant.preprocess
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar ℓ : ℕ}
-    (hops : PolynomialOperations.IsCorrect K) (A : Matrix (Fin n) (Fin n) K) (f : K[X])
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar ℓ : ℕ}
+    (hops : Operations.IsCorrect K) (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (B : Set (Fin n → K))
     (D : Array (Fin n × PairedColumn K n)) (enabled : Bool) (limit : ℕ)
     (h : EliminationWorkInvariant K A f ℓbar ℓ B D
-      (terminalPairs (PolynomialOperations.applyMatrix f A) ℓ (V ℓ))
-      (fun j => terminalPairs (PolynomialOperations.applyMatrix f A) j (Function.update V ℓ [] j)))
+      (terminalPairs (Operations.applyMatrix f A) ℓ (V ℓ))
+      (fun j => terminalPairs (Operations.applyMatrix f A) j (Function.update V ℓ [] j)))
     (hp : 1 ≤ ℓ) :
     let W := refinedPreprocess K A f enabled limit ℓ V
     EliminationWorkInvariant K A f ℓbar ℓ B D
-      (terminalPairs (PolynomialOperations.applyMatrix f A) ℓ (W ℓ))
-      (fun j => terminalPairs (PolynomialOperations.applyMatrix f A) j (Function.update W ℓ [] j)) := by
+      (terminalPairs (Operations.applyMatrix f A) ℓ (W ℓ))
+      (fun j => terminalPairs (Operations.applyMatrix f A) j (Function.update W ℓ [] j)) := by
   dsimp only [refinedPreprocess]
   split
   · have hb : ∀ j v, v ∈ V j → 1 ≤ j ∧ j ≤ ℓ ∧ v ∈ powerKernel K A f j := by
@@ -141,7 +141,7 @@ theorem EliminationWorkInvariant.preprocess
       by_cases hj : j = ℓ
       · subst j
         exact ⟨hp, le_rfl, (h.current _ (List.mem_map.mpr ⟨v, hv, rfl⟩)).1⟩
-      · have hq := h.queued j ⟨(PolynomialOperations.applyMatrix f A)^[j-1] v, v⟩
+      · have hq := h.queued j ⟨(Operations.applyMatrix f A)^[j-1] v, v⟩
           (List.mem_map.mpr ⟨v, by simpa only [Function.update_of_ne hj] using hv, rfl⟩)
         exact ⟨hq.1, hq.2.1.le, hq.2.2.1⟩
     have ho := reduceKrylovGenerators_bounded K hops A f V ℓ hb
@@ -163,8 +163,8 @@ theorem EliminationWorkInvariant.preprocess
 /-- The recursive refinement maintains the elimination invariant and stops only
 at a complete basis, either by exhaustion or by the rank-sum test. -/
 theorem refinedElimination_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (m : ℕ) (hmult : m = multiplicity f A.charpoly) (preprocess : Bool) (limit : ℕ)
     (ℓ : ℕ) (todo : List (Fin n → K)) (pending : ℕ → List (Fin n → K))
@@ -174,8 +174,8 @@ theorem refinedElimination_correct
     (flat : Finset (Fin n → K)) (hflat : acceptedGenerators B = (flat : Set (Fin n → K)))
     (hs : used = ∑ v ∈ flat, vectorRank K A f v)
     (h : EliminationWorkInvariant K A f ℓbar ℓ (flat : Set (Fin n → K)) D
-      (terminalPairs (PolynomialOperations.applyMatrix f A) ℓ todo)
-      (fun j => terminalPairs (PolynomialOperations.applyMatrix f A) j (pending j))) :
+      (terminalPairs (Operations.applyMatrix f A) ℓ todo)
+      (fun j => terminalPairs (Operations.applyMatrix f A) j (pending j))) :
     IsJordanKrylovBasis K A (powerKernel K A f ℓbar)
       (acceptedGenerators (refinedElimination K A f m preprocess limit ℓ todo pending B used D)) ∧
       BasisLayerRanks K A f (refinedElimination K A f m preprocess limit ℓ todo pending B used D) := by
@@ -190,23 +190,23 @@ theorem refinedElimination_correct
           And.intro (h.finish K A f _ _ _) hrB
       · have hn := h.next_layer K hops A f (by omega) _ _ _
         have hn' : EliminationWorkInvariant K A f ℓbar k (flat : Set (Fin n → K))
-            (D.map (fun (i,w) => (i, ⟨w.top, PolynomialOperations.applyMatrix f A w.bottom⟩)))
-            (terminalPairs (PolynomialOperations.applyMatrix f A) k (pending k))
-            (fun j => terminalPairs (PolynomialOperations.applyMatrix f A) j (Function.update pending k [] j)) := by
+            (D.map (fun (i,w) => (i, ⟨w.top, Operations.applyMatrix f A w.bottom⟩)))
+            (terminalPairs (Operations.applyMatrix f A) k (pending k))
+            (fun j => terminalPairs (Operations.applyMatrix f A) j (Function.update pending k [] j)) := by
           simpa only [terminalPairs_update, terminalPairs_nil] using hn
         have hp := hn'.preprocess K hops A f pending (flat : Set (Fin n → K)) _ preprocess limit (by omega)
         have hr := outer ((refinedPreprocess K A f preprocess limit k pending) k)
           (Function.update (refinedPreprocess K A f preprocess limit k pending) k []) B used
-          (D.map (fun (i,w) => (i, ⟨w.top, PolynomialOperations.applyMatrix f A w.bottom⟩)))
+          (D.map (fun (i,w) => (i, ⟨w.top, Operations.applyMatrix f A w.bottom⟩)))
           hrB (by omega) (by omega) flat hflat hs
           hp
         simpa only [refinedElimination, Id.run, hk, ite_false, Pure.pure] using hr
     | cons v todo inner =>
-      let pair : PairedColumn K n := ⟨(PolynomialOperations.applyMatrix f A)^[k] v, v⟩
+      let pair : PairedColumn K n := ⟨(Operations.applyMatrix f A)^[k] v, v⟩
       let r := reducePairedColumn D pair
       have hh : EliminationWorkInvariant K A f ℓbar (k+1) (flat : Set (Fin n → K)) D
-          (pair :: terminalPairs (PolynomialOperations.applyMatrix f A) (k+1) todo)
-          (fun j => terminalPairs (PolynomialOperations.applyMatrix f A) j (pending j)) := by
+          (pair :: terminalPairs (Operations.applyMatrix f A) (k+1) todo)
+          (fun j => terminalPairs (Operations.applyMatrix f A) j (pending j)) := by
         simpa only [terminalPairs, List.map_cons, Nat.add_sub_cancel] using h
       have hv := hh.current pair (List.mem_cons_self ..)
       rw [refinedElimination_cons]
@@ -246,8 +246,8 @@ theorem refinedElimination_correct
           apply inner _ B used D hrB flat hflat hs
           have hq := hh.requeue K A f _ D pair _ _ hz hb.1
           change EliminationWorkInvariant K A f ℓbar (k+1) (flat : Set (Fin n → K)) D
-            (terminalPairs (PolynomialOperations.applyMatrix f A) (k+1) todo)
-            (fun j => terminalPairs (PolynomialOperations.applyMatrix f A) j
+            (terminalPairs (Operations.applyMatrix f A) (k+1) todo)
+            (fun j => terminalPairs (Operations.applyMatrix f A) j
               (Function.update pending (vectorRank K A f r.bottom)
                 (pending (vectorRank K A f r.bottom) ++ [r.bottom]) j))
           rw [terminalPairs_update]
@@ -265,18 +265,18 @@ theorem refinedElimination_correct
 
 /-- The ordinary rank buckets establish the paired work invariant. -/
 theorem refined_initial_invariant
-    (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar : ℕ}
+    (K : Subfield ℂ) [Operations K] {n ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
     (hgen : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar) (algorithmInputSet V ℓbar))
     (hr : RankedLayers K A f V)
     (hs : ∀ j v, v ∈ V j → 1 ≤ j ∧ j ≤ ℓbar) :
     EliminationWorkInvariant K A f ℓbar ℓbar (∅ : Set (Fin n → K)) #[]
-      (terminalPairs (PolynomialOperations.applyMatrix f A) ℓbar (V ℓbar))
-      (fun j => terminalPairs (PolynomialOperations.applyMatrix f A) j
+      (terminalPairs (Operations.applyMatrix f A) ℓbar (V ℓbar))
+      (fun j => terminalPairs (Operations.applyMatrix f A) j
         (Function.update V ℓbar [] j)) := by
-  have he : initialPending (PolynomialOperations.applyMatrix f A) V ℓbar =
-      fun j => terminalPairs (PolynomialOperations.applyMatrix f A) j (V j) := by
+  have he : initialPending (Operations.applyMatrix f A) V ℓbar =
+      fun j => terminalPairs (Operations.applyMatrix f A) j (V j) := by
     funext j
     by_cases hj : 1 ≤ j ∧ j ≤ ℓbar
     · simp [initialPending, hj, terminalPairs]
@@ -291,8 +291,8 @@ theorem refined_initial_invariant
 
 /-- Selecting the initial generator directly agrees with elimination against an empty table. -/
 theorem refined_initialization_eq
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (W : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool) (hr : RankedLayers K A f W) :
     (let run := fun W B used D => refinedElimination K A f m preprocess ℓbar ℓbar
@@ -304,7 +304,7 @@ theorem refined_initialization_eq
           let D := ((List.range f.natDegree).foldl
             (fun (s : Array (Fin n × PairedColumn K n) × PairedColumn K n) _ =>
               (insertPairedColumn s.1 s.2, ⟨A *ᵥ s.2.top, A *ᵥ s.2.bottom⟩))
-            (#[], ⟨(PolynomialOperations.applyMatrix f A)^[ℓbar - 1] v, v⟩)).1
+            (#[], ⟨(Operations.applyMatrix f A)^[ℓbar - 1] v, v⟩)).1
           run (Function.update W ℓbar rest) (Function.update (fun _ => []) ℓbar [v]) ℓbar D) =
       refinedElimination K A f m preprocess ℓbar ℓbar (W ℓbar) (Function.update W ℓbar []) (fun _ => []) 0 #[] := by
   cases hw : W ℓbar with
@@ -322,10 +322,10 @@ theorem refined_initialization_eq
 
 /-- The output generates a Jordan–Krylov basis and retains exact positive rank layers. -/
 theorem computeRefinedJordanKrylovBasis_correct_of_generating
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar m : ℕ}
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K))
     (preprocess : Bool)
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
     (hf : Irreducible f) (hm : f.Monic)
     (hmultiplicity : m = multiplicity f A.charpoly)
     (hgenerating : IsKrylovGeneratingSet K A (powerKernel K A f ℓbar)
@@ -384,18 +384,18 @@ theorem computeRefinedJordanKrylovBasis_correct_of_generating
     have h := finish _ hc.1 hc.2
       (reduceKrylovGenerators_support K hops A f U ℓbar (fun v hv => (hur ℓbar v hv).2.2) hus)
     rw [← refined_initialization_eq K hops A f _ ℓbar m true hc.2] at h
-    cases hw : reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) U ℓbar ℓbar <;>
+    cases hw : reduceKrylovGenerators (Operations.applyMatrix f A) U ℓbar ℓbar <;>
       dsimp only [U] at hw h ⊢ <;> simpa only [hw] using h
 
 /-- Algorithms 1 and 3 produce a Jordan–Krylov basis from a spanning family
 and its minimal annihilating polynomials, with or without preprocessing. -/
 theorem computeRefinedJordanKrylovBasis_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n s : ℕ}
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n s : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (e : Fin s → (Fin n → K))
     (he : Submodule.span K (Set.range e) = ⊤)
     (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin s → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
-    (preprocess : Bool) (hops : PolynomialOperations.IsCorrect K) :
+    (preprocess : Bool) (hops : Operations.IsCorrect K) :
     IsJordanKrylovBasis K A (powerKernel K A f (multiplicity f (minpoly K A)))
       (acceptedGenerators (computeRefinedJordanKrylovBasis K A f (computePrimaryGenerators K A e f p)
         (multiplicity f (minpoly K A)) (multiplicity f A.charpoly) preprocess)) := by
@@ -413,12 +413,12 @@ theorem computeRefinedJordanKrylovBasis_correct
 
 /-- Algorithms 1 and 3 return generators in their exact positive rank layers. -/
 theorem computeRefinedJordanKrylovBasis_ranks
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n s : ℕ}
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n s : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (e : Fin s → (Fin n → K))
     (he : Submodule.span K (Set.range e) = ⊤)
     (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin s → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
-    (preprocess : Bool) (hops : PolynomialOperations.IsCorrect K) :
+    (preprocess : Bool) (hops : Operations.IsCorrect K) :
     BasisLayerRanks K A f (computeRefinedJordanKrylovBasis K A f (computePrimaryGenerators K A e f p)
         (multiplicity f (minpoly K A)) (multiplicity f A.charpoly) preprocess) := by
   refine (computeRefinedJordanKrylovBasis_correct_of_generating K A f

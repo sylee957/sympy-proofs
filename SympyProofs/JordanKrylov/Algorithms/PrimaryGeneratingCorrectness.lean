@@ -11,7 +11,7 @@ open Polynomial Matrix
 /-- Algorithm 1 is correct when its polynomial inputs are a spanning family's
 minimal annihilating polynomials. -/
 theorem computePrimaryGenerators_correct (K : Subfield ℂ) [DecidableEq K]
-    [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect K) {n m : ℕ}
+    [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (he : Submodule.span K (Set.range e) = ⊤) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i)) :
@@ -26,7 +26,7 @@ theorem computePrimaryGenerators_correct (K : Subfield ℂ) [DecidableEq K]
 
 /-- Every returned vector has the rank indexing its list. -/
 theorem computePrimaryGenerators_ranks (K : Subfield ℂ) [DecidableEq K]
-    [PolynomialOperations K] (hops : PolynomialOperations.IsCorrect K) {n m : ℕ}
+    [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (e : Fin m → (Fin n → K))
     (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))

@@ -7,11 +7,11 @@ induction. `candidateLayer_eq_fold` connects it to the unchanged imperative body
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 /-- A proof model of one iteration, matching the imperative body of Algorithm 2. -/
-def candidateIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
+def candidateIteration (K : Type) [Field K] [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n) := Id.run do
-  let F := PolynomialOperations.applyMatrix f A
+  let F := Operations.applyMatrix f A
   let d := f.natDegree
   let ℓ := k + 1
   let mut basis := basis
@@ -42,8 +42,8 @@ def candidateIteration (K : Type) [Field K] [DecidableEq K] [PolynomialOperation
   return (basis, pending, D)
 
 theorem candidateIteration_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
@@ -92,8 +92,8 @@ theorem candidateIteration_correct
       rw [ite_eq_right ht, ite_eq_right hb]
       exact h.discard K A f _ D v todo pending hbzero
 theorem candidateLayer_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n))
@@ -109,7 +109,7 @@ theorem candidateLayer_correct
     exact ih _ _ _ (candidateIteration_correct K hops A f hf hm basis pending D v todo hle h)
 
 theorem candidateIteration_basis
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n) :
@@ -126,7 +126,7 @@ theorem candidateIteration_basis
     · rfl
 
 theorem candidateIteration_ranks
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
@@ -143,8 +143,8 @@ theorem candidateIteration_ranks
   · exact hr
 
 theorem candidateLayer_ranks
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n ℓbar k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n))
@@ -165,7 +165,7 @@ def BasisLayerSupport {K : Type} {n : ℕ} (ℓbar : ℕ) (basis : ℕ → List 
   ∀ j v, v ∈ basis j → 1 ≤ j ∧ j ≤ ℓbar
 
 theorem candidateIteration_support
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (v : PairedColumn K n)
@@ -181,12 +181,12 @@ theorem candidateIteration_support
   · exact hs
 
 theorem candidateLayer_eq_fold
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (k : ℕ)
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n)) :
     (Id.run do
-      let F := PolynomialOperations.applyMatrix f A
+      let F := Operations.applyMatrix f A
       let d := f.natDegree
       let ℓ := k + 1
       let mut basis := basis
@@ -225,7 +225,7 @@ theorem candidateLayer_eq_fold
   simp only [hy, Prod.mk.eta]
 
 theorem candidateLayer_support
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n ℓbar k : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n ℓbar k : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (basis : ℕ → List (Fin n → K)) (pending : ℕ → List (PairedColumn K n))
     (D : Array (Fin n × PairedColumn K n)) (todo : List (PairedColumn K n))

@@ -6,7 +6,7 @@ import SympyProofs.JordanKrylov.Algorithms.JordanChains
 
 Compose Algorithms 1, 3, and 5. The supplied minimal annihilating polynomials
 determine the maximum rank; `m` is the multiplicity in the characteristic
-polynomial. Applying `f(A)` uses `PolynomialOperations.applyMatrix` in the
+polynomial. Applying `f(A)` uses `Operations.applyMatrix` in the
 component algorithms, rather than materializing a separate matrix here.
 -/
 namespace SympyProofs.JordanKrylov
@@ -15,11 +15,11 @@ open Matrix Polynomial
 /-- Algorithm 6. The output encodes chains for every root of `f` symbolically;
 evaluating a chain at a root gives its generalized eigenvectors. -/
 def computeGeneralizedEigenspace (K : Type) [Field K] [DecidableEq K]
-    [PolynomialOperations K] {n s : ℕ}
+    [Operations K] {n s : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (e : Fin s → (Fin n → K)) (p : Fin s → K[X])
     (m : ℕ) (preprocess : Bool := false) : Finset (List (Fin n → K[X])) := Id.run do
-  let ℓbar := Finset.univ.sup (fun i => PolynomialOperations.multiplicity f (p i))
+  let ℓbar := Finset.univ.sup (fun i => Operations.multiplicity f (p i))
   -- Line 2: primary Krylov generators, grouped by rank.
   let V := computePrimaryGenerators K A e f p
   -- Line 3: a Jordan–Krylov basis with the same rank-layer interface.

@@ -90,19 +90,19 @@ theorem jordanChainModel_eq_ofFn {V P : Type u} (F : V → V) (Q : ℕ → V →
     simp [Function.iterate_succ_apply]
 
 /-- Proof model of the precomputed polynomial action. -/
-def chainPowerAction (K : Type) [Field K] [PolynomialOperations K] {n : ℕ}
+def chainPowerAction (K : Type) [Field K] [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (ℓbar k : ℕ) (v : Fin n → K) :=
-  let zeroPower := PolynomialOperations.reducedPower f 0
+  let zeroPower := Operations.reducedPower f 0
   let powers := Id.run do
     let mut powers := #[zeroPower]
     for j in 1...=ℓbar do
-      powers := powers.push (PolynomialOperations.reducedPower f j)
+      powers := powers.push (Operations.reducedPower f j)
     return powers
-  PolynomialOperations.applyBivariateMatrix (powers[k]?.getD zeroPower) A v
+  Operations.applyBivariateMatrix (powers[k]?.getD zeroPower) A v
 
 theorem chainPowerAction_eq
-    (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [Operations K] {n ℓbar k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K) (hk : k ≤ ℓbar) :
     chainPowerAction K A f ℓbar k v =
       (ψPower K f k).eval₂ (Matrix.scalar (Fin n)) (A.map C) *ᵥ (fun i => C (v i)) := by
@@ -119,10 +119,10 @@ theorem chainPowerAction_eq
 
 /-- The computed chain is precisely the paper's polynomial-coordinate formula. -/
 theorem jordanChainModel_eq_coordinates
-    (K : Subfield ℂ) [PolynomialOperations K] {n ℓbar ℓ : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [Operations K] {n ℓbar ℓ : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (b : Fin n → K) (hle : ℓ ≤ ℓbar) :
-    jordanChainModel (PolynomialOperations.applyMatrix f A) (chainPowerAction K A f ℓbar) ℓ b =
+    jordanChainModel (Operations.applyMatrix f A) (chainPowerAction K A f ℓbar) ℓ b =
       List.ofFn (fun j : Fin ℓ => pChainCoordinates K A f ℓ (ℓ - j.val) b) := by
   rw [jordanChainModel_eq_ofFn]
   apply congrArg List.ofFn
@@ -153,27 +153,27 @@ private theorem array_getElem_eq_getD {α : Type*} (fallback : α)
 
 /-- Exact coverage of the assembly loop, before replacing operations by their specifications. -/
 theorem mem_computeJordanChains
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
+    (K : Type) [Field K] [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (B : ℕ → List (Fin n → K)) (ℓbar : ℕ) (c : List (Fin n → K[X])) :
     c ∈ computeJordanChains K A f B ℓbar ↔
       ∃ ℓ, 1 ≤ ℓ ∧ ℓ ≤ ℓbar ∧ ∃ b ∈ B ℓ,
-        jordanChainModel (PolynomialOperations.applyMatrix f A)
+        jordanChainModel (Operations.applyMatrix f A)
           (chainPowerAction K A f ℓbar) ℓ b = c := by
   let loop := fun ℓ b => Id.run do
     let mut chain := []
     let mut current := b
     for offset in 0...(ℓ - 1) do
       chain := chain ++ [chainPowerAction K A f ℓbar (ℓ - offset) current]
-      current := PolynomialOperations.applyMatrix f A current
+      current := Operations.applyMatrix f A current
     chain := chain ++ [chainPowerAction K A f ℓbar 1 current]
     return chain
-  have heq : loop = fun ℓ => jordanChainModel (PolynomialOperations.applyMatrix f A)
+  have heq : loop = fun ℓ => jordanChainModel (Operations.applyMatrix f A)
       (chainPowerAction K A f ℓbar) (ℓ - 1 + 1) := by
     funext ℓ b
     exact jordanChain_loop_eq_model _ _ ℓ b
   simp only [computeJordanChains,
-    array_getElem_eq_getD (PolynomialOperations.reducedPower f 0)]
+    array_getElem_eq_getD (Operations.reducedPower f 0)]
   change c ∈ Id.run (forIn (0...ℓbar) ∅ (fun offset out => do
     let out ← forIn (B (ℓbar - offset)) out
       (fun b out => pure (ForInStep.yield (insert (loop (ℓbar - offset) b) out)))
@@ -203,8 +203,8 @@ theorem mem_computeJordanChains
 /-- Every returned chain is the formula for an input generator, and every input
 generator in the processed layers contributes its chain. -/
 theorem mem_computeJordanChains_iff
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K]
-    {n : ℕ} (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K]
+    {n : ℕ} (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (B : ℕ → List (Fin n → K)) (ℓbar : ℕ) (c : List (Fin n → K[X])) :
     c ∈ computeJordanChains K A f B ℓbar ↔

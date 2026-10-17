@@ -1,4 +1,4 @@
-import SympyProofs.JordanKrylov.Algorithms.PolynomialOperations
+import SympyProofs.JordanKrylov.Algorithms.Operations
 
 /-! # Simultaneous column elimination
 

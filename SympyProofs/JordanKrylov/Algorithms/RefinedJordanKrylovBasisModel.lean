@@ -32,15 +32,15 @@ theorem paired_krylov_insert_first {K : Type} [Field K] [DecidableEq K] {n : ℕ
     (fun w => { top := A *ᵥ w.top, bottom := A *ᵥ w.bottom }) d hd (D, w)
 
 /-- Optional preprocessing before entering a lower layer. -/
-def refinedPreprocess (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
+def refinedPreprocess (K : Type) [Field K] [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (preprocess : Bool) (limit ℓ : ℕ) (pending : ℕ → List (Fin n → K)) :=
   if preprocess ∧ ℓ < limit ∧ pending ℓ ≠ [] then
-    reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) pending ℓ
+    reduceKrylovGenerators (Operations.applyMatrix f A) pending ℓ
   else pending
 
 /-- Recursive proof model for the imperative descending loops. -/
-def refinedElimination (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
+def refinedElimination (K : Type) [Field K] [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m : ℕ) (preprocess : Bool) (limit : ℕ)
     (ℓ : ℕ) (todo : List (Fin n → K)) (pending : ℕ → List (Fin n → K))
     (basis : (ℕ → List (Fin n → K))) (used : ℕ)
@@ -49,11 +49,11 @@ def refinedElimination (K : Type) [Field K] [DecidableEq K] [PolynomialOperation
   | 0, _ => return basis
   | k + 1, [] =>
     if k = 0 then return basis
-    let D := D.map (fun (i, w) => (i, { top := w.top, bottom := PolynomialOperations.applyMatrix f A w.bottom }))
+    let D := D.map (fun (i, w) => (i, { top := w.top, bottom := Operations.applyMatrix f A w.bottom }))
     let pending := refinedPreprocess K A f preprocess limit k pending
     return refinedElimination K A f m preprocess limit k (pending k) (Function.update pending k []) basis used D
   | k + 1, v :: rest =>
-    let F := PolynomialOperations.applyMatrix f A
+    let F := Operations.applyMatrix f A
     let mut top := v
     for _ in List.range k do
       top := F top
@@ -77,12 +77,12 @@ def refinedElimination (K : Type) [Field K] [DecidableEq K] [PolynomialOperation
 termination_by (ℓ, todo.length)
 
  theorem refinedElimination_cons
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m : ℕ) (preprocess : Bool) (limit k : ℕ)
     (v : Fin n → K) (todo : List (Fin n → K)) (pending : ℕ → List (Fin n → K))
     (B : (ℕ → List (Fin n → K))) (used : ℕ) (D : Array (Fin n × PairedColumn K n)) :
     refinedElimination K A f m preprocess limit (k+1) (v :: todo) pending B used D =
-      let r := reducePairedColumn D ⟨(PolynomialOperations.applyMatrix f A)^[k] v, v⟩
+      let r := reducePairedColumn D ⟨(Operations.applyMatrix f A)^[k] v, v⟩
       if r.top ≠ 0 then
         if used + (k+1) = m then Function.update B (k + 1) (r.bottom :: (B (k + 1))) else
           refinedElimination K A f m preprocess limit (k+1) todo pending (Function.update B (k + 1) (r.bottom :: (B (k + 1)))) (used+(k+1))
@@ -90,12 +90,12 @@ termination_by (ℓ, todo.length)
               (fun (s : Array (Fin n × PairedColumn K n) × PairedColumn K n) _ =>
                 (insertPairedColumn s.1 s.2, ⟨A *ᵥ s.2.top, A *ᵥ s.2.bottom⟩)) (D,r)).1
       else if r.bottom ≠ 0 ∧ 1 < k+1 then
-        let rank := boundedVectorRank (PolynomialOperations.applyMatrix f A) r.bottom k
+        let rank := boundedVectorRank (Operations.applyMatrix f A) r.bottom k
         refinedElimination K A f m preprocess limit (k+1) todo
           (Function.update pending rank (pending rank ++ [r.bottom])) B used D
       else refinedElimination K A f m preprocess limit (k+1) todo pending B used D := by
   rw [refinedElimination]
-  have ht := iterate_loop_eq (PolynomialOperations.applyMatrix f A) v k
+  have ht := iterate_loop_eq (Operations.applyMatrix f A) v k
   simp only [Id.run, List.forIn_pure_yield_eq_foldl, pure_bind] at ht ⊢
   dsimp only [Bind.bind, Pure.pure] at ht ⊢
   rw [ht]
@@ -107,14 +107,14 @@ abbrev RefinedLoopState (K : Type) (n : ℕ) :=
     (ℕ → List (Fin n → K)) × ℕ × Array (Fin n × PairedColumn K n)
 
 /-- Proof model of one candidate iteration. -/
-def refinedCandidateStep (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
+def refinedCandidateStep (K : Type) [Field K] [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m k : ℕ) :
     (Fin n → K) → RefinedLoopState K n → Id (ForInStep (RefinedLoopState K n)) := fun v s =>
   let pending := s.2.1
   let B := s.2.2.1
   let used := s.2.2.2.1
   let D := s.2.2.2.2
-  let r := reducePairedColumn D ⟨(PolynomialOperations.applyMatrix f A)^[k] v, v⟩
+  let r := reducePairedColumn D ⟨(Operations.applyMatrix f A)^[k] v, v⟩
   if r.top ≠ 0 then
     let B := Function.update B (k + 1) (r.bottom :: (B (k + 1)))
     let used := used + (k+1)
@@ -124,12 +124,12 @@ def refinedCandidateStep (K : Type) [Field K] [DecidableEq K] [PolynomialOperati
           (insertPairedColumn s.1 s.2, ⟨A *ᵥ s.2.top, A *ᵥ s.2.bottom⟩)) (D,r)).1
       .yield (none, pending, B, used, D)
   else if r.bottom ≠ 0 ∧ 1 < k+1 then
-    let rank := boundedVectorRank (PolynomialOperations.applyMatrix f A) r.bottom k
+    let rank := boundedVectorRank (Operations.applyMatrix f A) r.bottom k
     .yield (none, Function.update pending rank (pending rank ++ [r.bottom]), B, used, D)
   else .yield (none, pending, B, used, D)
 
 /-- Proof model of the outer loop body. -/
-def refinedLayerStep (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
+def refinedLayerStep (K : Type) [Field K] [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m : ℕ) (preprocess : Bool) (limit : ℕ) : ℕ → RefinedLoopState K n → Id (ForInStep (RefinedLoopState K n)) := fun k s =>
   let pending := refinedPreprocess K A f preprocess limit (k+1) s.2.1
   let out := forIn (m := Id) (pending (k+1))
@@ -139,11 +139,11 @@ def refinedLayerStep (K : Type) [Field K] [DecidableEq K] [PolynomialOperations 
   | some B => .done (some B, out.2)
   | none =>
     if 1 < k+1 then .yield (none, out.2.1, out.2.2.1, out.2.2.2.1,
-      out.2.2.2.2.map (fun (i,w) => (i, ⟨w.top, PolynomialOperations.applyMatrix f A w.bottom⟩)))
+      out.2.2.2.2.map (fun (i,w) => (i, ⟨w.top, Operations.applyMatrix f A w.bottom⟩)))
     else .yield (none, out.2.1, out.2.2.1, out.2.2.2.1, out.2.2.2.2)
 
 /-- Interpret a completed inner loop using the recursive proof model. -/
-def resumeRefined (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
+def resumeRefined (K : Type) [Field K] [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m : ℕ) (preprocess : Bool) (limit k : ℕ)
     (s : RefinedLoopState K n) : (ℕ → List (Fin n → K)) :=
   match s.1 with
@@ -151,7 +151,7 @@ def resumeRefined (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K]
   | none => refinedElimination K A f m preprocess limit (k+1) [] s.2.1 s.2.2.1 s.2.2.2.1 s.2.2.2.2
 
 theorem refined_inner_eq_model
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m : ℕ) (preprocess : Bool) (limit k : ℕ)
     (todo : List (Fin n → K)) (pending : ℕ → List (Fin n → K))
     (B : (ℕ → List (Fin n → K))) (used : ℕ) (D : Array (Fin n × PairedColumn K n)) :
@@ -164,7 +164,7 @@ theorem refined_inner_eq_model
   | cons v todo ih =>
     rw [List.forIn_cons, refinedElimination_cons]
     dsimp only [refinedCandidateStep, Bind.bind, Pure.pure]
-    let r := reducePairedColumn D ⟨(PolynomialOperations.applyMatrix f A)^[k] v, v⟩
+    let r := reducePairedColumn D ⟨(Operations.applyMatrix f A)^[k] v, v⟩
     by_cases ht : r.top ≠ 0
     · by_cases hs : used + (k+1) = m
       · rw [ite_eq_left ht, ite_eq_left hs, ite_eq_left ht, ite_eq_left hs]
@@ -182,7 +182,7 @@ def refinedLoopResult {K : Type} {n : ℕ} (s : RefinedLoopState K n) : (ℕ →
   s.1.getD s.2.2.1
 
 theorem refined_outer_eq_model
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (m : ℕ) (preprocess : Bool) (limit ℓ : ℕ)
     (pending : ℕ → List (Fin n → K))
     (B : (ℕ → List (Fin n → K))) (used : ℕ) (D : Array (Fin n × PairedColumn K n)) :
@@ -220,12 +220,12 @@ theorem refined_forIn_yield {α β : Type} (xs : List α) (s : β) (step : β �
 
 /-- The imperative definition elaborates to the nested loop proof model. -/
 theorem computeRefinedJordanKrylovBasis_eq_loops
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool) (hd : 0 < f.natDegree) :
     computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess =
       let U := fun j => if 1 ≤ j ∧ j ≤ ℓbar then V j else []
-      let U := if preprocess then reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) U ℓbar else U
+      let U := if preprocess then reduceKrylovGenerators (Operations.applyMatrix f A) U ℓbar else U
       let run := fun U B used D => refinedLoopResult
         (forIn (m := Id) (List.range ℓbar).reverse (none, U, B, used, D)
           (refinedLayerStep K A f m preprocess ℓbar) : Id (RefinedLoopState K n))
@@ -236,10 +236,10 @@ theorem computeRefinedJordanKrylovBasis_eq_loops
           let D := ((List.range f.natDegree).foldl
             (fun (s : Array (Fin n × PairedColumn K n) × PairedColumn K n) _ =>
               (insertPairedColumn s.1 s.2, ⟨A *ᵥ s.2.top, A *ᵥ s.2.bottom⟩))
-            (#[], ⟨(PolynomialOperations.applyMatrix f A)^[ℓbar - 1] v, v⟩)).1
+            (#[], ⟨(Operations.applyMatrix f A)^[ℓbar - 1] v, v⟩)).1
           run (Function.update U ℓbar rest) (Function.update (fun _ => []) ℓbar [v]) ℓbar D := by
   let flag := preprocess
-  have ht (v : Fin n → K) (k : ℕ) := iterate_loop_eq (PolynomialOperations.applyMatrix f A) v k
+  have ht (v : Fin n → K) (k : ℕ) := iterate_loop_eq (Operations.applyMatrix f A) v k
   simp only [Id.run, List.forIn_pure_yield_eq_foldl, pure_bind] at ht
   simp only [computeRefinedJordanKrylovBasis, refinedLoopResult, Id.run, List.forIn_map,
     Nat.succ_eq_add_one, Nat.add_sub_cancel, Bind.bind, Pure.pure]
@@ -283,12 +283,12 @@ theorem computeRefinedJordanKrylovBasis_eq_loops
 
 /-- Initialization precedes the recursive model of the remaining loops. -/
 theorem computeRefinedJordanKrylovBasis_eq_model
-    (K : Type) [Field K] [DecidableEq K] [PolynomialOperations K] {n : ℕ}
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool) (hd : 0 < f.natDegree) :
     computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess =
       let U := fun j => if 1 ≤ j ∧ j ≤ ℓbar then V j else []
-      let U := if preprocess then reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) U ℓbar else U
+      let U := if preprocess then reduceKrylovGenerators (Operations.applyMatrix f A) U ℓbar else U
       let run := fun U B used D => refinedElimination K A f m preprocess ℓbar ℓbar
         (U ℓbar) (Function.update U ℓbar []) B used D
       match U ℓbar with
@@ -298,7 +298,7 @@ theorem computeRefinedJordanKrylovBasis_eq_model
           let D := ((List.range f.natDegree).foldl
             (fun (s : Array (Fin n × PairedColumn K n) × PairedColumn K n) _ =>
               (insertPairedColumn s.1 s.2, ⟨A *ᵥ s.2.top, A *ᵥ s.2.bottom⟩))
-            (#[], ⟨(PolynomialOperations.applyMatrix f A)^[ℓbar - 1] v, v⟩)).1
+            (#[], ⟨(Operations.applyMatrix f A)^[ℓbar - 1] v, v⟩)).1
           run (Function.update U ℓbar rest) (Function.update (fun _ => []) ℓbar [v]) ℓbar D := by
   rw [computeRefinedJordanKrylovBasis_eq_loops K A f V ℓbar m preprocess hd]
   simp only [refined_outer_eq_model, refinedPreprocess, lt_self_iff_false, false_and, and_false, ite_false]

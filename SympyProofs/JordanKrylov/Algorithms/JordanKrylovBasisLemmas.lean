@@ -206,10 +206,10 @@ theorem boundedRankSearch_correct {K : Type} [Field K] [DecidableEq K] {n : ℕ}
     (ite_eq_right (by omega))
 
 theorem applyMatrix_iterate_eq_pow_mulVec
-    (K : Subfield ℂ) [PolynomialOperations K] {n : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [Operations K] {n : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K) (j : ℕ) :
-    (PolynomialOperations.applyMatrix f A)^[j] v = (aeval A f)^j *ᵥ v := by
+    (Operations.applyMatrix f A)^[j] v = (aeval A f)^j *ᵥ v := by
   induction j with
   | zero => simp
   | succ j ih =>
@@ -217,12 +217,12 @@ theorem applyMatrix_iterate_eq_pow_mulVec
       pow_succ', Matrix.mulVec_mulVec]
 
 theorem applyMatrix_iterate_ne_zero_of_lt_vectorRank
-    (K : Subfield ℂ) [PolynomialOperations K] {n j : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [Operations K] {n j : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K)
     (hv : v ≠ 0)
     (hj : j < vectorRank K A f v) :
-    (PolynomialOperations.applyMatrix f A)^[j] v ≠ 0 := by
+    (Operations.applyMatrix f A)^[j] v ≠ 0 := by
   rw [applyMatrix_iterate_eq_pow_mulVec K hops A f v j]
   intro hz
   have hb := vectorRank_bounds K A f v hv (show v ∈ powerKernel K A f j from hz)
@@ -231,12 +231,12 @@ theorem applyMatrix_iterate_ne_zero_of_lt_vectorRank
 /-- The bounded residual scan in Algorithm 2 returns the exact rank and terminal
 vector. In particular, its positive-rank guard cannot drop a nonzero residual. -/
 theorem residualRankSearch_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K)
     (hv : v ≠ 0) (hk : v ∈ powerKernel K A f k) :
     (Id.run do
-      let F := PolynomialOperations.applyMatrix f A
+      let F := Operations.applyMatrix f A
       let mut rank : ℕ := 0
       let mut terminal := v
       let mut w := v
@@ -251,11 +251,11 @@ theorem residualRankSearch_correct
       return (rank, terminal, w)) =
       (vectorRank K A f v, terminalVector K A f v, terminalVector K A f v) := by
   have hb := vectorRank_bounds K A f v hv hk
-  have hc : (PolynomialOperations.applyMatrix f A)^[vectorRank K A f v] v = 0 := by
+  have hc : (Operations.applyMatrix f A)^[vectorRank K A f v] v = 0 := by
     rw [applyMatrix_iterate_eq_pow_mulVec K hops A f v]
     exact mem_powerKernel_vectorRank K A f v hk
   simpa only [applyMatrix_iterate_eq_pow_mulVec K hops A f v, terminalVector] using
-    boundedRankSearch_correct (PolynomialOperations.applyMatrix f A) v
+    boundedRankSearch_correct (Operations.applyMatrix f A) v
       (vectorRank K A f v) k hb.1 hb.2 hc
       (fun j hj => applyMatrix_iterate_ne_zero_of_lt_vectorRank K hops A f v hv hj)
 
@@ -486,22 +486,22 @@ theorem algorithmInput_early_return
 /-- The end-of-layer update retains terminal columns and lowers the lower-block
 kernel bound and the exponent in the paired-column relation by one. -/
 theorem lowerPairedTable_invariant
-    (K : Subfield ℂ) [PolynomialOperations K] {n k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [Operations K] {n k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (hk : 1 ≤ k)
     (D : Array (Fin n × PairedColumn K n))
     (hech : PairedEchelon D.toList)
     (hD : ∀ iw ∈ D.toList, iw.2.top = (aeval A f)^k *ᵥ iw.2.bottom)
     (hker : ∀ iw ∈ D.toList, iw.2.bottom ∈ powerKernel K A f (k + 1)) :
     let out := D.map (fun (i, w) => (i, (⟨w.top,
-      PolynomialOperations.applyMatrix f A w.bottom⟩ : PairedColumn K n)))
+      Operations.applyMatrix f A w.bottom⟩ : PairedColumn K n)))
     PairedEchelon out.toList ∧ pairedTopSpan out = pairedTopSpan D ∧
       (∀ iw ∈ out.toList, iw.2.top = (aeval A f)^(k - 1) *ᵥ iw.2.bottom) ∧
       (∀ iw ∈ out.toList, iw.2.bottom ∈ powerKernel K A f k) := by
   dsimp only
   refine ⟨?_, pairedTopSpan_map_bottom D _, ?_, ?_⟩
   · simpa only [Array.toList_map] using
-      hech.map_bottom D.toList (PolynomialOperations.applyMatrix f A)
+      hech.map_bottom D.toList (Operations.applyMatrix f A)
   · intro iw hiw
     obtain ⟨jw, hjw, rfl⟩ := List.mem_map.mp (by simpa only [Array.toList_map] using hiw)
     dsimp only
@@ -510,7 +510,7 @@ theorem lowerPairedTable_invariant
     exact hD jw hjw
   · intro iw hiw
     obtain ⟨jw, hjw, rfl⟩ := List.mem_map.mp (by simpa only [Array.toList_map] using hiw)
-    change (aeval A f)^k *ᵥ PolynomialOperations.applyMatrix f A jw.2.bottom = 0
+    change (aeval A f)^k *ᵥ Operations.applyMatrix f A jw.2.bottom = 0
     rw [hops.applyMatrix_eq, Matrix.mulVec_mulVec, ← pow_succ]
     exact hker jw hjw
 

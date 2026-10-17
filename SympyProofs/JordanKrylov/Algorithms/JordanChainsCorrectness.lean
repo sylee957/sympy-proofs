@@ -23,10 +23,10 @@ theorem pChainAt_eq_eval_coordinates (K : Subfield ℂ) {n : ℕ}
 
 /-- Every returned symbolic chain is a Jordan chain at every root of f. -/
 theorem computeJordanChains_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K]
+    (K : Subfield ℂ) [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (B : ℕ → List (Fin n → K)) (ℓbar : ℕ)
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
     (hf : Irreducible f)
     (hB : IsJordanKrylovBasis K A (powerKernel K A f ℓbar) ({v | ∃ ℓ, v ∈ B ℓ}))
     (hranks : ∀ ℓ b, b ∈ B ℓ → 1 ≤ ℓ ∧ vectorRank K A f b = ℓ)
@@ -92,10 +92,10 @@ theorem basisLayer_rank_le
 
 /-- The output spans exactly the same chain spaces as the input generators. -/
 theorem computeJordanChains_chainSpan
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K]
+    (K : Subfield ℂ) [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (B : ℕ → List (Fin n → K)) (ℓbar : ℕ)
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
     (hB : IsJordanKrylovBasis K A (powerKernel K A f ℓbar) ({v | ∃ ℓ, v ∈ B ℓ}))
     (hranks : ∀ ℓ b, b ∈ B ℓ → 1 ≤ ℓ ∧ vectorRank K A f b = ℓ) (α : ℂ) :
     (⨆ c ∈ computeJordanChains K A f B ℓbar, evaluatedChainSpace K c α) =
@@ -119,10 +119,10 @@ theorem computeJordanChains_chainSpan
 
 /-- Distinct output chains have independent spans at each eigenvalue. -/
 theorem computeJordanChains_independent
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K]
+    (K : Subfield ℂ) [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (B : ℕ → List (Fin n → K)) (ℓbar : ℕ)
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
     (hB : IsJordanKrylovBasis K A (powerKernel K A f ℓbar) ({v | ∃ ℓ, v ∈ B ℓ}))
     (hranks : ∀ ℓ b, b ∈ B ℓ → 1 ≤ ℓ ∧ vectorRank K A f b = ℓ) (α : ℂ) :
     iSupIndep (fun c : ↥(computeJordanChains K A f B ℓbar) => evaluatedChainSpace K c.val α) := by
@@ -152,10 +152,10 @@ theorem computeJordanChains_independent
 
 /-- Across all roots, Algorithm 5 spans the complete complexified primary kernel. -/
 theorem computeJordanChains_span
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K]
+    (K : Subfield ℂ) [DecidableEq K] [Operations K]
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (B : ℕ → List (Fin n → K)) (ℓbar : ℕ)
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
     (hf : Irreducible f) (hm : f.Monic)
     (hB : IsJordanKrylovBasis K A (powerKernel K A f ℓbar) ({v | ∃ ℓ, v ∈ B ℓ}))
     (hranks : ∀ ℓ b, b ∈ B ℓ → 1 ≤ ℓ ∧ vectorRank K A f b = ℓ)

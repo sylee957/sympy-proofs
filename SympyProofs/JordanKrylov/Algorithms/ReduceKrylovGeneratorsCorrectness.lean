@@ -31,12 +31,12 @@ theorem rankSearch_early_exit {K : Type} [Field K] [DecidableEq K] {n : ℕ}
 
 /-- The bounded search computes the exact rank for a nonzero bounded vector. -/
 theorem boundedVectorRank_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n k : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n k : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (v : Fin n → K)
     (hv : v ≠ 0) (hk : v ∈ powerKernel K A f k) :
-    boundedVectorRank (PolynomialOperations.applyMatrix f A) v k = vectorRank K A f v := by
-  let F := PolynomialOperations.applyMatrix f A
+    boundedVectorRank (Operations.applyMatrix f A) v k = vectorRank K A f v := by
+  let F := Operations.applyMatrix f A
   have hscan := residualRankSearch_correct K hops A f v hv hk
   have hproject := List.foldl_hom
     (fun s : ℕ × (Fin n → K) × (Fin n → K) => (s.1, s.2.2))
@@ -245,11 +245,11 @@ def RankedLayers (K : Subfield ℂ) {n : ℕ} (A : Matrix (Fin n) (Fin n) K)
 
 /-- Reduction and reindexing preserve the rank contract. -/
 theorem reduceKrylovGenerators_ranked
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K)) (ℓ : ℕ)
     (hV : RankedLayers K A f V) :
-    RankedLayers K A f (reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) V ℓ) := by
+    RankedLayers K A f (reduceKrylovGenerators (Operations.applyMatrix f A) V ℓ) := by
   have hker : ∀ v ∈ reduceGeneratorColumns (V ℓ), v ∈ powerKernel K A f ℓ := by
     intro v hv
     have hs : Submodule.span K {v | v ∈ V ℓ} ≤ powerKernel K A f ℓ :=
@@ -264,8 +264,8 @@ theorem reduceKrylovGenerators_ranked
   have hfold (vs : List (Fin n → K)) (W : ℕ → List (Fin n → K))
       (hw : RankedLayers K A f W) (hk : ∀ v ∈ vs, v ∈ powerKernel K A f ℓ) :
       RankedLayers K A f (vs.foldl (fun W v => if v ≠ 0 then
-        Function.update W (boundedVectorRank (PolynomialOperations.applyMatrix f A) v ℓ)
-          (W (boundedVectorRank (PolynomialOperations.applyMatrix f A) v ℓ) ++ [v]) else W) W) := by
+        Function.update W (boundedVectorRank (Operations.applyMatrix f A) v ℓ)
+          (W (boundedVectorRank (Operations.applyMatrix f A) v ℓ) ++ [v]) else W) W) := by
     induction vs generalizing W with
     | nil => exact hw
     | cons v vs ih =>
@@ -306,19 +306,19 @@ theorem redistribute_mem {K : Type} [Field K] [DecidableEq K] {n : ℕ}
 
 /-- Reduction never introduces a layer above its input bound. -/
 theorem reduceKrylovGenerators_support
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K)) (ℓ : ℕ)
     (hker : ∀ v ∈ V ℓ, v ∈ powerKernel K A f ℓ)
     (hs : ∀ j v, v ∈ V j → 1 ≤ j ∧ j ≤ ℓ) :
-    ∀ j v, v ∈ reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) V ℓ j →
+    ∀ j v, v ∈ reduceKrylovGenerators (Operations.applyMatrix f A) V ℓ j →
       1 ≤ j ∧ j ≤ ℓ := by
   intro j v hv
   simp only [reduceKrylovGenerators, ← apply_ite, List.forIn_pure_yield_eq_foldl,
     Id.run, pure_bind] at hv
   change v ∈ ((reduceGeneratorColumns (V ℓ)).foldl (fun W v => if v ≠ 0 then
-    Function.update W (boundedVectorRank (PolynomialOperations.applyMatrix f A) v ℓ)
-      (W (boundedVectorRank (PolynomialOperations.applyMatrix f A) v ℓ) ++ [v]) else W)
+    Function.update W (boundedVectorRank (Operations.applyMatrix f A) v ℓ)
+      (W (boundedVectorRank (Operations.applyMatrix f A) v ℓ) ++ [v]) else W)
     (Function.update V ℓ [])) j at hv
   rw [redistribute_mem] at hv
   rcases hv with hv | ⟨hv, hn, hr⟩
@@ -367,19 +367,19 @@ theorem layerSpan_eq_span_input (K : Subfield ℂ) {n : ℕ}
 
 /-- Procedure 4 preserves Krylov generation and the exact rank layers. -/
 theorem reduceKrylovGenerators_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n : ℕ}
-    (hops : PolynomialOperations.IsCorrect K)
+    (K : Subfield ℂ) [DecidableEq K] [Operations K] {n : ℕ}
+    (hops : Operations.IsCorrect K)
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (V : ℕ → List (Fin n → K)) (ℓ : ℕ)
     (W : Submodule K (Fin n → K))
     (hgen : IsKrylovGeneratingSet K A W (algorithmInputSet V ℓ))
     (hr : RankedLayers K A f V)
     (hs : ∀ j v, v ∈ V j → 1 ≤ j ∧ j ≤ ℓ) :
-    let out := reduceKrylovGenerators (PolynomialOperations.applyMatrix f A) V ℓ
+    let out := reduceKrylovGenerators (Operations.applyMatrix f A) V ℓ
     IsKrylovGeneratingSet K A W (algorithmInputSet out ℓ) ∧ RankedLayers K A f out := by
   dsimp only
   refine ⟨?_, reduceKrylovGenerators_ranked K hops A f V ℓ hr⟩
   have ho := reduceKrylovGenerators_support K hops A f V ℓ (fun v hv => (hr ℓ v hv).2.2) hs
-  have he := reduceKrylovGenerators_span K (PolynomialOperations.applyMatrix f A) V ℓ
+  have he := reduceKrylovGenerators_span K (Operations.applyMatrix f A) V ℓ
   rw [layerSpan_eq_span_input K _ ℓ ho, layerSpan_eq_span_input K V ℓ hs] at he
   exact hgen.trans (generatorSpace_eq_of_span_eq K A _ _ he).symm
 

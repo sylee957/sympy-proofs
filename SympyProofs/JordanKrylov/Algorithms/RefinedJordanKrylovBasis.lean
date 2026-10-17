@@ -12,10 +12,10 @@ open Matrix Polynomial
 /-- Algorithm 3, returning generators by rank, with optional Procedure 4
 preprocessing at each nonempty layer. -/
 def computeRefinedJordanKrylovBasis (K : Type) [Field K] [DecidableEq K]
-    [PolynomialOperations K] {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
+    [Operations K] {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (V : ℕ → List (Fin n → K)) (ℓbar m : ℕ) (preprocess : Bool := false) :
     (ℕ → List (Fin n → K)) := Id.run do
-  let F := PolynomialOperations.applyMatrix f A
+  let F := Operations.applyMatrix f A
   let mut pending := fun j => if 1 ≤ j ∧ j ≤ ℓbar then V j else []
   if preprocess then
     pending := reduceKrylovGenerators F pending ℓbar

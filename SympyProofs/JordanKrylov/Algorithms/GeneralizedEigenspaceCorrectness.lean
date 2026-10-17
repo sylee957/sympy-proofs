@@ -10,7 +10,7 @@ without preprocessing, assuming the supplied polynomial operations are correct.
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
 
-variable (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n s : ℕ}
+variable (K : Subfield ℂ) [DecidableEq K] [Operations K] {n s : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X])
     (e : Fin s → (Fin n → K)) (p : Fin s → K[X])
     (m : ℕ) (preprocess : Bool)
@@ -18,14 +18,14 @@ variable (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K] {n s : ℕ}
     (hf : Irreducible f) (hm : f.Monic)
     (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
     (hmult : m = multiplicity f A.charpoly)
-    (hops : PolynomialOperations.IsCorrect K)
+    (hops : Operations.IsCorrect K)
 
 include he hf hm hp hops
 
 omit [DecidableEq K] in
 /-- The computed rank bound equals the exponent of `f` in the minimal polynomial. -/
 theorem primaryRankBound_eq :
-    Finset.univ.sup (fun i => PolynomialOperations.multiplicity f (p i)) =
+    Finset.univ.sup (fun i => Operations.multiplicity f (p i)) =
       multiplicity f (minpoly K A) := by
   rw [multiplicity_minpoly_eq_max_spanning K A e he f hf hm]
   apply Finset.sup_congr rfl

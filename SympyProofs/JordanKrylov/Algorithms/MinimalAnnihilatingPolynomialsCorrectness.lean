@@ -30,10 +30,10 @@ theorem necessary_power {K : Type*} [Field K] {d c f g : K[X]} (r : ℕ)
     exact hn ((hf.coprime_pow_of_not_dvd r h).dvd_of_dvd_mul_left hq)
   exact mul_dvd_mul_left c hfq
 
-theorem apply_mul (K : Subfield ℂ) [PolynomialOperations K]
-    (hops : PolynomialOperations.IsCorrect K) {n : ℕ}
+theorem apply_mul (K : Subfield ℂ) [Operations K]
+    (hops : Operations.IsCorrect K) {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (c p : K[X]) (v : Fin n → K) :
-    PolynomialOperations.applyMatrix p A (aeval A c *ᵥ v) = aeval A (c * p) *ᵥ v := by
+    Operations.applyMatrix p A (aeval A c *ᵥ v) = aeval A (c * p) *ᵥ v := by
   rw [hops.applyMatrix_eq, mul_comm c p, map_mul, mulVec_mulVec]
 
 end AnnihilatorSearch
@@ -44,8 +44,8 @@ open scoped Std.WP in
 The product bound can come from the minimal or characteristic polynomial;
 no spanning assumption on the supplied family is needed. -/
 theorem computeMinimalAnnihilatingPolynomials_correct
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K]
-    (hops : PolynomialOperations.IsCorrect K) {n m : ℕ}
+    (K : Subfield ℂ) [DecidableEq K] [Operations K]
+    (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (bound : ℕ)
     (factors : Array K[X]) (e : Fin m → (Fin n → K))
     (hf : f.Monic) (hfi : Irreducible f)
@@ -180,9 +180,9 @@ theorem computeMinimalAnnihilatingPolynomials_correct
     have hnext := necessary_power (bound - pref.length) (hf.pow pref.length) hfi hd (hcover _)
       (fun h => hn (hb.trans ((minimalAnnihilatingPolynomial_dvd_iff K A _ _).mp h)))
     rw [← pow_succ] at hnext
-    have hbnext := congrArg (PolynomialOperations.applyMatrix f A) hb
+    have hbnext := congrArg (Operations.applyMatrix f A) hb
     rw [apply_mul K hops, mul_right_comm, ← pow_succ] at hbnext
-    have hb0next := congrArg (PolynomialOperations.applyMatrix f A) hb0
+    have hb0next := congrArg (Operations.applyMatrix f A) hb0
     rw [apply_mul K hops, ← pow_succ] at hb0next
     first
     | left
@@ -253,7 +253,7 @@ theorem computeMinimalAnnihilatingPolynomials_correct
         (factors.toList.take pref.length).prod * g := by
       rw [← hj, List.take_succ_eq_append_getElem hidx]
       simp only [List.prod_append, List.prod_singleton, g, Array.getElem_toList]
-    have he := congrArg (PolynomialOperations.applyMatrix g A) hb
+    have he := congrArg (Operations.applyMatrix g A) hb
     rw [apply_mul K hops] at he
     first
     | left
@@ -275,8 +275,8 @@ theorem computeMinimalAnnihilatingPolynomials_correct
 
 /-- The characteristic exponent is always a sufficient bound, by Cayley–Hamilton. -/
 theorem computeMinimalAnnihilatingPolynomials_correct_of_charpoly
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K]
-    (hops : PolynomialOperations.IsCorrect K) {n m : ℕ}
+    (K : Subfield ℂ) [DecidableEq K] [Operations K]
+    (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (bound : ℕ)
     (factors : Array K[X]) (e : Fin m → (Fin n → K))
     (hf : f.Monic) (hfi : Irreducible f)
@@ -290,8 +290,8 @@ theorem computeMinimalAnnihilatingPolynomials_correct_of_charpoly
 
 /-- The paper's smaller bound is valid when the product is the minimal polynomial. -/
 theorem computeMinimalAnnihilatingPolynomials_correct_of_minpoly
-    (K : Subfield ℂ) [DecidableEq K] [PolynomialOperations K]
-    (hops : PolynomialOperations.IsCorrect K) {n m : ℕ}
+    (K : Subfield ℂ) [DecidableEq K] [Operations K]
+    (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (f : K[X]) (bound : ℕ)
     (factors : Array K[X]) (e : Fin m → (Fin n → K))
     (hf : f.Monic) (hfi : Irreducible f)

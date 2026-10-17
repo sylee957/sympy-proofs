@@ -1,3 +1,5 @@
+import SympyProofs.JordanKrylov.Algorithms.JordanDecomposition
+import SympyProofs.JordanKrylov.Algorithms.JordanDecompositionCorrectness
 import SympyProofs.JordanKrylov.Algorithms.MinimalAnnihilatingPolynomials
 import SympyProofs.JordanKrylov.Algorithms.MinimalAnnihilatingPolynomialsCorrectness
 import SympyProofs.JordanKrylov.Algorithms.GeneralizedEigenspace
@@ -17,7 +19,7 @@ import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisLoop
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovBasisOuter
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovElimination
 import SympyProofs.JordanKrylov.Algorithms.JordanKrylovEliminationCorrectness
-import SympyProofs.JordanKrylov.Algorithms.PolynomialOperations
+import SympyProofs.JordanKrylov.Algorithms.Operations
 import SympyProofs.JordanKrylov.Algorithms.PrimaryGenerating
 import SympyProofs.JordanKrylov.Algorithms.PrimaryGeneratingCorrectness
 import SympyProofs.JordanKrylov.Algorithms.PrimaryGeneratingLemmas
