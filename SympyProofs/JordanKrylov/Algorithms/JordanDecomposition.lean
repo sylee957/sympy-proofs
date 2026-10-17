@@ -22,14 +22,10 @@ def computeJordanDecomposition (K : Type) [Field K] [DecidableEq K]
     (A : Matrix (Fin n) (Fin n) K) (preprocess : Bool := false) :
     Array (SymbolicJordanComponent K n) := Id.run do
   let factors := Operations.factorCharpoly A
-  let mut expanded := #[]
-  for (f, m) in factors do
-    for _ in List.range m do
-      expanded := expanded.push f
   let e := fun i : Fin n => fun j : Fin n => if i = j then (1 : K) else 0
-  let annihilators := computeBasisAnnihilators K A expanded e
+  let annihilators := computeBasisAnnihilators K A factors e
   have annihilators_size : annihilators.size = n :=
-    computeBasisAnnihilators_size K A expanded e
+    computeBasisAnnihilators_size K A factors e
   let p := fun i : Fin n =>
     annihilators[i.val]'(Nat.lt_of_lt_of_eq i.isLt annihilators_size.symm)
   let mut components := #[]

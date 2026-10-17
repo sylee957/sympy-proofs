@@ -10,8 +10,6 @@ open Polynomial Matrix
 
 /-- Arithmetic and characteristic-factorization operations used by the Jordan–Krylov algorithms. -/
 class Operations (K : Type*) [Field K] where
-  /-- The polynomial variable. -/
-  indeterminate : K[X]
   /-- Constant polynomial one. -/
   one : K[X]
   /-- Polynomial multiplication. -/
@@ -36,7 +34,6 @@ class Operations (K : Type*) [Field K] where
 /-- Mathematical specifications of the supplied backend operations. -/
 structure Operations.IsCorrect (K : Type*) [Field K]
     [Operations K] : Prop where
-  indeterminate_eq : Operations.indeterminate (K := K) = X
   one_eq : Operations.one (K := K) = 1
   mul_eq : ∀ p q : K[X], Operations.mul p q = p * q
   pow_eq : ∀ (p : K[X]) (k : ℕ), Operations.pow p k = p ^ k

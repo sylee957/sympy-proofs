@@ -25,7 +25,6 @@ theorem computeJordanDecomposition_eq
   generalize h : computeJordanDecomposition K A preprocess = result
   apply Std.WP.Id.of_run_eq_wp h
   vcgen invariants
-  · fun pref _ out => out.toList = pref.flatMap (fun fm => List.replicate fm.2 fm.1)
   · fun pref _ out => out = (pref.map (fun fm =>
       (⟨fm.1, fm.2, (let e := fun i : Fin n => fun j : Fin n => if i = j then (1 : K) else 0
           let p := fun i => minimalAnnihilatingPolynomial K A (e i)
@@ -33,44 +32,21 @@ theorem computeJordanDecomposition_eq
           computeJordanChains K A fm.1
             (computeRefinedJordanKrylovBasis K A fm.1 (computePrimaryGenerators K A e fm.1 p)
               ℓbar fm.2 preprocess) ℓbar)⟩ : SymbolicJordanComponent K n))).toArray
-  · by
-      rename_i pref f m suff hsplit out hout
-      exact fun steps _ acc => acc.toList =
-        pref.flatMap (fun fm => List.replicate fm.2 fm.1) ++ List.replicate steps.length f
   case vc1 => rfl
-  case vc2 => rfl
-  case vc3 =>
-    rename_i expanded hex out hout
+  case vc2 =>
+    rename_i out hout
     apply Array.toList_inj.mp
-    simpa only [Std.Internal.ForIn.toList_array, factors, Array.toList_map, List.toList_toArray] using congrArg Array.toList hout
-  case vc5 =>
+    simpa only [Std.Internal.ForIn.toList_array, factors, Array.toList_map,
+      List.toList_toArray] using congrArg Array.toList hout
+  case vc3 =>
     rename_i pref f m suff hsplit out hout
-    simpa using hout
-  case vc6 =>
-    rename_i pref f m suff hsplit out hout acc hacc
-    simpa only [List.length_range, List.flatMap_append, List.flatMap_singleton] using hacc
-  case vc7 =>
-    rename_i pref f m suff hsplit out hout steps j tail hsteps acc hacc
-    simp only [expanded, Array.toList_push, hacc, List.length_append, List.length_singleton,
-      List.replicate_add, List.replicate_one, List.append_assoc]
-  case vc4 =>
-    rename_i expanded hex _ pref f m suff hsplit out hout
-    have hex' : expanded.toList = (Operations.factorCharpoly A).toList.flatMap
-        (fun fm => List.replicate fm.2 fm.1) := by
-      simpa only [Std.Internal.ForIn.toList_array, factors] using hex
     have hann : annihilators = Array.ofFn
         (fun i => minimalAnnihilatingPolynomial K A (e i)) := by
-      dsimp only [annihilators]
-      apply computeBasisAnnihilators_correct K hops A expanded e
-      · intro g hg
-        rw [← Array.mem_toList_iff, hex'] at hg
-        obtain ⟨⟨q, r⟩, hqr, hrep⟩ := List.mem_flatMap.mp hg
-        have hq : g = q := (List.mem_replicate.mp hrep).2
-        subst g
-        exact ⟨(hops.factorCharpoly_factors A q r (Array.mem_toList_iff.mp hqr)).1,
-          (hops.factorCharpoly_factors A q r (Array.mem_toList_iff.mp hqr)).2.1⟩
-      · rw [hex', ← hops.factorCharpoly_product A]
-        exact Matrix.aeval_self_charpoly A
+      apply computeBasisAnnihilators_correct K hops A factors e
+      · intro fm hfm
+        exact ⟨(hops.factorCharpoly_factors A fm.1 fm.2 hfm).1,
+          (hops.factorCharpoly_factors A fm.1 fm.2 hfm).2.1⟩
+      · exact hops.factorCharpoly_product A
     have hp : p = fun i => minimalAnnihilatingPolynomial K A (e i) := by
       funext i
       simp [p, hann]
