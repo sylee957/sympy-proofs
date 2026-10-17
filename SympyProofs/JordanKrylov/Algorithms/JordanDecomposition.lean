@@ -1,4 +1,4 @@
-import SympyProofs.JordanKrylov.Algorithms.BasisAnnihilators
+import SympyProofs.JordanKrylov.Algorithms.BasisAnnihilatorsCorrectness
 import SympyProofs.JordanKrylov.Algorithms.PrimaryGenerating
 import SympyProofs.JordanKrylov.Algorithms.RefinedJordanKrylovBasis
 import SympyProofs.JordanKrylov.Algorithms.JordanChains
@@ -23,16 +23,17 @@ def computeJordanDecomposition (K : Type) [Field K] [DecidableEq K]
     Array (SymbolicJordanComponent K n) := Id.run do
   let factors := Operations.factorCharpoly A
   let e := fun i : Fin n => fun j : Fin n => if i = j then (1 : K) else 0
-  let annihilators := computeBasisAnnihilators K A factors e
-  have annihilators_size : annihilators.size = n :=
-    computeBasisAnnihilators_size K A factors e
-  let p := fun i : Fin n =>
-    annihilators[i.val]'(Nat.lt_of_lt_of_eq i.isLt annihilators_size.symm)
+  let raw := computeBasisAnnihilators K A factors e
+  have bounds := computeBasisAnnihilators_sizes K A factors e
+  let polynomials : Vector K[X] n := ⟨raw.1, bounds.1⟩
+  let multiplicities : Vector (Vector ℕ factors.size) n := Vector.ofFn fun i : Fin n =>
+    let row := raw.2[i.val]'(Nat.lt_of_lt_of_eq i.isLt bounds.2.1.symm)
+    ⟨row, bounds.2.2 row (Array.getElem_mem _)⟩
   let mut components := #[]
-  for (f, m) in factors do
-    let ℓbar := Finset.univ.sup (fun i => Operations.multiplicity f (p i))
-    -- Algorithm 1: primary generators grouped by rank.
-    let V := computePrimaryGenerators K A e f p
+  for j in List.finRange factors.size do
+    let (f, m) := factors[j.val]
+    -- Algorithm 1: primary generators and maximum rank from cached exponents.
+    let (V, ℓbar) := computePrimaryGenerators K A e f j polynomials multiplicities
     -- Algorithm 3: refine the generators to a Jordan–Krylov basis.
     let B := computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess
     -- Algorithm 5: assemble the symbolic Jordan chains.

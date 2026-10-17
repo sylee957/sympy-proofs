@@ -16,8 +16,6 @@ class Operations (K : Type*) [Field K] where
   mul : K[X] → K[X] → K[X]
   /-- `pow p k` computes the polynomial power `p ^ k`. -/
   pow : K[X] → ℕ → K[X]
-  /-- Multiplicity of monic, positive-degree `f` in nonzero `p`. -/
-  multiplicity : K[X] → K[X] → ℕ
   /-- `divMonic q p` returns `p /ₘ q` for monic `q`; divisor first. -/
   divMonic : K[X] → K[X] → K[X]
   /-- `applyMatrix p A u` computes `p(A)u`. -/
@@ -37,8 +35,6 @@ structure Operations.IsCorrect (K : Type*) [Field K]
   one_eq : Operations.one (K := K) = 1
   mul_eq : ∀ p q : K[X], Operations.mul p q = p * q
   pow_eq : ∀ (p : K[X]) (k : ℕ), Operations.pow p k = p ^ k
-  multiplicity_eq : ∀ (f p : K[X]), 0 < f.natDegree → f.Monic → p ≠ 0 →
-    Operations.multiplicity f p = _root_.multiplicity f p
   divMonic_eq : ∀ (q p : K[X]), q.Monic → Operations.divMonic q p = p /ₘ q
   applyMatrix_eq : ∀ {n} (p : K[X]) (A : Matrix (Fin n) (Fin n) K) (u : Fin n → K),
     Operations.applyMatrix p A u = aeval A p *ᵥ u

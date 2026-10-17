@@ -226,19 +226,19 @@ theorem computeJordanKrylovBasis_fromPrimaryGenerators_correct
     (p : Fin s → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
     (hops : Operations.IsCorrect K) :
     IsJordanKrylovBasis K A (powerKernel K A f (multiplicity f (minpoly K A)))
-      (acceptedGenerators (computeJordanKrylovBasis K A f (computePrimaryGenerators K A e f p)
+      (acceptedGenerators (computeJordanKrylovBasis K A f (primaryGeneratorsModel K A e f p (fun i => multiplicity f (p i)))
         (multiplicity f (minpoly K A)) (multiplicity f A.charpoly))) ∧
-      BasisLayerRanks K A f (computeJordanKrylovBasis K A f (computePrimaryGenerators K A e f p)
+      BasisLayerRanks K A f (computeJordanKrylovBasis K A f (primaryGeneratorsModel K A e f p (fun i => multiplicity f (p i)))
         (multiplicity f (minpoly K A)) (multiplicity f A.charpoly)) := by
   apply computeJordanKrylovBasis_correct K A f _ hops hf hm rfl
-  · rw [computePrimaryGenerators_inputSet_eq K hops A e f hf hm p
+  · rw [primaryGeneratorsModel_inputSet_eq K hops A e f hf hm p
       (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)
       (fun i => by
         rw [multiplicity_minpoly_eq_max_spanning K A e he f hf hm, hp i]
         exact Finset.le_sup (f := fun j => multiplicity f
           (minimalAnnihilatingPolynomial K A (e j))) (Finset.mem_univ i))]
-    exact computePrimaryGenerators_correct K hops A e he f hf hm p hp
+    exact primaryGeneratorsModel_correct K hops A e he f hf hm p hp
   · intro ℓ _ _ v hv
-    exact computePrimaryGenerators_ranks K hops A e f hf hm p hp ℓ v hv
+    exact primaryGeneratorsModel_ranks K hops A e f hf hm p hp ℓ v hv
 
 end SympyProofs.JordanKrylov

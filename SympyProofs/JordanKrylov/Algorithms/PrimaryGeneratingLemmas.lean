@@ -1,5 +1,7 @@
 import SympyProofs.JordanKrylov.Algorithms.PrimaryGenerating
 import SympyProofs.JordanKrylov.Mathematics.RankPartition
+import Std.Tactic.Do
+import Std.WP
 
 /-! # Supporting lemmas for primary generator computation
 
@@ -8,6 +10,61 @@ Loop semantics, cofactor properties, rank layers, and the bridge to Algorithm 2.
 
 namespace SympyProofs.JordanKrylov
 open Polynomial Matrix
+
+/-- Proof-only rank-level model of primary generator construction. -/
+def primaryGeneratorsModel (K : Type*) [Field K] [DecidableEq K]
+    [Operations K] {n m : ℕ}
+    (A : Matrix (Fin n) (Fin n) K)
+    (e : Fin m → (Fin n → K)) (f : K[X]) (p : Fin m → K[X]) (ranks : Fin m → ℕ) :
+    ℕ → List (Fin n → K) := Id.run do
+  let maxRank := Finset.univ.sup (fun i : Fin m => ranks i)
+  let mut generators : ℕ → List (Fin n → K) := fun _ => []
+  for k in (List.range maxRank).reverse do
+    let ℓ := k + 1
+    let mut layer := []
+    for i in List.finRange m do
+      if 0 < ℓ ∧ ranks i = ℓ then
+        let divisor := Operations.pow f (ranks i)
+        let cofactor := Operations.divMonic divisor (p i)
+        let vector := Operations.applyMatrix cofactor A (e i)
+        layer := layer ++ [vector]
+    generators := Function.update generators ℓ layer
+  return generators
+
+open scoped Std.WP in
+private theorem maximumRanks_eq {m : ℕ} (ranks : Fin m → ℕ) :
+    (Id.run do
+      let mut bound := 0
+      for i in List.finRange m do
+        bound := max bound (ranks i)
+      return bound) = Finset.univ.sup ranks := by
+  generalize h : Id.run _ = result
+  apply Std.WP.Id.of_run_eq_wp h
+  vcgen invariants
+  · fun pref _ bound => bound = pref.toFinset.sup ranks
+  case vc1 => simp
+  case vc2 => simp_all
+  case vc3 => simp_all [bound, Finset.sup_insert, max_comm]
+
+/-- The routine agrees with the rank-level proof model and returns
+its maximum rank from the same input data. -/
+theorem computePrimaryGenerators_eq_model
+    (K : Type) [Field K] [DecidableEq K] [Operations K] {n m q : ℕ}
+    (A : Matrix (Fin n) (Fin n) K) (e : Fin m → (Fin n → K))
+    (f : K[X]) (j : Fin q)
+    (polynomials : Vector K[X] m)
+    (multiplicities : Vector (Vector ℕ q) m) :
+    computePrimaryGenerators K A e f j polynomials multiplicities =
+      (primaryGeneratorsModel K A e f
+        (fun i : Fin m => polynomials[i]) (fun i : Fin m => multiplicities[i][j]),
+        Finset.univ.sup (fun i : Fin m => multiplicities[i][j])) := by
+  have hmax := maximumRanks_eq (fun i : Fin m => multiplicities[i][j])
+  simp only [List.forIn_pure_yield_eq_foldl] at hmax
+  change (List.finRange m).foldl (fun bound i => max bound (multiplicities[i][j])) 0 = _ at hmax
+  simp only [computePrimaryGenerators, primaryGeneratorsModel,
+    List.forIn_pure_yield_eq_foldl]
+  rw [hmax]
+  rfl
 
 private theorem foldl_append_filter {ι V : Type*}
     (ks : List ι) (pred : ι → Prop) [DecidablePred pred] (w : ι → V) (s : List V) :
@@ -48,20 +105,18 @@ private theorem foldl_store_layers {V : Type*} (ks : List ℕ)
       · simp [h, hk, Ne.symm hk]
 
 /-- Membership in a returned list is exactly membership in its mathematical layer. -/
-theorem mem_computePrimaryGenerators (K : Subfield ℂ) [DecidableEq K]
+theorem mem_primaryGeneratorsModel (K : Subfield ℂ) [DecidableEq K]
     [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
-    (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
-    (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) (ℓ : ℕ) (v : Fin n → K) :
-    v ∈ computePrimaryGenerators K A e f p ℓ ↔
+    (e : Fin m → (Fin n → K)) (f : K[X]) (_hf : Irreducible f) (hm : f.Monic)
+    (p : Fin m → K[X]) (_hp : ∀ i, p i ≠ 0) (ℓ : ℕ) (v : Fin n → K) :
+    v ∈ primaryGeneratorsModel K A e f p (fun i => multiplicity f (p i)) ℓ ↔
       v ∈ primaryGeneratorLayer K A e f p ℓ := by
   classical
   let L := Finset.univ.sup (fun i => multiplicity f (p i))
   let layer := fun ℓ => ((List.finRange m).filter
     (fun i => 0 < ℓ ∧ multiplicity f (p i) = ℓ)).map
       (fun i => aeval A (primaryCofactor K f (p i)) *ᵥ e i)
-  have hr (i : Fin m) := hops.multiplicity_eq f (p i)
-    (Polynomial.natDegree_pos_iff_degree_pos.mpr (Polynomial.degree_pos_of_irreducible hf)) hm (hp i)
   have hmem (j : ℕ) : v ∈ layer j ↔ v ∈ primaryGeneratorLayer K A e f p j := by
     simp [layer, primaryGeneratorLayer]
   have hbound : v ∈ primaryGeneratorLayer K A e f p ℓ → 1 ≤ ℓ ∧ ℓ ≤ L := by
@@ -69,9 +124,8 @@ theorem mem_computePrimaryGenerators (K : Subfield ℂ) [DecidableEq K]
     obtain ⟨i, hi, _⟩ := Finset.mem_image.mp hv
     have hi := (Finset.mem_filter.mp hi).2
     exact ⟨hi.1, hi.2 ▸ Finset.le_sup (f := fun i => multiplicity f (p i)) (Finset.mem_univ i)⟩
-  unfold computePrimaryGenerators
-  simp only [Vector.getElem_ofFn, Fin.eta]
-  simp only [hr, hops.pow_eq, hops.divMonic_eq _ _ (hm.pow _),
+  unfold primaryGeneratorsModel
+  simp only [hops.pow_eq, hops.divMonic_eq _ _ (hm.pow _),
     Polynomial.divByMonic_eq_div _ (hm.pow _), hops.applyMatrix_eq,
     forIn_append_filter, pure_bind, List.forIn_pure_yield_eq_foldl]
   change (v ∈ ((List.range L).reverse.foldl
@@ -92,18 +146,18 @@ theorem mem_computePrimaryGenerators (K : Subfield ℂ) [DecidableEq K]
     exact fun hv => h (hbound hv)
 
 /-- The union of the output layers is exactly the cofactor generating set. -/
-theorem computePrimaryGenerators_eq (K : Subfield ℂ) [DecidableEq K]
+theorem primaryGeneratorsModel_eq (K : Subfield ℂ) [DecidableEq K]
     [Operations K] (hops : Operations.IsCorrect K) {n m : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0) :
-    {v | ∃ ℓ, v ∈ computePrimaryGenerators K A e f p ℓ} =
+    {v | ∃ ℓ, v ∈ primaryGeneratorsModel K A e f p (fun i => multiplicity f (p i)) ℓ} =
       primaryGeneratingSet K A e (fun i => multiplicity f (p i))
         (fun i => primaryCofactor K f (p i)) := by
   classical
   ext v
   simp only [Set.mem_ofPred_eq,
-    mem_computePrimaryGenerators K hops A e f hf hm p hp,
+    mem_primaryGeneratorsModel K hops A e f hf hm p hp,
     primaryGeneratorLayer, Finset.mem_image, Finset.mem_filter,
     Finset.mem_univ, true_and, primaryGeneratingSet, Set.mem_image,
     primaryBasisIndices]
@@ -114,21 +168,21 @@ theorem computePrimaryGenerators_eq (K : Subfield ℂ) [DecidableEq K]
     exact ⟨multiplicity f (p i), i, ⟨hi, rfl⟩, hv⟩
 
 /-- The bounded input for Algorithm 2 equals the union of all output layers. -/
-theorem computePrimaryGenerators_inputSet_eq (K : Subfield ℂ) [DecidableEq K]
+theorem primaryGeneratorsModel_inputSet_eq (K : Subfield ℂ) [DecidableEq K]
     [Operations K] (hops : Operations.IsCorrect K) {n m ℓbar : ℕ}
     (A : Matrix (Fin n) (Fin n) K)
     (e : Fin m → (Fin n → K)) (f : K[X]) (hf : Irreducible f) (hm : f.Monic)
     (p : Fin m → K[X]) (hp : ∀ i, p i ≠ 0)
     (hbound : ∀ i, multiplicity f (p i) ≤ ℓbar) :
-    algorithmInputSet (computePrimaryGenerators K A e f p) ℓbar =
-      {v | ∃ ℓ, v ∈ computePrimaryGenerators K A e f p ℓ} := by
+    algorithmInputSet (primaryGeneratorsModel K A e f p (fun i => multiplicity f (p i))) ℓbar =
+      {v | ∃ ℓ, v ∈ primaryGeneratorsModel K A e f p (fun i => multiplicity f (p i)) ℓ} := by
   ext v
   simp only [algorithmInputSet, Set.mem_ofPred_eq]
   constructor
   · rintro ⟨ℓ, _, _, hv⟩
     exact ⟨ℓ, hv⟩
   · rintro ⟨ℓ, hv⟩
-    have hlayer := (mem_computePrimaryGenerators K hops A e f hf hm p hp ℓ v).mp hv
+    have hlayer := (mem_primaryGeneratorsModel K hops A e f hf hm p hp ℓ v).mp hv
     obtain ⟨i, hi, _⟩ := Finset.mem_image.mp hlayer
     obtain ⟨hpos, hi⟩ := (Finset.mem_filter.mp hi).2
     exact ⟨ℓ, hpos, hi ▸ hbound i, hv⟩
@@ -178,9 +232,9 @@ theorem primaryGeneratorLayer_eq_rankSubset (K : Subfield ℂ) [DecidableEq K]
     (p : Fin m → K[X]) (hp : ∀ i, p i = minimalAnnihilatingPolynomial K A (e i))
     (ℓ : ℕ) (hℓ : 1 ≤ ℓ) :
     (primaryGeneratorLayer K A e f p ℓ : Set (Fin n → K)) =
-      rankSubset K A f {v | ∃ ℓ, v ∈ computePrimaryGenerators K A e f p ℓ} ℓ := by
+      rankSubset K A f {v | ∃ ℓ, v ∈ primaryGeneratorsModel K A e f p (fun i => multiplicity f (p i)) ℓ} ℓ := by
   classical
-  rw [computePrimaryGenerators_eq K hops A e f hf hm p
+  rw [primaryGeneratorsModel_eq K hops A e f hf hm p
     (fun i => (hp i) ▸ (minimalAnnihilatingPolynomial_monic K A (e i)).ne_zero)]
   ext v
   simp only [primaryGeneratorLayer, Finset.mem_coe, Finset.mem_image,
