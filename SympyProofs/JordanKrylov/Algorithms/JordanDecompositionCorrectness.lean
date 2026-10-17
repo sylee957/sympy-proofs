@@ -1,6 +1,7 @@
 import SympyProofs.JordanKrylov.Algorithms.JordanDecomposition
-import SympyProofs.JordanKrylov.Algorithms.MinimalAnnihilatingPolynomialsCorrectness
-import SympyProofs.JordanKrylov.Algorithms.GeneralizedEigenspaceCorrectness
+import SympyProofs.JordanKrylov.Algorithms.BasisAnnihilatorsCorrectness
+import SympyProofs.JordanKrylov.Algorithms.RefinedJordanKrylovBasisCorrectness
+import SympyProofs.JordanKrylov.Algorithms.JordanChainsCorrectness
 
 namespace SympyProofs.JordanKrylov
 open Matrix Polynomial
@@ -15,19 +16,23 @@ theorem computeJordanDecomposition_eq
     {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (preprocess : Bool) :
     computeJordanDecomposition K A preprocess =
       (Operations.factorCharpoly A).map (fun fm =>
-        (⟨fm.1, fm.2, computeGeneralizedEigenspace K A fm.1
-            (fun i j => if i = j then 1 else 0)
-            (fun i => minimalAnnihilatingPolynomial K A (fun j => if i = j then 1 else 0))
-            fm.2 preprocess⟩ : SymbolicJordanComponent K n)) := by
+        (⟨fm.1, fm.2, (let e := fun i : Fin n => fun j : Fin n => if i = j then (1 : K) else 0
+          let p := fun i => minimalAnnihilatingPolynomial K A (e i)
+          let ℓbar := Finset.univ.sup (fun i => Operations.multiplicity fm.1 (p i))
+          computeJordanChains K A fm.1
+            (computeRefinedJordanKrylovBasis K A fm.1 (computePrimaryGenerators K A e fm.1 p)
+              ℓbar fm.2 preprocess) ℓbar)⟩ : SymbolicJordanComponent K n)) := by
   generalize h : computeJordanDecomposition K A preprocess = result
   apply Std.WP.Id.of_run_eq_wp h
   vcgen invariants
   · fun pref _ out => out.toList = pref.flatMap (fun fm => List.replicate fm.2 fm.1)
   · fun pref _ out => out = (pref.map (fun fm =>
-      (⟨fm.1, fm.2, computeGeneralizedEigenspace K A fm.1
-          (fun i j => if i = j then 1 else 0)
-          (fun i => minimalAnnihilatingPolynomial K A (fun j => if i = j then 1 else 0))
-          fm.2 preprocess⟩ : SymbolicJordanComponent K n))).toArray
+      (⟨fm.1, fm.2, (let e := fun i : Fin n => fun j : Fin n => if i = j then (1 : K) else 0
+          let p := fun i => minimalAnnihilatingPolynomial K A (e i)
+          let ℓbar := Finset.univ.sup (fun i => Operations.multiplicity fm.1 (p i))
+          computeJordanChains K A fm.1
+            (computeRefinedJordanKrylovBasis K A fm.1 (computePrimaryGenerators K A e fm.1 p)
+              ℓbar fm.2 preprocess) ℓbar)⟩ : SymbolicJordanComponent K n))).toArray
   · by
       rename_i pref f m suff hsplit out hout
       exact fun steps _ acc => acc.toList =
@@ -56,9 +61,7 @@ theorem computeJordanDecomposition_eq
     have hann : annihilators = Array.ofFn
         (fun i => minimalAnnihilatingPolynomial K A (e i)) := by
       dsimp only [annihilators]
-      rw [hops.indeterminate_eq]
-      apply computeMinimalAnnihilatingPolynomials_correct K hops A X 0 expanded e
-        monic_X irreducible_X
+      apply computeBasisAnnihilators_correct K hops A expanded e
       · intro g hg
         rw [← Array.mem_toList_iff, hex'] at hg
         obtain ⟨⟨q, r⟩, hqr, hrep⟩ := List.mem_flatMap.mp hg
@@ -66,13 +69,13 @@ theorem computeJordanDecomposition_eq
         subst g
         exact ⟨(hops.factorCharpoly_factors A q r (Array.mem_toList_iff.mp hqr)).1,
           (hops.factorCharpoly_factors A q r (Array.mem_toList_iff.mp hqr)).2.1⟩
-      · rw [pow_zero, one_mul, hex', ← hops.factorCharpoly_product A]
+      · rw [hex', ← hops.factorCharpoly_product A]
         exact Matrix.aeval_self_charpoly A
     have hp : p = fun i => minimalAnnihilatingPolynomial K A (e i) := by
       funext i
       simp [p, hann]
     apply Array.toList_inj.mp
-    simp only [components, chains, hp, e, hout, Array.toList_push,
+    simp only [components, chains, B, V, ℓbar, hp, e, hout, Array.toList_push,
       List.map_append, List.map_singleton]
 
 
@@ -85,6 +88,20 @@ private theorem coordinateVectors_span (K : Type*) [Field K] (n : ℕ) :
     simp [Pi.basisFun_apply, Pi.single_apply, eq_comm]
   rw [he]
   exact (Pi.basisFun K (Fin n)).span_eq
+
+/-- The rank bound computed from coordinate-vector annihilators is the
+multiplicity in the matrix minimal polynomial. -/
+private theorem coordinateRankBound_eq (K : Subfield ℂ) [Operations K]
+    (hops : Operations.IsCorrect K) {n : ℕ} (A : Matrix (Fin n) (Fin n) K)
+    (f : K[X]) (hf : Irreducible f) (hm : f.Monic) :
+    Finset.univ.sup (fun i : Fin n => Operations.multiplicity f
+      (minimalAnnihilatingPolynomial K A (fun j => if i = j then 1 else 0))) =
+      multiplicity f (minpoly K A) := by
+  rw [multiplicity_minpoly_eq_max_spanning K A _ (coordinateVectors_span K n) f hf hm]
+  apply Finset.sup_congr rfl
+  intro i _
+  exact hops.multiplicity_eq f _ hf.natDegree_pos hm
+    (minimalAnnihilatingPolynomial_monic K A _).ne_zero
 
 /-- The output contains exactly one component per factor, in backend order. -/
 theorem computeJordanDecomposition_factors
@@ -110,9 +127,14 @@ theorem computeJordanDecomposition_correct
   rw [computeJordanDecomposition_eq K hops] at hc
   obtain ⟨⟨f, m⟩, hfm, rfl⟩ := Array.mem_map.mp hc
   have hf := hops.factorCharpoly_factors A f m hfm
-  exact computeGeneralizedEigenspace_correct K A f _ _ m preprocess
-    (coordinateVectors_span K n) hf.2.1 hf.1 (fun _ => rfl)
-    (hops.factorCharpoly_multiplicity A f m hfm) hops α hα
+  dsimp only at ⊢
+  rw [coordinateRankBound_eq K hops A f hf.2.1 hf.1,
+    hops.factorCharpoly_multiplicity A f m hfm]
+  apply computeJordanChains_correct K A f _ _ hops hf.2.1 _ _ α hα
+  · exact computeRefinedJordanKrylovBasis_correct K A _ (coordinateVectors_span K n)
+      f hf.2.1 hf.1 _ (fun _ => rfl) preprocess hops
+  · exact computeRefinedJordanKrylovBasis_ranks K A _ (coordinateVectors_span K n)
+      f hf.2.1 hf.1 _ (fun _ => rfl) preprocess hops
 
 /-- Each component is complete: evaluating its chains at all distinct roots
 spans its entire complexified primary kernel. -/
@@ -130,9 +152,14 @@ theorem computeJordanDecomposition_component_span
   rw [computeJordanDecomposition_eq K hops] at hc
   obtain ⟨⟨f, m⟩, hfm, rfl⟩ := Array.mem_map.mp hc
   have hf := hops.factorCharpoly_factors A f m hfm
-  exact computeGeneralizedEigenspace_span K A f _ _ m preprocess
-    (coordinateVectors_span K n) hf.2.1 hf.1 (fun _ => rfl)
-    (hops.factorCharpoly_multiplicity A f m hfm) hops α hinj hroot
+  dsimp only at ⊢
+  rw [coordinateRankBound_eq K hops A f hf.2.1 hf.1,
+    hops.factorCharpoly_multiplicity A f m hfm]
+  apply computeJordanChains_span K A f _ _ hops hf.2.1 hf.1 _ _ α hinj hroot
+  · exact computeRefinedJordanKrylovBasis_correct K A _ (coordinateVectors_span K n)
+      f hf.2.1 hf.1 _ (fun _ => rfl) preprocess hops
+  · exact computeRefinedJordanKrylovBasis_ranks K A _ (coordinateVectors_span K n)
+      f hf.2.1 hf.1 _ (fun _ => rfl) preprocess hops
 
 /-- Distinct chains of one component have independent spans at each root. -/
 theorem computeJordanDecomposition_component_independent
@@ -145,8 +172,13 @@ theorem computeJordanDecomposition_component_independent
   rw [computeJordanDecomposition_eq K hops] at hc
   obtain ⟨⟨f, m⟩, hfm, rfl⟩ := Array.mem_map.mp hc
   have hf := hops.factorCharpoly_factors A f m hfm
-  exact computeGeneralizedEigenspace_independent K A f _ _ m preprocess
-    (coordinateVectors_span K n) hf.2.1 hf.1 (fun _ => rfl)
-    (hops.factorCharpoly_multiplicity A f m hfm) hops α
+  dsimp only at ⊢
+  rw [coordinateRankBound_eq K hops A f hf.2.1 hf.1,
+    hops.factorCharpoly_multiplicity A f m hfm]
+  apply computeJordanChains_independent K A f _ _ hops
+  · exact computeRefinedJordanKrylovBasis_correct K A _ (coordinateVectors_span K n)
+      f hf.2.1 hf.1 _ (fun _ => rfl) preprocess hops
+  · exact computeRefinedJordanKrylovBasis_ranks K A _ (coordinateVectors_span K n)
+      f hf.2.1 hf.1 _ (fun _ => rfl) preprocess hops
 
 end SympyProofs.JordanKrylov

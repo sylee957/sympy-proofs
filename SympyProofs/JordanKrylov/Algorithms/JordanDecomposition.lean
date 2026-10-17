@@ -1,5 +1,7 @@
-import SympyProofs.JordanKrylov.Algorithms.MinimalAnnihilatingPolynomials
-import SympyProofs.JordanKrylov.Algorithms.GeneralizedEigenspace
+import SympyProofs.JordanKrylov.Algorithms.BasisAnnihilators
+import SympyProofs.JordanKrylov.Algorithms.PrimaryGenerating
+import SympyProofs.JordanKrylov.Algorithms.RefinedJordanKrylovBasis
+import SympyProofs.JordanKrylov.Algorithms.JordanChains
 
 /-! End-to-end symbolic Jordan decomposition. Root selection is deferred to interpretation. -/
 namespace SympyProofs.JordanKrylov
@@ -14,8 +16,7 @@ structure SymbolicJordanComponent (K : Type) [Field K] (n : ℕ) where
 
 /-- Factor the characteristic polynomial, compute all coordinate-vector minimal
 annihilators once, then assemble symbolic chains for every primary component.
-Algorithm 7 uses distinguished factor `X` with bound zero: all factors, including
-any copies of `X`, are handled by its general factor search. -/
+The factor-only annihilator search handles all irreducible factors uniformly. -/
 def computeJordanDecomposition (K : Type) [Field K] [DecidableEq K]
     [Operations K] {n : ℕ}
     (A : Matrix (Fin n) (Fin n) K) (preprocess : Bool := false) :
@@ -26,14 +27,20 @@ def computeJordanDecomposition (K : Type) [Field K] [DecidableEq K]
     for _ in List.range m do
       expanded := expanded.push f
   let e := fun i : Fin n => fun j : Fin n => if i = j then (1 : K) else 0
-  let annihilators := computeMinimalAnnihilatingPolynomials K A Operations.indeterminate 0 expanded e
+  let annihilators := computeBasisAnnihilators K A expanded e
   have annihilators_size : annihilators.size = n :=
-    computeMinimalAnnihilatingPolynomials_size K A Operations.indeterminate 0 expanded e
+    computeBasisAnnihilators_size K A expanded e
   let p := fun i : Fin n =>
     annihilators[i.val]'(Nat.lt_of_lt_of_eq i.isLt annihilators_size.symm)
   let mut components := #[]
   for (f, m) in factors do
-    let chains := computeGeneralizedEigenspace K A f e p m preprocess
+    let ℓbar := Finset.univ.sup (fun i => Operations.multiplicity f (p i))
+    -- Algorithm 1: primary generators grouped by rank.
+    let V := computePrimaryGenerators K A e f p
+    -- Algorithm 3: refine the generators to a Jordan–Krylov basis.
+    let B := computeRefinedJordanKrylovBasis K A f V ℓbar m preprocess
+    -- Algorithm 5: assemble the symbolic Jordan chains.
+    let chains := computeJordanChains K A f B ℓbar
     components := components.push ⟨f, m, chains⟩
   return components
 
