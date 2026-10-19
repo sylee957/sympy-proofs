@@ -1,0 +1,15 @@
+PASS rank_one: shape=(2, 2), rank=1, pivot_factor=t, preserved-rank pivot zeros=1
+PASS rank_two: shape=(3, 4), rank=2, pivot_factor=t, preserved-rank pivot zeros=2
+PASS complex_rank_two: shape=(3, 3), rank=2, pivot_factor=t - I*u, preserved-rank pivot zeros=1
+PASS genuine_rank_drop: shape=(2, 2), rank=2, pivot_factor=t, preserved-rank pivot zeros=0
+PASS nonmonomial_pivot: shape=(2, 2), rank=1, pivot_factor=(t - u)*(t + u), preserved-rank pivot zeros=2
+PASS seeded_0: shape=(2, 3), rank=1, pivot_factor=t, preserved-rank pivot zeros=2
+PASS seeded_1: shape=(3, 4), rank=2, pivot_factor=t, preserved-rank pivot zeros=2
+PASS seeded_2: shape=(4, 5), rank=3, pivot_factor=t, preserved-rank pivot zeros=2
+PASS seeded_3: shape=(2, 3), rank=1, pivot_factor=t, preserved-rank pivot zeros=2
+PASS seeded_4: shape=(3, 4), rank=2, pivot_factor=t, preserved-rank pivot zeros=2
+PASS seeded_5: shape=(4, 5), rank=3, pivot_factor=t, preserved-rank pivot zeros=2
+PASS seeded_6: shape=(2, 3), rank=1, pivot_factor=t, preserved-rank pivot zeros=2
+PASS seeded_7: shape=(3, 4), rank=2, pivot_factor=t, preserved-rank pivot zeros=2
+PASS pivot independence: 4 distinct row/column selections
+All 13 cases passed with both backends; exact quotients and ambient Faddeev equality verified.
