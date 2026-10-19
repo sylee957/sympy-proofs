@@ -24,8 +24,6 @@ namespace SympyBinomial.Naive
 
 open scoped Std.WP
 
-set_option experimental.vcgen true
-
 /-- The naive evaluator for a nonnegative lower argument. -/
 def evalCore (n : ℤ) (k : ℕ) : ℤ := Id.run do
   let mut k := k
