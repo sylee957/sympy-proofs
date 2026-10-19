@@ -1,4 +1,5 @@
 import SympyProofs.BinomialMean
+import SympyProofs.Binomial
 import SympyProofs.MoorePenrose
 import SympyProofs.RouthHurwitz
 import SympyProofs.JordanKrylov
