@@ -1,7 +1,7 @@
 module
 
 public import SympyProofs.Binomial.Algorithms.PrimeExponent
-public import SympyProofs.Binomial.Algorithms.ByteSieveCorrectness
+public import SympyProofs.Binomial.Algorithms.ByteSieveGeneratorCorrectness
 public import Mathlib.Data.Nat.Choose.Factorization
 
 /-!
@@ -131,11 +131,10 @@ private theorem factorial_exponent_step (n p : ℕ) (hp : p.Prime) :
   nlinarith
 
 private theorem prime_of_visit {n p : ℕ} {pref suff : List ℕ}
-    (h : ForIn.toList (ByteSieve.oddPrimes B n) = pref ++ p :: suff) : p.Prime := by
-  have hm : p ∈ (ByteSieve.oddPrimes B n).toList := by
-    simpa using (show p ∈ ForIn.toList (ByteSieve.oddPrimes B n) from
-      h ▸ List.mem_append_right _ (by simp))
-  rw [ByteSieve.oddPrimes_spec B] at hm
+    (h : (List.range (n + 1)).filter (fun p => decide (p.Prime ∧ p ≠ 2)) =
+      pref ++ p :: suff) : p.Prime := by
+  have hm : p ∈ (List.range (n + 1)).filter (fun p => decide (p.Prime ∧ p ≠ 2)) :=
+    h ▸ List.mem_append_right _ (by simp)
   have hx : p.Prime ∧ p ≠ 2 := by simpa using (List.mem_filter.mp hm).2
   exact hx.1
 
@@ -149,10 +148,10 @@ private theorem exponent_finish (n k p a b c : ℕ) (e : ℤ)
   simpa [ha, hb0, hc0] using he
 
 private theorem oddPrimes_product_choose (n k : ℕ) (hk : k ≤ n) :
-    (((ByteSieve.oddPrimes B n).toList.map
+    ((((List.range (n + 1)).filter (fun p => decide (p.Prime ∧ p ≠ 2))).map
       (fun p => p ^ (n.choose k).factorization p)).prod) <<< (valuation n k).toNat =
         n.choose k := by
-  rw [ByteSieve.oddPrimes_spec B, ← List.prod_toFinset _ (List.nodup_range.filter _)]
+  rw [← List.prod_toFinset _ (List.nodup_range.filter _)]
   have hr : (List.range (n + 1)).toFinset = Finset.range (n + 1) := by ext; simp
   simpa [hr] using prime_product_eq_choose n k hk
 
@@ -160,6 +159,9 @@ private theorem oddPrimes_product_choose (n k : ℕ) (hk : k ≤ n) :
 theorem primeExponents_eq_choose (n k : ℕ) (hk : k ≤ n) :
     primeExponents B n k = n.choose k := by
   generalize he : primeExponents B n k = result
+  unfold primeExponents at he
+  simp (config := { zeta := false, beta := false, iota := false, proj := false }) only
+    [ByteSieve.oddPrimesGenerator_forIn] at he
   apply Std.WP.Id.of_run_eq_wp he
   vcgen invariants
   · fun pref _ factors => factors.toList.prod =
@@ -178,7 +180,7 @@ theorem primeExponents_eq_choose (n k : ℕ) (hk : k ≤ n) :
     rename_i factors hinv
     rw [balancedFactors_eq_prod]
     rw [hinv]
-    simpa using oddPrimes_product_choose B n k hk
+    simpa using oddPrimes_product_choose n k hk
   case vc4 =>
     rename_i pref p suff hs factors hinv
     exact ⟨hk, Nat.sub_le n k, by simpa [c] using factorial_exponent_sub n k p hk, by simp⟩
@@ -196,7 +198,7 @@ theorem primeExponents_eq_choose (n k : ℕ) (hk : k ≤ n) :
     simp [List.map_append, List.prod_append, hprod, hz]
   case vc7 =>
     rename_i pref p suff hs old hprod initialC a0 b0 c0 e0 measure hinv _ _ hne
-    have hp := prime_of_visit B hs
+    have hp := prime_of_visit hs
     simp only [Std.WP.Variant.evalsTo_ofMeasure, Std.WP.Assertion.NondetFun.evalsTo_pure,
       Lean.Order.ofProp_prop_eq, Lean.Order.meet_prop_eq_and,
       Bool.false_eq_true, false_implies, and_true] at hinv

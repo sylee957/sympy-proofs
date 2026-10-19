@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.Binomial.Algorithms.ByteSieve
+public import SympyProofs.Binomial.Algorithms.ByteSieveGenerator
 public import SympyProofs.Python.Bitwise
 public import SympyProofs.Python.Math
 
@@ -12,6 +12,7 @@ This models the nonnegative Python kernel. Its mathematical input contract is
 `a` as the termination measure: each iteration divides by at least two. The
 exponent accumulator is an integer, so subtraction has Python's signed semantics.
 The final shift uses natural bitwise arithmetic, without machine-word overflow.
+Odd primes are consumed lazily from the stackless generator, as in Python.
 
 The generic bit operations are imported from `SympyProofs.Python.Bitwise`.
 Correctness proofs are in
@@ -49,7 +50,7 @@ def primeExponents (n k : ℕ) : ℕ := Id.run do
   if k = 0 then
     return 1
   let mut factors : Array ℕ := #[]
-  for p in ByteSieve.oddPrimes B n do
+  for p in ByteSieve.oddPrimesGenerator B n do
     let mut a := n
     let mut b := k
     let mut c := n - k

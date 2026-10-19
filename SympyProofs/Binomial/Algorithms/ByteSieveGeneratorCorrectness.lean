@@ -1,30 +1,29 @@
 module
 
-public import SympyProofs.Binomial.Algorithms.ByteSieve
+public import SympyProofs.Binomial.Algorithms.ByteSieveGenerator
 public import SympyProofs.Binomial.Basic
 public import Mathlib.Data.List.Sort
+public import SympyProofs.Python.Generator.Correctness
 
 /-!
-# Correctness of the odd-only byte sieve
+# Correctness of the monadic odd-prime generator
 
-`sieve_spec` proves the exact primality table, and `oddPrimes_spec` proves
-complete, ordered enumeration without duplicates. The enumeration loop terminates
-because each successful `find` advances its index, decreasing the remaining table
-length; `-1` ends the loop. The sieve invariant also establishes the bounds of
-every table lookup. These proofs use only the laws of the abstract
-`PythonByteArray` interface.
+The table invariant proves primality at every byte. A finite interpreter trace
+then proves termination and exact ordered enumeration directly, including
+agreement of consuming loops with the mathematical prime list. The proof-only `search`
+exposes the continuation saved by ordinary `do` notation.
 -/
 
 @[expose] public section
 
 namespace SympyBinomial.ByteSieve
 
-open PythonByteArray
+open PythonByteArray Generator Std Std.Iterators
 open scoped Std.WP PythonBytes
 
 variable (B : Type) [PythonByteArray B]
 
-/-- Proof helper for the byte table built inline inside `oddPrimes`. -/
+/-- Proof helper for the byte table built inline inside `oddPrimesGenerator`. -/
 def sieve (limit : ℕ) : Value B := Id.run do
   let mut bytes : Value B := (bytearray (b[0x01]) : B) * ((limit + 1) / 2)
   if 0 < bytes.size then
@@ -270,123 +269,12 @@ theorem sieve_spec (limit : ℕ) :
     rw [show 3 + 2 * (pref.length + 1) = p + 2 by omega, ← hpidx]
     simp only [phase_skip (m := 2 * i + 1) (by omega) hpo hp3 hnp]
 
-private theorem filter_range_extend (f : ℕ → Bool) {a b : ℕ} (hab : a ≤ b)
-    (h : ∀ j, a ≤ j → j < b → f j = false) :
-    (List.range b).filter f = (List.range a).filter f := by
-  induction b, hab using Nat.le_induction with
-  | base => rfl
-  | succ b hab ih =>
-    rw [List.range_succ, List.filter_append]
-    have hb := h b hab (by omega)
-    simp [hb, ih (fun j hja hjb => h j hja (by omega))]
-
-private theorem find_prefix (bytes : B) (start : ℕ) :
-    (List.range (if find bytes 1 start = -1 then size bytes else (find bytes 1 start).toNat)).filter
-        (fun j => getByte bytes j == 1) =
-      (List.range (min start (size bytes))).filter (fun j => getByte bytes j == 1) := by
-  rcases find_spec bytes 1 start with h | h
-  · rw [h.1, ite_eq_left rfl]
-    apply filter_range_extend _ (Nat.min_le_right _ _)
-    intro j hj hjb
-    have hstart : start ≤ j := by omega
-    simp [h.2 j hstart hjb]
-  · rw [ite_eq_right (show find bytes 1 start ≠ -1 by omega)]
-    rw [Nat.min_eq_left (by omega : start ≤ size bytes)]
-    apply filter_range_extend _ h.2.1
-    intro j hj hjb
-    simp [h.2.2.2.2 j hj hjb]
-
-private theorem initial_prefix (bytes : B) (hzero : ∀ _h : 0 < size bytes, getByte bytes 0 ≠ 1) :
-    (List.range (min 1 (size bytes))).filter (fun j => getByte bytes j == 1) = [] := by
-  by_cases hs : size bytes = 0
-  · simp [hs]
-  · simp [Nat.min_eq_left (show 1 ≤ size bytes by omega), List.range_succ, hzero (by omega)]
-
-private theorem find_state (bytes : B) (start lower : ℕ) (hl : lower ≤ start) :
-    find bytes 1 start = -1 ∨
-      (0 ≤ find bytes 1 start ∧ lower ≤ (find bytes 1 start).toNat ∧
-        (find bytes 1 start).toNat < size bytes ∧ getByte bytes (find bytes 1 start).toNat = 1) := by
-  rcases find_spec bytes 1 start with h | h
-  · exact Or.inl h.1
-  · exact Or.inr ⟨h.1, hl.trans h.2.1, h.2.2.1, h.2.2.2.1⟩
-
-private theorem oddPrimes_eq_slots (limit : ℕ) :
-    (oddPrimes B limit).toList =
-      (((List.range (size (sieve B limit))).filter
-        (fun j => getByte (sieve B limit) j == 1)).map (fun j => 2 * j + 1)) := by
-  have hsplit : oddPrimes B limit = (Id.run do
-    let bytes := sieve B limit
-    let mut primes := #[]
-    let mut i := bytes.find 0x01 1
-    while i ≠ -1 do
-      primes := primes.push (2 * i.toNat + 1)
-      i := bytes.find 0x01 (i.toNat + 1)
-    return primes) := by
-    simp only [oddPrimes, sieve, Id.run]
-    split <;> rfl
-  rw [hsplit]
-  generalize he : Id.run _ = result
-  apply Std.WP.Id.of_run_eq_wp he
-  vcgen invariants
-  · fun exit (primes, i) =>
-      primes.toList = ((List.range (if i = -1 then size (sieve B limit) else i.toNat)).filter
-        (fun j => getByte (sieve B limit) j == 1)).map (fun j => 2 * j + 1) ∧
-      (i = -1 ∨ (0 ≤ i ∧ 1 ≤ i.toNat ∧ i.toNat < size (sieve B limit) ∧
-        getByte (sieve B limit) i.toNat = 1)) ∧ (exit = true → i = -1)
-  · Std.WP.Variant.ofMeasure (fun (_, i) =>
-      if i = -1 then 0 else size (sieve B limit) - i.toNat)
-  case vc1 =>
-    refine ⟨?_, find_state B bytes 1 1 (by omega), by simp⟩
-    dsimp only [i, bytes]
-    rw [find_prefix B, initial_prefix B]
-    · rfl
-    · intro h
-      rw [sieve_spec B limit 0 h]
-      simp [Nat.not_prime_one]
-  case vc2 =>
-    rename_i primes x hinv
-    have hx : x = -1 := hinv.2.2 rfl
-    simpa only [hx, ite_true] using hinv.1
-  case vc3 =>
-    rename_i old x measure hinv hx
-    simp only [Std.WP.Variant.evalsTo_ofMeasure, Std.WP.Assertion.NondetFun.evalsTo_pure,
-      Lean.Order.ofProp_prop_eq, Lean.Order.meet_prop_eq_and,
-      Bool.false_eq_true, false_implies, and_true] at hinv
-    simp only [Std.WP.Variant.evalsBelow_ofMeasure_nat, Lean.Order.ofProp_prop_eq,
-      Lean.Order.meet_prop_eq_and, Bool.false_eq_true, false_implies, and_true]
-    have h := hinv.2.2.resolve_left hx
-    refine ⟨?_, ?_, ?_⟩
-    · have hm : measure = size (sieve B limit) - x.toNat := by
-        simpa only [hx, ite_false] using hinv.1.symm
-      rw [hm]
-      rcases find_spec bytes 1 (x.toNat + 1) with hnext | hnext
-      · simp only [i, hnext.1, ite_true]
-        dsimp only [bytes] at *
-        omega
-      · have hn : find bytes 1 (x.toNat + 1) ≠ -1 := by omega
-        simp only [i, hn, ite_false]
-        dsimp only [bytes] at *
-        omega
-    · dsimp only [primes, i, bytes]
-      rw [find_prefix B, Nat.min_eq_left (show x.toNat + 1 ≤ size (sieve B limit) by omega),
-        List.range_succ, List.filter_append, List.map_append]
-      simp only [List.filter_cons, h.2.2.2, beq_self_eq_true, List.filter_nil, ↓reduceIte,
-        List.map_cons, List.map_nil, Array.toList_push]
-      rw [hinv.2.1, ite_eq_right hx]
-    · exact find_state B bytes (x.toNat + 1) 1 (by omega)
-  case vc4 =>
-    rename_i old x measure hinv hx
-    simp only [Std.WP.Variant.evalsTo_ofMeasure, Std.WP.Assertion.NondetFun.evalsTo_pure,
-      Lean.Order.ofProp_prop_eq, Lean.Order.meet_prop_eq_and,
-      Bool.false_eq_true, false_implies, and_true] at hinv
-    exact ⟨hinv.2.1, hinv.2.2, fun _ => by omega⟩
-
-/-- The generator lists exactly the odd primes up to the limit, in increasing order. -/
-theorem oddPrimes_spec (limit : ℕ) :
-    (oddPrimes B limit).toList =
+/-- Marked slots correspond exactly to the increasing list of odd primes. -/
+private theorem sieve_slots_eq_primes (limit : ℕ) :
+    (((List.range (size (sieve B limit))).filter
+      (fun j => getByte (sieve B limit) j == 1)).map (fun j => 2 * j + 1)) =
       (List.range (limit + 1)).filter (fun p => decide (p.Prime ∧ p ≠ 2)) := by
   have hsize : size (sieve B limit) = (limit + 1)/2 := size_sieve B limit
-  rw [oddPrimes_eq_slots B]
   apply List.Pairwise.eq_of_mem_iff (r := (· < ·))
   · exact (List.pairwise_lt_range.filter _).map _ (by intros; omega)
   · exact List.pairwise_lt_range.filter _
@@ -407,5 +295,137 @@ theorem oddPrimes_spec (limit : ℕ) :
       have he : 2 * (p / 2) + 1 = p := by omega
       refine ⟨p / 2, ⟨hi, ?_⟩, he⟩
       rw [sieve_spec B limit _ hi, he, ite_eq_left hp]
+
+/-- Proof helper for one pass through the yielding loop. -/
+def searchBody (bytes : B) (i : ℤ) : Generator.Computation ℕ (ForInStep ℤ) := do
+  if i ≠ -1 then
+    Generator.yield (2 * i.toNat + 1)
+    return .yield (find bytes 0x01 (i.toNat + 1))
+  else return .done i
+
+/-- Proof helper exposing the search loop and its saved integer index. -/
+def search (bytes : B) (i : ℤ) : Generator.Computation ℕ Unit :=
+  .loop ℤ (searchBody B bytes) i (fun _ => .done ())
+
+private theorem ite_yield {m : Type → Type u} [Pure m] {α : Type}
+    (p : Prop) [Decidable p] (x y : α) :
+    (if p then pure (ForInStep.yield x) else pure (ForInStep.yield y)) =
+      (pure (ForInStep.yield (if p then x else y)) : m (ForInStep α)) := by
+  split <;> rfl
+
+/-- Before the first resume, initialization is still inside the deferred body. -/
+theorem generator_initial (limit : ℕ) : oddPrimesGenerator B limit =
+    Generator.create (fun () => search B (sieve B limit) (find (sieve B limit) 0x01 1)) := by
+  simp only [oddPrimesGenerator, sieve, Id.run]
+  split
+  all_goals
+    simp only [Std.Legacy.Range.forIn'_eq_forIn'_range', ite_yield,
+      List.forIn'_pure_yield_eq_foldl]
+    rfl
+
+private theorem search_step (bytes : B) (i : ℤ) :
+    (search B bytes i).step = .skip (if i = -1 then .done () else
+      .suspended (2 * i.toNat + 1)
+        (fun () => search B bytes (find bytes 0x01 (i.toNat + 1)))) := by
+  by_cases h : i = -1 <;>
+    simp [search, searchBody, Computation.step, h, Bind.bind, Pure.pure,
+      Generator.bind, Generator.yield]
+
+private def slotsFrom (bytes : B) (start : ℕ) : List ℕ :=
+  (List.range (size bytes)).filter (fun j => decide (start ≤ j) && getByte bytes j == 0x01)
+
+private theorem mem_slotsFrom (bytes : B) (start j : ℕ) :
+    j ∈ slotsFrom B bytes start ↔ j < size bytes ∧ start ≤ j ∧ getByte bytes j = 0x01 := by
+  simp [slotsFrom]
+
+private theorem slotsFrom_next (bytes : B) (start : ℕ) :
+    slotsFrom B bytes start =
+      if find bytes 0x01 start = -1 then []
+      else (find bytes 0x01 start).toNat ::
+        slotsFrom B bytes ((find bytes 0x01 start).toNat + 1) := by
+  rcases find_spec bytes 0x01 start with hf | hf
+  · rw [ite_eq_left hf.1]
+    apply List.eq_nil_iff_forall_not_mem.mpr
+    intro j hj
+    obtain ⟨hb, hs, hv⟩ := (mem_slotsFrom B bytes start j).mp hj
+    exact hf.2 j hs hb hv
+  · rw [ite_eq_right (by omega)]
+    apply List.Pairwise.eq_of_mem_iff (r := (· < ·))
+    · exact List.pairwise_lt_range.filter _
+    · refine List.pairwise_cons.mpr ⟨?_, List.pairwise_lt_range.filter _⟩
+      intro j hj
+      have := (mem_slotsFrom B bytes _ j).mp hj
+      omega
+    · intro j
+      simp only [mem_slotsFrom, List.mem_cons]
+      constructor
+      · rintro ⟨hb, hs, hv⟩
+        by_cases he : j = (find bytes 0x01 start).toNat
+        · exact Or.inl he
+        · right
+          refine ⟨hb, ?_, hv⟩
+          by_contra hle
+          exact hf.2.2.2.2 j hs (by omega) hv
+      · rintro (rfl | ⟨hb, hs, hv⟩)
+        · exact ⟨hf.2.2.1, hf.2.1, hf.2.2.2.1⟩
+        · exact ⟨hb, by omega, hv⟩
+
+private theorem search_produces (bytes : B) (start : ℕ) :
+    Produces (search B bytes (find bytes 0x01 start))
+      ((slotsFrom B bytes start).map (fun j => 2 * j + 1)) := by
+  rw [slotsFrom_next]
+  by_cases h : find bytes 0x01 start = -1
+  · simp only [h, ↓reduceIte, List.map_nil]
+    have hs := search_step B bytes (-1)
+    simp only [↓reduceIte] at hs
+    exact Produces.skip hs (Produces.done rfl)
+  · simp only [h, ↓reduceIte, List.map_cons]
+    have hs := search_step B bytes (find bytes 0x01 start)
+    rw [ite_eq_right h] at hs
+    apply Produces.skip hs
+    apply Produces.yield rfl
+    apply Produces.skip rfl
+    exact search_produces bytes ((find bytes 0x01 start).toNat + 1)
+termination_by size bytes + 1 - start
+decreasing_by
+  rcases find_spec bytes 0x01 start with hf | hf
+  · exact (h hf.1).elim
+  · omega
+
+/-- The generator terminates after emitting exactly the increasing list of odd primes. -/
+theorem oddPrimesGenerator_produces (limit : ℕ) :
+    Produces (oddPrimesGenerator B limit)
+      ((List.range (limit + 1)).filter (fun p => decide (p.Prime ∧ p ≠ 2))) := by
+  have hstart : slotsFrom B (sieve B limit) 1 =
+      (List.range (size (sieve B limit))).filter
+        (fun j => getByte (sieve B limit) j == 1) := by
+    apply List.filter_congr
+    intro j hj
+    have hb := List.mem_range.mp hj
+    by_cases hzero : j = 0
+    · subst j
+      rw [sieve_spec B limit 0 hb]
+      simp [Nat.not_prime_one]
+    · simp [show 1 ≤ j by omega]
+  rw [← sieve_slots_eq_primes B limit, ← hstart, generator_initial]
+  exact Produces.skip rfl (search_produces B (sieve B limit) 1)
+
+/-- All reachable continuations terminate, including the steps between yields. -/
+instance (limit : ℕ) : Finite (Frame (oddPrimesGenerator B limit)) Id :=
+  finite_of_halts (oddPrimesGenerator_produces B limit).halts
+
+/-- All and only the odd primes up to `limit`, in increasing order. -/
+theorem oddPrimesGenerator_spec (limit : ℕ) :
+    (oddPrimesGenerator B limit).toList =
+      (List.range (limit + 1)).filter (fun p => decide (p.Prime ∧ p ≠ 2)) :=
+  (oddPrimesGenerator_produces B limit).toList
+
+/-- Consuming the generator agrees with iterating over the mathematical prime list. -/
+theorem oddPrimesGenerator_forIn {m : Type → Type} [Monad m] [LawfulMonad m]
+    {α : Type} (limit : ℕ) (initial : α) (body : ℕ → α → m (ForInStep α)) :
+    ForIn.forIn (oddPrimesGenerator B limit) initial body =
+      ForIn.forIn ((List.range (limit + 1)).filter (fun p => decide (p.Prime ∧ p ≠ 2)))
+        initial body :=
+  (oddPrimesGenerator_produces B limit).forIn initial body
 
 end SympyBinomial.ByteSieve
