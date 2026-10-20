@@ -11,6 +11,34 @@ namespace SympyBinomial.ByteSieve
 variable (B : Type) [PythonByteArray B]
 local instance : MonadCost (Generator.Computation (Event ⊕ ℕ)) := eventCost
 
+/-- Remaining table suffix after the current successful hit; exhaustion has no suffix. -/
+def remaining (bytes : B) (i : ℤ) : ℕ :=
+  if i = -1 then 0 else size bytes-i.toNat
+
+/-- Visits of the next find, excluding the current hit. -/
+def nextVisits (bytes : B) (i : ℤ) : ℕ :=
+  let j := find bytes 0x01 (i.toNat+1)
+  if j = -1 then size bytes-(i.toNat+1) else j.toNat-i.toNat
+
+private theorem remaining_next (bytes : B) (i : ℤ) (hi : 0 ≤ i)
+    (hib : i.toNat < size bytes) :
+    remaining B bytes (find bytes 0x01 (i.toNat+1)) < remaining B bytes i ∧
+    nextVisits B bytes i ≤ remaining B bytes i-
+      remaining B bytes (find bytes 0x01 (i.toNat+1)) := by
+  rcases find_spec bytes 0x01 (i.toNat+1) with h | h
+  · simp only [remaining, nextVisits, h.1, ↓reduceIte, ite_eq_right (show i ≠ -1 by omega)]
+    omega
+  · have hj : find bytes 0x01 (i.toNat+1) ≠ -1 := by omega
+    simp only [remaining, nextVisits, ite_eq_right hj, ite_eq_right (show i ≠ -1 by omega)]
+    omega
+
+private theorem remaining_find_le (bytes : B) (start : ℕ) :
+    remaining B bytes (find bytes 0x01 start) ≤ size bytes+1-start := by
+  rcases find_spec bytes 0x01 start with h | h
+  · simp [remaining, h.1]
+  · simp only [remaining, ite_eq_right (show find bytes 0x01 start ≠ -1 by omega)]
+    omega
+
 private theorem advance_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
     (hallowed : ∀ e, allowed (.inl e)) (price n : ℕ) (bytes : B) (i : ℤ)
     (hs : size bytes ≤ n) (_hi : 0 ≤ i) (hib : i.toNat < size bytes)
@@ -18,7 +46,7 @@ private theorem advance_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ �
     Budgeted (traceWeight price) (traceMeasure measure) allowed
       (advanceM (m := Generator.Computation (Event ⊕ ℕ)) B (fun p => Generator.yield (.inr p)) bytes i)
       (fun r => r = find bytes 0x01 (i.toNat+1))
-      (32*(n+1+PrimeExponent.inputWidth n^2)+price) (measure (2*i.toNat+1)) := by
+      (32*(nextVisits B bytes i+1+PrimeExponent.inputWidth n^2)+price) (measure (2*i.toNat+1)) := by
   let W := PrimeExponent.inputWidth n
   have hw : 1 ≤ W := PrimeExponent.inputWidth_pos n
   have hwi : width (i.toNat : ℤ) ≤ W := width_mono (by simpa only [Int.natAbs_natCast] using (Nat.le_of_lt hib).trans hs)
@@ -34,11 +62,6 @@ private theorem advance_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ �
     rw [h1] at h
     simpa only [Nat.cast_add,Nat.cast_one] using h.trans (Nat.add_le_add_right (max_le hwm (by omega)) 1)
   have hwj : width ((i.toNat+1 : ℕ) : ℤ) ≤ W := width_mono (by simpa only [Int.natAbs_natCast] using (show i.toNat+1 ≤ n by omega))
-  have hfind : (if find bytes 1 (i.toNat+1) = -1 then size bytes-(i.toNat+1)
-      else (find bytes 1 (i.toNat+1)).toNat+1-(i.toNat+1)) ≤ n := by
-    rcases find_spec bytes 1 (i.toNat+1) with h | h
-    · rw [ite_eq_left h.1]; omega
-    · rw [ite_eq_right (by omega)]; omega
   simp only [advanceM,perform,
     MonadCost.emit,Bind.bind,Pure.pure,Generator.bind,Generator.yield]
   refine ⟨_,_,by repeat first | apply Returns.yield rfl | apply Returns.skip rfl | exact Returns.done _,rfl,?_,?_,?_⟩
@@ -52,8 +75,13 @@ private theorem advance_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ �
     have hm1 : max (width ((2*i.toNat : ℕ) : ℤ)) 1 ≤ W+2 := max_le hwm (by omega)
     have hm2 : max (width (i.toNat : ℤ)) 1 ≤ W := max_le hwi hw
     have hw2 : W ≤ W^2 := Nat.le_self_pow (by omega) W
-    change _ ≤ 32*(n+1+W^2)+price
-    nlinarith only [hwi,hwm,hwa,hwj,hfind,hm1,hm2,hw2,hw]
+    change _ ≤ 32*(nextVisits B bytes i+1+W^2)+price
+    have hv : (if find bytes 1 (i.toNat+1) = -1 then size bytes-(i.toNat+1)
+        else (find bytes 1 (i.toNat+1)).toNat+1-(i.toNat+1)) = nextVisits B bytes i := by
+      dsimp only [nextVisits]
+      split_ifs <;> omega
+    rw [hv]
+    nlinarith only [hwi,hwm,hwa,hwj,hm1,hm2,hw2,hw]
   · simp [traceMeasure]
 
 private theorem ne_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
@@ -70,16 +98,16 @@ private theorem ne_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ →
   omega
 
 /-- All resumes terminate, with a separate sum of the sizes of emitted values. -/
-theorem search_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
+theorem search_budgeted_remaining (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
     (hallowed : ∀ e, allowed (.inl e)) (price n : ℕ) (bytes : B) (hs : size bytes ≤ n)
     (start : ℕ) (hv : ∀ j ∈ slotsFrom B bytes start, allowed (.inr (2*j+1))) :
     Budgeted (traceWeight price) (traceMeasure measure) allowed
       (searchM (m := Generator.Computation (Event ⊕ ℕ)) B (fun p => Generator.yield (.inr p))
         bytes (find bytes 0x01 start)) (fun _ => True)
-      ((size bytes+1-start+1)*(64*(n+1+PrimeExponent.inputWidth n^2)+price))
+      ((remaining B bytes (find bytes 0x01 start)+1)*(64*(1+PrimeExponent.inputWidth n^2)+price))
       (((slotsFrom B bytes start).map (fun j => measure (2*j+1))).sum) := by
   let W := PrimeExponent.inputWidth n
-  let T := n+1+W^2
+  let T := 1+W^2
   let L := 64*T+price
   let i := find bytes 0x01 start
   have hw : 1 ≤ W := PrimeExponent.inputWidth_pos n
@@ -100,7 +128,7 @@ theorem search_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Pro
           let next ← advanceM B (fun p => Generator.yield (.inr p)) bytes i
           searchM B (fun p => Generator.yield (.inr p)) bytes next
          else pure ()) (fun _ => True)
-        ((size bytes+1-start)*L+(32*T+price))
+        ((remaining B bytes i+1)*L-(W+1))
         (((slotsFrom B bytes start).map (fun j => measure (2*j+1))).sum) := by
     intro test ht
     subst test
@@ -114,7 +142,7 @@ theorem search_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Pro
       have hmem : i.toNat ∈ slotsFrom B bytes start :=
         (mem_slotsFrom B bytes start i.toNat).mpr ⟨hf.2.2.1,hf.2.1,hf.2.2.2.1⟩
       have ha := advance_budgeted B measure allowed hallowed price n bytes i hs hf.1 hf.2.2.1 (hv _ hmem)
-      have hrec := search_budgeted measure allowed hallowed price n bytes hs (i.toNat+1) (by
+      have hrec := search_budgeted_remaining measure allowed hallowed price n bytes hs (i.toNat+1) (by
         intro j hj
         apply hv j
         obtain ⟨hj,hstart,hbyte⟩ := (mem_slotsFrom B bytes _ j).mp hj
@@ -122,25 +150,63 @@ theorem search_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Pro
       have hbind := ha.bind
         (f := fun next => searchM B (fun p => Generator.yield (.inr p)) bytes next)
         (post' := fun _ => True)
-        (d := (size bytes+1-(i.toNat+1)+1)*L)
+        (d := (remaining B bytes (find bytes 0x01 (i.toNat+1))+1)*L)
         (r := ((slotsFrom B bytes (i.toNat+1)).map (fun j => measure (2*j+1))).sum)
         (by intro next hn; subst next; exact hrec)
       apply hbind.mono (fun _ _ => trivial)
-      · have hdec : size bytes+1-(i.toNat+1)+1 ≤ size bytes+1-start := by dsimp [i]; omega
-        have hm := Nat.mul_le_mul_right L hdec
-        change 32*T+price+_ ≤ _
-        omega
+      · obtain ⟨hlt,hvis⟩ := remaining_next B bytes i hf.1 hf.2.2.1
+        let delta := remaining B bytes i-remaining B bytes (find bytes 0x01 (i.toNat+1))
+        have hdelta : 1 ≤ delta := by dsimp [delta]; omega
+        have hdT := Nat.mul_le_mul_left T hdelta
+        have hdp := Nat.mul_le_mul_left price hdelta
+        have hT : 2 ≤ T := by dsimp [T]; nlinarith
+        have hdT2 := Nat.mul_le_mul_left delta hT
+        have hW : W+1 ≤ 2*T := by dsimp [T]; nlinarith
+        have hpay : W+1+(32*(nextVisits B bytes i+T)+price) ≤ delta*L := by
+          change nextVisits B bytes i ≤ delta at hvis
+          dsimp [L] at *
+          nlinarith only [hvis,hdT,hdp,hdelta,hT,hW,hdT2]
+        apply Nat.le_sub_of_add_le
+        rw [Nat.add_assoc (nextVisits B bytes i)]
+        change 32*(nextVisits B bytes i+T)+price+_+(W+1) ≤ _
+        have he : remaining B bytes i = delta+remaining B bytes (find bytes 0x01 (i.toNat+1)) := by
+          dsimp [delta]; omega
+        rw [he]
+        nlinarith only [hpay]
       · rw [slotsFrom_next B bytes start,ite_eq_right hz,List.map_cons,List.sum_cons]
   have hrun := ht.bind htail
   obtain ⟨a,xs,hr,hpost,hall,hcost,hcount⟩ := hrun
   refine ⟨a,xs,.skip (searchM_step B bytes i) hr,hpost,hall,?_,by simpa only [Nat.zero_add] using hcount⟩
-  have hW : W ≤ W^2 := Nat.le_self_pow (by omega) W
-  have hpay : W+1+(32*T+price) ≤ L := by dsimp [T,L]; omega
-  change _ ≤ (size bytes+1-start+1)*L
-  have hb : W+1+((size bytes+1-start)*L+(32*T+price)) ≤ (size bytes+1-start+1)*L := by
-    rw [Nat.add_mul,Nat.one_mul]
-    omega
-  exact hcost.trans hb
+  have hW : W+1 ≤ L := by dsimp [L,T]; nlinarith
+  have hroom : W+1 ≤ (remaining B bytes i+1)*L :=
+    hW.trans (Nat.le_mul_of_pos_left _ (by omega))
+  apply hcost.trans
+  change W+1+((remaining B bytes i+1)*L-(W+1)) ≤ (remaining B bytes i+1)*L
+  omega
 termination_by size bytes+1-start
 decreasing_by omega
+/-- Total search work is linear in table length apart from index arithmetic. -/
+theorem search_budgeted_linear (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
+    (hallowed : ∀ e, allowed (.inl e)) (price n : ℕ) (bytes : B) (hs : size bytes ≤ n)
+    (start : ℕ) (hv : ∀ j ∈ slotsFrom B bytes start, allowed (.inr (2*j+1))) :
+    Budgeted (traceWeight price) (traceMeasure measure) allowed
+      (searchM (m := Generator.Computation (Event ⊕ ℕ)) B (fun p => Generator.yield (.inr p))
+        bytes (find bytes 0x01 start)) (fun _ => True)
+      ((size bytes+1-start+1)*(64*(1+PrimeExponent.inputWidth n^2)+price))
+      (((slotsFrom B bytes start).map (fun j => measure (2*j+1))).sum) :=
+  (search_budgeted_remaining B measure allowed hallowed price n bytes hs start hv).mono
+    (fun _ _ => trivial) (by gcongr; exact remaining_find_le B bytes start) (le_refl _)
+
+/-- The original budget follows from the sharper suffix potential estimate. -/
+theorem search_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
+    (hallowed : ∀ e, allowed (.inl e)) (price n : ℕ) (bytes : B) (hs : size bytes ≤ n)
+    (start : ℕ) (hv : ∀ j ∈ slotsFrom B bytes start, allowed (.inr (2*j+1))) :
+    Budgeted (traceWeight price) (traceMeasure measure) allowed
+      (searchM (m := Generator.Computation (Event ⊕ ℕ)) B (fun p => Generator.yield (.inr p))
+        bytes (find bytes 0x01 start)) (fun _ => True)
+      ((size bytes+1-start+1)*(64*(n+1+PrimeExponent.inputWidth n^2)+price))
+      (((slotsFrom B bytes start).map (fun j => measure (2*j+1))).sum) :=
+  (search_budgeted_linear B measure allowed hallowed price n bytes hs start hv).mono
+    (fun _ _ => trivial) (by gcongr; omega) (le_refl _)
+
 end SympyBinomial.ByteSieve

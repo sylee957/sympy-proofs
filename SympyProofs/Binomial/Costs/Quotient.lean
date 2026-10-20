@@ -22,20 +22,26 @@ variable (I : Type) [PythonInt I]
 private abbrev QState := I × I × I × I
 private def qstate (a b c e : I) : QState I :=
   (a, b, c, e)
+variable (model : Model) (hmodel : ∀ e, model e ≤ schoolbook e)
+include hmodel in
 private theorem qstep_zero (p b c e : I) :
-    RunsWith schoolbook (quotientStepM (m := CostT Id) I p (qstate I 0 b c e)) (.done (qstate I 0 b c e)) 2 := by
-  intro initial
-  simp [quotientStepM, qstate, CostT.run,
-    perform, MonadCost.emit]
-  rfl
+    Bounded model (quotientStepM (m := CostT Id) I p (qstate I 0 b c e))
+      (fun r => r = ForInStep.done (qstate I 0 b c e)) 2 := by
+  have h : RunsWith model (quotientStepM (m := CostT Id) I p (qstate I 0 b c e))
+      (.done (qstate I 0 b c e)) (model (.integer ⟨.eq, [0, 0], 1⟩)) := by
+    intro initial
+    simp [quotientStepM, qstate, CostT.run, perform, MonadCost.emit]
+    rfl
+  exact h.bounded rfl ((hmodel _).trans (by decide))
 
+include hmodel in
 private theorem qstep_bound (p a b c e : I) (w : ℕ)
     (hp : width (toInt p) ≤ w) (ha : width (toInt a) ≤ w)
     (hb : width (toInt b) ≤ w) (hc : width (toInt c) ≤ w)
     (he : width (toInt e) ≤ w)
     (had : width (toInt (a/p)) ≤ w) (hbd : width (toInt (b/p)) ≤ w)
     (hcd : width (toInt (c/p)) ≤ w) (hane : a ≠ 0) :
-    Bounded schoolbook (quotientStepM (m := CostT Id) I p (qstate I a b c e))
+    Bounded model (quotientStepM (m := CostT Id) I p (qstate I a b c e))
       (fun r => r = ForInStep.yield (qstate I (a/p) (b/p) (c/p) (e+(a/p-b/p-c/p))))
       (3*w^2+16*w+16) := by
   have hw : 1 ≤ w := (one_le_width _).trans ha
@@ -54,27 +60,28 @@ private theorem qstep_bound (p a b c e : I) (w : ℕ)
   simp only [LawfulMonad.bind_assoc]
   refine Bounded.bind (post := fun test => test = (a != 0)) ?_ ?_
   · apply (RunsWith.perform _ _).bounded (post := fun test => test = (a != 0)) rfl
+    apply (hmodel _).trans
     change 1 + max (width (toInt a)) (width (toInt (0 : I))) ≤ w+1
     omega
   intro test ht
   subst test
   simp only [qstate, bne, beq_eq_false_iff_ne.mpr hane, Bool.not_false, ↓reduceIte]
-  apply (Python.Cost.Int.div_bounded a p w ha hp had).bind
+  apply (Python.Cost.Int.div_bounded_of_le model hmodel a p w ha hp had).bind
   intro x hx
   subst x
-  apply (Python.Cost.Int.div_bounded b p w hb hp hbd).bind
+  apply (Python.Cost.Int.div_bounded_of_le model hmodel b p w hb hp hbd).bind
   intro y hy
   subst y
-  apply (Python.Cost.Int.div_bounded c p w hc hp hcd).bind
+  apply (Python.Cost.Int.div_bounded_of_le model hmodel c p w hc hp hcd).bind
   intro z hz
   subst z
-  apply (Python.Cost.Int.sub_bounded (a/p) (b/p) w had hbd).bind
+  apply (Python.Cost.Int.sub_bounded_of_le model hmodel (a/p) (b/p) w had hbd).bind
   intro d hd
   subst d
-  apply (Python.Cost.Int.sub_bounded (a/p-b/p) (c/p) (w+1) hd₁ (by omega)).bind
+  apply (Python.Cost.Int.sub_bounded_of_le model hmodel (a/p-b/p) (c/p) (w+1) hd₁ (by omega)).bind
   intro d hd
   subst d
-  apply (Python.Cost.Int.add_bounded e (a/p-b/p-c/p) (w+2) (by omega) hd₂).bind
+  apply (Python.Cost.Int.add_bounded_of_le model hmodel e (a/p-b/p-c/p) (w+2) (by omega) hd₂).bind
   intro f hf
   subst f
   exact Bounded.pure _ rfl
@@ -110,9 +117,10 @@ private theorem div_cast (a p : ℕ) (hp : 0 < p) :
   apply toInt_injective
   simpa using toInt_div_natCast (I := I) a p (by omega)
 
+include hmodel in
 private theorem qstep_nat (n p a b c e : ℕ) (hp : p.Prime) (hpn : p ≤ n)
     (ha : 0 < a) (h : QInv n (inputWidth n) p target a b c e) :
-    Bounded schoolbook (quotientStepM (m := CostT Id) I (p : I) (qstate I (a : I) (b : I) (c : I) (e : I)))
+    Bounded model (quotientStepM (m := CostT Id) I (p : I) (qstate I (a : I) (b : I) (c : I) (e : I)))
       (fun r => r = ForInStep.yield (qstate I ((a/p : ℕ) : I) ((b/p : ℕ) : I)
         ((c/p : ℕ) : I) ((e+(a/p-b/p-c/p) : ℕ) : I)))
       (3*(inputWidth n+1)^2+16*(inputWidth n+1)+16) := by
@@ -125,7 +133,7 @@ private theorem qstep_nat (n p a b c e : ℕ) (hp : p.Prime) (hpn : p ≤ n)
   have hew : width (toInt (e : I)) ≤ inputWidth n+1 := by
     rw [toInt_natCast]
     exact (width_mono (x := (e : ℤ)) (y := (inputWidth n : ℤ)) (by simpa only [Int.natAbs_natCast] using he)).trans (width_self _)
-  have hw := qstep_bound I (p : I) (a : I) (b : I) (c : I) (e : I) (inputWidth n+1)
+  have hw := qstep_bound I model hmodel (p : I) (a : I) (b : I) (c : I) (e : I) (inputWidth n+1)
     (widths p hpn) (widths a h.1) (widths b hb) (widths c hc) hew
     (by rw [div_cast I a p hp.pos]; exact widths _ ((Nat.div_le_self _ _).trans h.1))
     (by rw [div_cast I b p hp.pos]; exact widths _ ((Nat.div_le_self _ _).trans hb))
@@ -143,9 +151,10 @@ private theorem qstep_nat (n p a b c e : ℕ) (hp : p.Prime) (hpn : p ≤ n)
     Nat.add_assoc, Nat.reduceAdd] using hw
 
 
+include hmodel in
 /-- The executed quotient loop returns the exact prime multiplicity within a cubic bit budget. -/
-theorem quotientExponentM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : p ≤ n) :
-    Bounded schoolbook (quotientExponentM (m := CostT Id) I (n : I) (k : I) (p : I))
+theorem quotientExponentM_bounded_of_le (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : p ≤ n) :
+    Bounded model (quotientExponentM (m := CostT Id) I (n : I) (k : I) (p : I))
       (fun e => toInt e = ((n.choose k).factorization p : ℤ))
       (64*inputWidth n^3) := by
   let W := inputWidth n
@@ -156,7 +165,7 @@ theorem quotientExponentM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (h
     s = qstate I 0 0 0 (e : I) ∧ e = target
   let rank (s : QState I) := (toNat s.1).size
   have hbody (s : QState I) (hs : inv s) :
-      Bounded schoolbook (quotientStepM (m := CostT Id) I (p : I) s)
+      Bounded model (quotientStepM (m := CostT Id) I (p : I) s)
         (fun r => match r with
           | .done t => post t
           | .yield t => inv t ∧ rank t < rank s) ((3*(W+1)^2+16*(W+1)+16)) := by
@@ -170,10 +179,10 @@ theorem quotientExponentM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (h
         have ht := h.2.2.2.2
         simpa [QInv] using ht
       simp only [Nat.cast_zero]
-      apply (qstep_zero I (p : I) 0 0 (e : I)).bounded
-      · exact ⟨e, rfl, ht⟩
+      apply (qstep_zero I model hmodel (p : I) 0 0 (e : I)).mono
+      · intro r hr; subst r; exact ⟨e, rfl, ht⟩
       · nlinarith [Nat.zero_le W]
-    · have hstep := qstep_nat I n p a b c e hp hpn (by omega) h
+    · have hstep := qstep_nat I model hmodel n p a b c e hp hpn (by omega) h
       apply hstep.mono
       · intro r hr
         subst r
@@ -185,13 +194,13 @@ theorem quotientExponentM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (h
     refine ⟨n,k,n-k,0,by simp only [Nat.cast_zero],le_refl _,by omega,by omega,?_,?_⟩
     · simpa only [W, inputWidth, width, Int.natAbs_natCast, Nat.zero_add] using (le_max_right 1 n.size)
     · simpa using factorial_exponent_sub n k p hk
-  have hloop := Bounded.loop (model := schoolbook) (quotientStepM (m := CostT Id) I (p : I)) inv post rank ((3*(W+1)^2+16*(W+1)+16)) (fun s hs => (hbody s hs).mono (by intro r hr; cases r <;> exact hr) (le_refl _)) _ hi
+  have hloop := Bounded.loop (model := model) (quotientStepM (m := CostT Id) I (p : I)) inv post rank ((3*(W+1)^2+16*(W+1)+16)) (fun s hs => (hbody s hs).mono (by intro r hr; cases r <;> exact hr) (le_refl _)) _ hi
   have hreturn := hloop.bind (next := fun s => pure s.2.2.2)
     (post' := fun e => toInt e = (target : ℤ)) (d := 0) (by
       intro s hs
       obtain ⟨e,rfl,he⟩ := hs
       exact Bounded.pure (e : I) (by simpa only [he] using toInt_natCast (I := I) e))
-  have hinit := Python.Cost.Int.sub_bounded (n : I) (k : I) W
+  have hinit := Python.Cost.Int.sub_bounded_of_le model hmodel (n : I) (k : I) W
     (by simp only [toInt_natCast]; rfl)
     (by simpa only [toInt_natCast] using nat_width_le k n hk)
   have hsub : (n : I)-(k : I) = ((n-k : ℕ) : I) := by
@@ -223,5 +232,11 @@ theorem quotientExponentM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (h
   have hlin : 4*W ≤ W^3 := by nlinarith only [hsq,Nat.mul_le_mul_right W hw2]
   have hconst : 8 ≤ W^3 := by nlinarith only [hlin,hw2]
   nlinarith only [hfirst,hsq,hlin,hconst]
+
+/-- Schoolbook specialization of the policy-parametric quotient-loop contract. -/
+theorem quotientExponentM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : p ≤ n) :
+    Bounded schoolbook (quotientExponentM (m := CostT Id) I (n : I) (k : I) (p : I))
+      (fun e => toInt e = ((n.choose k).factorization p : ℤ)) (64*inputWidth n^3) :=
+  quotientExponentM_bounded_of_le I schoolbook (fun _ => le_refl _) n k p hk hp hpn
 
 end SympyBinomial.PrimeExponent

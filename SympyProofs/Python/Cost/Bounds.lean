@@ -160,3 +160,17 @@ theorem cost_le {program : CostT Id α} {post : α → Prop} {budget : ℕ}
 end Bounded
 
 end Python.Cost
+
+namespace Python.Cost.Bounded
+
+/-- Reprice a single primitive; this does not assert monotonicity for arbitrary
+`CostT` functions, which could inspect their model or counter. -/
+theorem reprice_perform {α : Type} {model cheaper : Model} {event : Event} {value : α}
+    {post : α → Prop} {budget : ℕ}
+    (h : Bounded model (perform event value) post budget) (hle : cheaper event ≤ model event) :
+    Bounded cheaper (perform event value) post budget := by
+  apply (RunsWith.perform event value).bounded
+  · simpa using h.result
+  · exact hle.trans (by simpa using h.cost_le)
+
+end Python.Cost.Bounded

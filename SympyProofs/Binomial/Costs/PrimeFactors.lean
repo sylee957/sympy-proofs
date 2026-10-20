@@ -16,10 +16,13 @@ included even though the input array size does not affect its amortized policy.
 open PythonInt Python.Cost Python.Cost.Models
 namespace SympyBinomial.PrimeExponent
 variable (I : Type) [PythonInt I]
+variable (model : Model) (hmodel : ∀ e, model e ≤ schoolbook e)
+
+include hmodel in
 /-- An actual prime-consumer step, including the optional power and allocation. -/
-theorem primeFactorM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : p ≤ n)
+theorem primeFactorM_bounded_of_le (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : p ≤ n)
     (factors : Array I) :
-    Bounded schoolbook (primeFactorM (m := CostT Id) I (n : I) (k : I) p factors)
+    Bounded model (primeFactorM (m := CostT Id) I (n : I) (k : I) p factors)
       (fun r => r = if (n.choose k).factorization p = 0 then factors
         else factors.push ((p ^ (n.choose k).factorization p : ℕ) : I))
       (128*inputWidth n^3) := by
@@ -33,28 +36,29 @@ theorem primeFactorM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : 
     simpa only [Int.natAbs_natCast] using
       (Nat.factorization_choose_le_log (n := n) (k := k) (p := p)).trans (Nat.log_le_self p n)
   have hzero : width (toInt (0 : I)) ≤ W := by simpa [width] using hw
-  have hpow : Bounded schoolbook (Python.Cost.Int.pow (p : I) (E : I))
+  have hpow : Bounded model (Python.Cost.Int.pow (p : I) (E : I))
       (fun r => r = ((p^E : ℕ) : I)) (4*W^3) := by
     have hr : (p : I) ^ (E : I) = ((p^E : ℕ) : I) := by
       apply toInt_injective
       rw [toInt_pow _ _ (by simp), toInt_natCast, toInt_natCast, Int.toNat_natCast,
         toInt_natCast, Nat.cast_pow]
     apply (RunsWith.perform _ ((p : I)^(E : I))).bounded (post := fun r => r = ((p^E : ℕ) : I)) hr
+    apply (hmodel _).trans
     simpa only [hr, toInt_natCast] using primePower_schoolbook_le n k p hn hpn
   rw [primeFactorM_eq]
   apply Bounded.mono (budget := 1+(64*W^3+((W+1)+(4*W^3+2)))) ?_
     (by intro _ h; exact h) (by
       have hc : W ≤ W^3 := Nat.le_self_pow (by omega) W
       nlinarith only [hc,hw])
-  have hstart : Bounded schoolbook (MonadCost.emit (.control "for.next")) (fun _ => True) 1 :=
-    (RunsWith.emit _).bounded trivial (by rfl)
+  have hstart : Bounded model (MonadCost.emit (.control "for.next")) (fun _ => True) 1 :=
+    (RunsWith.emit _).bounded trivial (hmodel _)
   apply hstart.bind
   intro _ _
-  apply (quotientExponentM_bounded I n k p hk hp hpn).bind
+  apply (quotientExponentM_bounded_of_le I model hmodel n k p hk hp hpn).bind
   intro e he
   have heq : e = (E : I) := toInt_injective (he.trans (toInt_natCast E).symm)
   subst e
-  apply (Python.Cost.Int.eq_bounded (E : I) 0 W hew hzero).bind
+  apply (Python.Cost.Int.eq_bounded_of_le model hmodel (E : I) 0 W hew hzero).bind
   intro test ht
   subst test
   by_cases hz : E = 0
@@ -73,7 +77,16 @@ theorem primeFactorM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : 
     intro value hv
     subst value
     exact (RunsWith.perform _ _).bounded
-      (post := fun r => r = factors.push ((p^E : ℕ) : I)) rfl (by rfl)
+      (post := fun r => r = factors.push ((p^E : ℕ) : I)) rfl (hmodel _)
+
+/-- Schoolbook specialization of the prime-consumer contract. -/
+theorem primeFactorM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : p ≤ n)
+    (factors : Array I) :
+    Bounded schoolbook (primeFactorM (m := CostT Id) I (n : I) (k : I) p factors)
+      (fun r => r = if (n.choose k).factorization p = 0 then factors
+        else factors.push ((p ^ (n.choose k).factorization p : ℕ) : I))
+      (128*inputWidth n^3) :=
+  primeFactorM_bounded_of_le I schoolbook (fun _ => le_refl _) n k p hk hp hpn factors
 
 /-- A uniform cubic bit-width bound on every valid prime-consumer call. -/
 theorem primeFactorM_isBigO {X : Type} (l : Filter X) (n k p : X → ℕ)

@@ -1,7 +1,8 @@
 /-
 Run with `lake env lean --run scripts/check_prime_exponent_costs.lean` after building
 `SympyProofs.Binomial.Costs`. These are differential/trace regression checks,
-supplementing the formal runtime theorem in `FullAsymptotics`.
+supplementing the formal runtime theorems in `FullAsymptotics` and
+`KaratsubaAsymptotics`.
 -/
 import SympyProofs.Binomial.Costs
 import SympyProofs.Python.Int.Native
@@ -25,6 +26,13 @@ private def checkCase (n k : ℕ) : IO Unit := do
     throw (IO.userError s!"value mismatch at ({n}, {k})")
   unless costed.2 = charge Models.schoolbook traced.2 && offset.2 = costed.2 + 37 do
     throw (IO.userError s!"trace/counter mismatch at ({n}, {k})")
+  let fast := CostT.run (primeExponentsM (m := CostT Id) I B input lower) Models.karatsuba
+  let fastOffset := CostT.run (primeExponentsM (m := CostT Id) I B input lower) Models.karatsuba 37
+  unless toInt fast.1 = expected && toInt fastOffset.1 = expected &&
+      fast.2 = charge Models.karatsuba traced.2 && fastOffset.2 = fast.2 + 37 do
+    throw (IO.userError s!"Karatsuba trace/counter mismatch at ({n}, {k})")
+  unless fast.2 ≤ costed.2 && fast.2 ≤ karatsubaBudget n do
+    throw (IO.userError s!"Karatsuba budget exceeded at ({n}, {k}): {fast.2}")
   let budget := if k = 0 then 2 else 131072*(n+1)^2
   unless costed.2 ≤ budget do
     throw (IO.userError s!"budget exceeded at ({n}, {k}): {costed.2}")
@@ -46,6 +54,11 @@ private def checkBalanced : IO Unit := do
         unless toInt costed.1 = (2 : ℤ)^size && toInt traced.1 = (2 : ℤ)^size &&
             costed.2 = charge Models.schoolbook traced.2 do
           throw (IO.userError s!"balanced product mismatch at size={size}, leaf={leaf}")
+        let fast := CostT.run (balancedFactorsM (m := CostT Id) I factors leaf hleaf)
+          Models.karatsuba
+        unless toInt fast.1 = (2 : ℤ)^size && fast.2 = charge Models.karatsuba traced.2 &&
+            fast.2 ≤ costed.2 do
+          throw (IO.userError s!"Karatsuba product mismatch at size={size}, leaf={leaf}")
 
 private def checkAll : IO Unit := do
   for n in [:65] do
@@ -60,7 +73,9 @@ private def checkAll : IO Unit := do
     checkCase n k
     let costed := CostT.run (primeExponentsM (m := CostT Id) I B (n : I) (k : I))
       Models.schoolbook
-    IO.println s!"n={n}, k={k}: schoolbook={costed.2}, result_bits={(toInt costed.1).natAbs.size}"
+    let fast := CostT.run (primeExponentsM (m := CostT Id) I B (n : I) (k : I))
+      Models.karatsuba
+    IO.println s!"n={n}, k={k}: schoolbook={costed.2}, karatsuba={fast.2}, result_bits={(toInt costed.1).natAbs.size}"
   checkBalanced
   IO.println "Passed 2150 complete-kernel cases and 21 balanced-product cases."
 
@@ -80,3 +95,7 @@ def main : IO Unit := checkAll
 #print axioms SympyBinomial.PrimeExponent.primeExponentsM_erases
 #print axioms SympyBinomial.PrimeExponent.primeExponentsM_run_eq_choose
 #print axioms SympyBinomial.PrimeExponent.primeExponentsM_correct_bounded
+#print axioms Python.Cost.Karatsuba.work_isTheta
+#print axioms SympyBinomial.PrimeExponent.balancedFactorsM_karatsuba_bounded
+#print axioms SympyBinomial.PrimeExponent.primeExponentsM_karatsuba_correct_bounded
+#print axioms SympyBinomial.PrimeExponent.primeExponentsM_karatsuba_isBigO

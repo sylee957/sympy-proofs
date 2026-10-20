@@ -42,4 +42,27 @@ theorem sub_bounded (a b : I) (w : ℕ) (ha : width (toInt a) ≤ w)
   change 1+ (max (width (toInt a)) (width (toInt b)) + width (toInt (a-b))) ≤ _
   rw [toInt_sub]
   omega
+
+/-- Reuse a primitive contract under any pointwise cheaper policy. -/
+theorem eq_bounded_of_le (model : Model) (hle : ∀ e, model e ≤ schoolbook e)
+    (a b : I) (w : ℕ) (ha : width (toInt a) ≤ w) (hb : width (toInt b) ≤ w) :
+    Bounded model (eq a b) (fun r => r = (a == b)) (w+1) :=
+  (eq_bounded a b w ha hb).reprice_perform (hle _)
+
+theorem div_bounded_of_le (model : Model) (hle : ∀ e, model e ≤ schoolbook e)
+    (a b : I) (w : ℕ) (ha : width (toInt a) ≤ w) (hb : width (toInt b) ≤ w)
+    (hr : width (toInt (a/b)) ≤ w) :
+    Bounded model (floorDiv a b) (fun r => r = a/b) (1+w*w+3*w) :=
+  (div_bounded a b w ha hb hr).reprice_perform (hle _)
+
+theorem add_bounded_of_le (model : Model) (hle : ∀ e, model e ≤ schoolbook e)
+    (a b : I) (w : ℕ) (ha : width (toInt a) ≤ w) (hb : width (toInt b) ≤ w) :
+    Bounded model (add a b) (fun r => r = a+b) (2*w+2) :=
+  (add_bounded a b w ha hb).reprice_perform (hle _)
+
+theorem sub_bounded_of_le (model : Model) (hle : ∀ e, model e ≤ schoolbook e)
+    (a b : I) (w : ℕ) (ha : width (toInt a) ≤ w) (hb : width (toInt b) ≤ w) :
+    Bounded model (sub a b) (fun r => r = a-b) (2*w+2) :=
+  (sub_bounded a b w ha hb).reprice_perform (hle _)
+
 end Python.Cost.Int

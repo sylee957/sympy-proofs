@@ -11,7 +11,7 @@ open Python.Cost Python.Cost.Models PythonInt
 namespace SympyBinomial.PrimeExponent
 variable (I : Type) [PythonInt I]
 
-private theorem factor_index_width (n : ℕ) (s : ℕ) (hs : s ≤ 2*n+1) :
+theorem factor_index_width (n : ℕ) (s : ℕ) (hs : s ≤ 2*n+1) :
     width (s : ℤ) ≤ 6*inputWidth n := by
   let W := inputWidth n
   have hw : 1 ≤ W := inputWidth_pos n

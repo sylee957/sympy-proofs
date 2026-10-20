@@ -2,6 +2,7 @@ module
 
 public import SympyProofs.Binomial.Costs.ByteSearchBounds
 public import SympyProofs.Binomial.Costs.FactorBounds
+public import Mathlib.NumberTheory.PrimeCounting
 
 /-! Complete sieve stream: execution budget and prime-power payload bound. -/
 
@@ -58,11 +59,13 @@ private theorem first_search_budgeted (measure : ℕ → ℕ) (allowed : Event �
   · rfl
 
 /-- A complete generator trace pays for the sieve and reserves `price` for each consumer call. -/
-theorem oddPrimesCostStream_budgeted (n k price : ℕ) :
-    Budgeted (traceWeight price) (traceMeasure (primeMeasure n k)) (primeAllowed n)
+theorem oddPrimesCostStream_budgeted_measure (measure : ℕ → ℕ) (n price : ℕ) :
+    Budgeted (traceWeight price) (traceMeasure measure) (primeAllowed n)
       (oddPrimesCostStream B n).computation (fun _ => True)
-      (256*(n+1)*(n+1+PrimeExponent.inputWidth n^2)+(n+1)*price)
-      (PrimeExponent.factorBits n k) := by
+      (128*(n.sqrt+1)*(n+1+PrimeExponent.inputWidth n^2)+
+        4*(n+1+PrimeExponent.inputWidth n^2)+
+        (n+1)*(64*(1+PrimeExponent.inputWidth n^2)+price))
+      (((slotsFrom B (sieve B n) 1).map (fun j => measure (2*j+1))).sum) := by
   let W := PrimeExponent.inputWidth n
   simp only [oddPrimesCostStream, oddPrimesBodyM_eq]
   let T := n+1+W^2
@@ -79,28 +82,63 @@ theorem oddPrimesCostStream_budgeted (n k price : ℕ) :
     refine ⟨hprime,?_⟩
     rw [hsize] at hj
     omega
-  have hsearch := (search_budgeted B (primeMeasure n k) (primeAllowed n) (fun _ => trivial)
+  have hsearch := (search_budgeted_linear B measure (primeAllowed n) (fun _ => trivial)
     price n (sieve B n) hs 1 hv).mono (fun _ _ => trivial)
-    (show (size (sieve B n)+1-1+1)*(64*T+price) ≤ (n+1)*(64*T+price) by
-      apply Nat.mul_le_mul_right; omega) (slot_measure_le B n k)
-  have hf := first_search_budgeted B (primeMeasure n k) (primeAllowed n) (fun _ => trivial)
+    (show (size (sieve B n)+1-1+1)*(64*(1+W^2)+price) ≤ (n+1)*(64*(1+W^2)+price) by
+      apply Nat.mul_le_mul_right; omega) (le_refl _)
+  have hf := first_search_budgeted B measure (primeAllowed n) (fun _ => trivial)
     price n (sieve B n) hs
   have htail := hf.bind
     (f := fun i => searchM B (fun p => Generator.yield (.inr p)) (sieve B n) i)
-    (post' := fun _ => True) (d := (n+1)*(64*T+price)) (r := PrimeExponent.factorBits n k)
+    (post' := fun _ => True) (d := (n+1)*(64*(1+W^2)+price)) (r := ((slotsFrom B (sieve B n) 1).map (fun j => measure (2*j+1))).sum)
     (by intro i hi; subst i; exact hsearch)
-  have htable := sieve_budgeted B (primeMeasure n k) (primeAllowed n) (fun _ => trivial) price n
+  have htable := sieve_budgeted_sqrt B measure (primeAllowed n) (fun _ => trivial) price n
   have hbody := htable.bind
     (f := fun bytes => do
       MonadCost.emit (.control "sieve.stop")
       let i ← BufferIndex.find bytes 0x01 1
       searchM B (fun p => Generator.yield (.inr p)) bytes i)
-    (post' := fun _ => True) (d := 4*T+(n+1)*(64*T+price)) (r := PrimeExponent.factorBits n k)
+    (post' := fun _ => True) (d := 4*T+(n+1)*(64*(1+W^2)+price)) (r := ((slotsFrom B (sieve B n) 1).map (fun j => measure (2*j+1))).sum)
     (by intro bytes hb; rw [sieveM_id] at hb; rcases hb with ⟨rfl,_⟩; simpa only [LawfulMonad.bind_assoc,Nat.zero_add] using htail)
   obtain ⟨a,xs,hr,hpost,hallow,hcost,hmeasure⟩ := hbody
   refine ⟨a,xs,.skip rfl hr,hpost,hallow,?_,by simpa only [Nat.zero_add] using hmeasure⟩
-  apply hcost.trans
-  have hT : T ≤ (n+1)*T := Nat.le_mul_of_pos_left _ (by omega)
-  change 128*(n+1)*T+(4*T+(n+1)*(64*T+price)) ≤ 256*(n+1)*T+(n+1)*price
-  nlinarith only [hT]
+  simpa only [Nat.zero_add, T, W, Nat.add_assoc] using hcost
+
+/-- Conservative schoolbook corollary retained for existing clients. -/
+theorem oddPrimesCostStream_budgeted (n k price : ℕ) :
+    Budgeted (traceWeight price) (traceMeasure (primeMeasure n k)) (primeAllowed n)
+      (oddPrimesCostStream B n).computation (fun _ => True)
+      (256*(n+1)*(n+1+PrimeExponent.inputWidth n^2)+(n+1)*price)
+      (PrimeExponent.factorBits n k) := by
+  apply (oddPrimesCostStream_budgeted_measure B (primeMeasure n k) n price).mono
+    (fun _ _ => trivial) ?_ (slot_measure_le B n k)
+  have hs := Nat.sqrt_le_self n
+  have h₁ := Nat.mul_le_mul_right (n+1+PrimeExponent.inputWidth n^2)
+    (show 128*(n.sqrt+1) ≤ 128*(n+1) by omega)
+  have h₂ := Nat.mul_le_mul_left (n+1)
+    (show 64*(1+PrimeExponent.inputWidth n^2)+price ≤
+      64*(n+1+PrimeExponent.inputWidth n^2)+price by omega)
+  have h₃ := Nat.le_mul_of_pos_left (n+1+PrimeExponent.inputWidth n^2)
+    (show 0 < n+1 by omega)
+  nlinarith only [h₁,h₂,h₃]
+
+/-- There are no more emitted odd primes than primes at most `n`. -/
+theorem slots_length_le_primeCounting (n : ℕ) :
+    (slotsFrom B (sieve B n) 1).length ≤ n.primeCounting := by
+  have hstart : slotsFrom B (sieve B n) 1 =
+      (List.range (size (sieve B n))).filter (fun j => getByte (sieve B n) j == 1) := by
+    apply List.filter_congr
+    intro j hj
+    have hb := List.mem_range.mp hj
+    by_cases hz : j = 0
+    · subst j; rw [sieve_spec B n 0 hb]; simp [Nat.not_prime_one]
+    · simp [show 1 ≤ j by omega]
+  rw [hstart, ← List.length_map (f := fun j => 2*j+1), sieve_slots_eq_primes B n]
+  rw [Nat.primeCounting, Nat.primeCounting', Nat.count_eq_card_filter_range]
+  rw [← List.toFinset_card_of_nodup (List.nodup_range.filter _)]
+  apply Finset.card_le_card
+  intro p hp
+  simp only [List.mem_toFinset,List.mem_filter,List.mem_range,Finset.mem_filter,Finset.mem_range] at hp ⊢
+  exact ⟨hp.1, (of_decide_eq_true hp.2).1⟩
+
 end SympyBinomial.ByteSieve

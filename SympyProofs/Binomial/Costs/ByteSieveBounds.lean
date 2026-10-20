@@ -51,7 +51,6 @@ private theorem mark_zero_budgeted (allowed : Event ⊕ ℕ → Prop)
   · rfl
 
 
-set_option maxHeartbeats 1000000 in
 private theorem mark_nonzero_budgeted (allowed : Event ⊕ ℕ → Prop)
     (hallowed : ∀ e, allowed (.inl e)) (price n p : ℕ) (bytes : B) (hs : size bytes = (n+1)/2)
     (hp3 : 3 ≤ p) (hpodd : p%2 = 1) (hp2 : p*p ≤ n)
@@ -126,8 +125,11 @@ private theorem mark_nonzero_budgeted (allowed : Event ⊕ ℕ → Prop)
     have hsquare : W ≤ W^2 := Nat.le_self_pow (by omega) W
     have hw2 : 1 ≤ W^2 := hw.trans hsquare
     simp only [pow_two] at hsquare hw2 ⊢
-    clear hs hp3 hpodd hp2 hnz hodd hstart hn hsub1 hsub2 hquot hreps hrsize wn h2 h1 hrto
-    omega
+    have hmax₁ := max_le wsize hw
+    have hmax₂ := max_le ws1 wstart
+    have hmax₃ := max_le wquot hw
+    linarith only [hsize,hrle,wp,wpp,wstart,ws1,wdiff,wquot,wreps,windex,
+      hm,hd,hsquare,hw2,hmax₁,hmax₂,hmax₃]
   · rfl
 /-- Every candidate has a bounded finite event trace and preserves the pure table update. -/
 theorem mark_budgeted (allowed : Event ⊕ ℕ → Prop) (hallowed : ∀ e, allowed (.inl e))
@@ -241,17 +243,16 @@ private theorem bound_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ 
   · rfl
 
 
-theorem sieve_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
+theorem sieve_budgeted_sqrt (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
     (hallowed : ∀ e, allowed (.inl e)) (price n : ℕ) :
     Budgeted (traceWeight price) (traceMeasure measure) allowed
       (sieveM (m := Generator.Computation (Event ⊕ ℕ)) B n)
       (fun r => r = Id.run (sieveM (m := Id) B n) ∧ size r = (n+1)/2)
-      (128*(n+1)*(n+1+PrimeExponent.inputWidth n^2)) 0 := by
+      (128*(n.sqrt+1)*(n+1+PrimeExponent.inputWidth n^2)) 0 := by
   let W := PrimeExponent.inputWidth n
   let T := n+1+W^2
   let xs := List.range' 3 ((n.sqrt+1-3+2-1)/2) 2
-  have hlen : xs.length ≤ n+1 := by
-    have h := Nat.sqrt_le_self n
+  have hlen : xs.length ≤ n.sqrt+1 := by
     simp only [xs,List.length_range']
     omega
   have hvisit (p : ℕ) (hp : p ∈ xs) : 3 ≤ p ∧ p%2=1 ∧ p*p ≤ n := by
@@ -263,7 +264,7 @@ theorem sieve_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop
         (ForIn.forIn ([3:n.sqrt+1:2] : Std.Legacy.Range) bytes
           (fun p bytes => ForInStep.yield <$> markM (m := Generator.Computation (Event ⊕ ℕ)) B p bytes))
         (fun r => r = xs.foldl (fun bytes p => Id.run (markM (m := Id) B p bytes)) bytes ∧
-          size r = (n+1)/2) (64*(n+1)*T) 0 := by
+          size r = (n+1)/2) (64*(n.sqrt+1)*T) 0 := by
     have hfold := Generator.Budgeted.foldlM (weight := traceWeight price) (count := traceMeasure measure)
       xs (fun bytes p => markM (m := Generator.Computation (Event ⊕ ℕ)) B p bytes)
       (fun bytes p => Id.run (markM (m := Id) B p bytes)) (fun bytes => size bytes = (n+1)/2)
@@ -285,13 +286,13 @@ theorem sieve_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop
       ForIn.forIn ([3:bound:2] : Std.Legacy.Range) bytes
         (fun p bytes => ForInStep.yield <$> markM (m := Generator.Computation (Event ⊕ ℕ)) B p bytes))
     (post' := fun r => r = Id.run (sieveM (m := Id) B n) ∧ size r = (n+1)/2)
-    (d := 8*W^2+64*(n+1)*T) (r := 0) (by
+    (d := 8*W^2+64*(n.sqrt+1)*T) (r := 0) (by
       intro bytes hb
       rcases hb with ⟨rfl,hb⟩
       apply (bound_budgeted measure allowed hallowed price n).bind
         (f := fun bound => ForIn.forIn ([3:bound:2] : Std.Legacy.Range) (Id.run (initialM (m := Id) B n))
           (fun p bytes => ForInStep.yield <$> markM (m := Generator.Computation (Event ⊕ ℕ)) B p bytes))
-        (d := 64*(n+1)*T) (r := 0)
+        (d := 64*(n.sqrt+1)*T) (r := 0)
       intro bound hbound
       subst bound
       apply (hfor _ hb).mono
@@ -304,12 +305,22 @@ theorem sieve_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop
   have h : Budgeted (traceWeight price) (traceMeasure measure) allowed
       (sieveM (m := Generator.Computation (Event ⊕ ℕ)) B n)
       (fun r => r = Id.run (sieveM (m := Id) B n) ∧ size r = (n+1)/2)
-      (32*T+(8*W^2+64*(n+1)*T)) 0 := by
+      (32*T+(8*W^2+64*(n.sqrt+1)*T)) 0 := by
     simpa only [sieveM_eq,Nat.zero_add] using hall
   apply h.mono (fun _ h => h) ?_ (le_refl _)
-  have hT : T ≤ (n+1)*T := Nat.le_mul_of_pos_left _ (by omega)
+  have hT : T ≤ (n.sqrt+1)*T := Nat.le_mul_of_pos_left _ (by omega)
   have hW : W^2 ≤ T := by dsimp [T]; omega
-  change 32*T+(8*W^2+64*(n+1)*T) ≤ 128*(n+1)*T
+  change 32*T+(8*W^2+64*(n.sqrt+1)*T) ≤ 128*(n.sqrt+1)*T
   nlinarith only [hT,hW]
+
+/-- Compatibility with the original coarser budget. -/
+theorem sieve_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
+    (hallowed : ∀ e, allowed (.inl e)) (price n : ℕ) :
+    Budgeted (traceWeight price) (traceMeasure measure) allowed
+      (sieveM (m := Generator.Computation (Event ⊕ ℕ)) B n)
+      (fun r => r = Id.run (sieveM (m := Id) B n) ∧ size r = (n+1)/2)
+      (128*(n+1)*(n+1+PrimeExponent.inputWidth n^2)) 0 :=
+  (sieve_budgeted_sqrt B measure allowed hallowed price n).mono (fun _ h => h)
+    (by gcongr; exact Nat.sqrt_le_self n) (le_refl _)
 
 end SympyBinomial.ByteSieve
