@@ -56,7 +56,7 @@ theorem segment_plane_distance_3d (P n : Point3D) (hn : n ≠ 0) (A B : Point3D)
         |n 0 * (B 0 - P 0) + n 1 * (B 1 - P 1) + n 2 * (B 2 - P 2)| -
         |n 0 * (B 0 - A 0) + n 1 * (B 1 - A 1) + n 2 * (B 2 - A 2)|) /
         (2 * Real.sqrt (n 0 ^ 2 + n 1 ^ 2 + n 2 ^ 2)) := by
-  rw [segment_plane_distance P n hn A B]
+  rw [segment_plane_distance P n hn A B, ← norm_eq_sqrt_real_inner n]
   simp only [inner_sub_eq_coordinates_3d, norm_eq_coordinates_3d]
 
 /-- Ray-to-plane distance using explicit coordinates and `sign`, without an `if` branch
@@ -68,7 +68,7 @@ theorem ray_plane_distance_3d (P n : Point3D) (hn : n ≠ 0) (A B : Point3D) :
           ((n 0 * (A 0 - P 0) + n 1 * (A 1 - P 1) + n 2 * (A 2 - P 2)) *
             (n 0 * (B 0 - A 0) + n 1 * (B 1 - A 1) + n 2 * (B 2 - A 2))))) /
         Real.sqrt (n 0 ^ 2 + n 1 ^ 2 + n 2 ^ 2) := by
-  rw [ray_plane_distance P n hn A B]
+  rw [ray_plane_distance P n hn A B, ← norm_eq_sqrt_real_inner n]
   simp only [inner_sub_eq_coordinates_3d, norm_eq_coordinates_3d]
 
 /-- Line-to-plane distance using explicit coordinates and `sign`, without an `if` branch
@@ -79,7 +79,7 @@ theorem line_plane_distance_3d (P n : Point3D) (hn : n ≠ 0) (A B : Point3D) :
         (1 - |Real.sign
           (n 0 * (B 0 - A 0) + n 1 * (B 1 - A 1) + n 2 * (B 2 - A 2))|) /
         Real.sqrt (n 0 ^ 2 + n 1 ^ 2 + n 2 ^ 2) := by
-  rw [line_plane_distance P n hn A B]
+  rw [line_plane_distance P n hn A B, ← norm_eq_sqrt_real_inner n]
   simp only [inner_sub_eq_coordinates_3d, norm_eq_coordinates_3d]
 
 end SympyGeometry

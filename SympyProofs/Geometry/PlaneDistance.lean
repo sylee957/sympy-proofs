@@ -9,11 +9,12 @@ public import Mathlib.Topology.MetricSpace.HausdorffDistance
 # Euclidean distances from planes to segments, rays, and lines
 
 For `plane P n`, `segment A B`, `ray A B`, and `line A B`, write
-`a = ⟪n, A - P⟫`, `b = ⟪n, B - P⟫`, and `c = ⟪n, B - A⟫`.
-The segment distance is
-`(|a| + |b| - |b - a|) / (2 * ‖n‖)`.
-The ray distance is `|a| * (1 + min 0 (Real.sign (a * c))) / ‖n‖`.
-The line distance is `|a| * (1 - |Real.sign c|) / ‖n‖`.
+`a = ⟪n, A - P⟫`, `b = ⟪n, B - P⟫`, `c = ⟪n, B - A⟫`, and
+`N = Real.sqrt ⟪n, n⟫ = ‖n‖`. The distance theorems use local `let`
+bindings for these quantities, with `c = b - a`.
+The segment distance is `(|a| + |b| - |c|) / (2 * N)`.
+The ray distance is `|a| * (1 + min 0 (Real.sign (a * c))) / N`.
+The line distance is `|a| * (1 - |Real.sign c|) / N`.
 
 Planes, segments, rays, and lines use the set-based definitions in `SympyGeometry`.
 The only nondegeneracy assumption is `n ≠ 0`, needed for a proper plane.
@@ -122,10 +123,13 @@ theorem segment_plane_isLeast (P n : E) (hn : n ≠ 0) (A B : E) :
 
 /-- Segment distance as an expression with absolute values; parallelism needs no test. -/
 theorem segment_plane_distance (P n : E) (hn : n ≠ 0) (A B : E) :
-    distance (segment A B) (plane P n) =
-      (|⟪n, A - P⟫_ℝ| + |⟪n, B - P⟫_ℝ| - |⟪n, B - A⟫_ℝ|) /
-        (2 * ‖n‖) := by
-  rw [distance, (segment_plane_isLeast P n hn A B).csInf_eq]
+    let a := ⟪n, A - P⟫_ℝ
+    let b := ⟪n, B - P⟫_ℝ
+    let c := ⟪n, B - A⟫_ℝ
+    let N := Real.sqrt ⟪n, n⟫_ℝ
+    distance (segment A B) (plane P n) = (|a| + |b| - |c|) / (2 * N) := by
+  dsimp only
+  rw [← norm_eq_sqrt_real_inner n, distance, (segment_plane_isLeast P n hn A B).csInf_eq]
   simp only [segmentValue, div_div, inner_sub_right]
   congr 2
   congr 1
@@ -145,10 +149,13 @@ theorem ray_plane_isLeast (P n : E) (hn : n ≠ 0) (A B : E) :
 
 /-- A single sign-based expression valid also for parallel rays. -/
 theorem ray_plane_distance (P n : E) (hn : n ≠ 0) (A B : E) :
-    distance (ray A B) (plane P n) =
-      |⟪n, A - P⟫_ℝ| * (1 + min 0 (Real.sign (⟪n, A - P⟫_ℝ * ⟪n, B - A⟫_ℝ))) /
-        ‖n‖ := by
-  rw [distance, (ray_plane_isLeast P n hn A B).csInf_eq, rayValue_eq_sign]
+    let a := ⟪n, A - P⟫_ℝ
+    let c := ⟪n, B - A⟫_ℝ
+    let N := Real.sqrt ⟪n, n⟫_ℝ
+    distance (ray A B) (plane P n) = |a| * (1 + min 0 (Real.sign (a * c))) / N := by
+  dsimp only
+  rw [← norm_eq_sqrt_real_inner n, distance, (ray_plane_isLeast P n hn A B).csInf_eq,
+    rayValue_eq_sign]
 
 /-- Both a global lower bound and existence of a closest line/plane pair. -/
 theorem line_plane_isLeast (P n : E) (hn : n ≠ 0) (A B : E) :
@@ -164,8 +171,12 @@ theorem line_plane_isLeast (P n : E) (hn : n ≠ 0) (A B : E) :
 
 /-- Line distance using `sign`, including parallel lines and coincident defining points. -/
 theorem line_plane_distance (P n : E) (hn : n ≠ 0) (A B : E) :
-    distance (line A B) (plane P n) =
-      |⟪n, A - P⟫_ℝ| * (1 - |Real.sign ⟪n, B - A⟫_ℝ|) / ‖n‖ := by
-  rw [distance, (line_plane_isLeast P n hn A B).csInf_eq, lineValue]
+    let a := ⟪n, A - P⟫_ℝ
+    let c := ⟪n, B - A⟫_ℝ
+    let N := Real.sqrt ⟪n, n⟫_ℝ
+    distance (line A B) (plane P n) = |a| * (1 - |Real.sign c|) / N := by
+  dsimp only
+  rw [← norm_eq_sqrt_real_inner n, distance, (line_plane_isLeast P n hn A B).csInf_eq,
+    lineValue]
 
 end SympyGeometry
