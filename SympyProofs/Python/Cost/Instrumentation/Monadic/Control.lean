@@ -14,21 +14,10 @@ namespace Python.Cost.Instrumentation.Monadic
 
 /-- Audit and translate a source condition, including byte truth tests. -/
 def translateCondition (recur : Translator) (ctx : Context) (prop inst : Expr) : MetaM Expr := do
-  let args := prop.getAppArgs
   let original := mkApp2 (mkConst ``decide) prop inst
-  if prop.isAppOf ``LT.lt && args.back!.isAppOf ``PythonByteArray.Value.size then
-    let bytes := args.back!.getAppArgs.back!
-    auditPrimitive original (← mkAppM ``Checked.byteTruth #[bytes])
-    return ← operands recur ctx #[bytes] #[] fun values => do
-      runChecked ctx (← mkAppM ``Checked.byteTruth values)
-  if prop.isAppOfArity ``Ne 3 then
-    let (contract, values) ←
-      if args[0]! == mkConst ``UInt8 then pure (``Checked.byteFlag, #[args[1]!])
-      else if args[0]! == mkConst ``Int then pure (``Checked.signedNe, #[args[1]!, args[2]!])
-      else throwError "instrumentation: unsupported inequality {prop}"
-    auditPrimitive original (← mkAppM contract values)
-    return ← operands recur ctx values #[] fun values => do
-      runChecked ctx (← mkAppM contract values)
+  if let some operation ← parseOperation original (monadic := true) then
+    return ← operands recur ctx operation.operands #[] fun values => do
+      runChecked ctx (← operation.checked values)
   runChecked ctx (← Instrumentation.translateDecision prop inst)
 
 /-- Audit source `Pure` before translating its value. -/

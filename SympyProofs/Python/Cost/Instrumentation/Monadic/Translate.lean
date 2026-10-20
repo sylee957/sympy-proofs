@@ -9,8 +9,9 @@ public meta import Lean
 /-!
 # Dispatcher for elaborated monadic expressions
 
-This traversal handles binding and structural expressions. Operation-specific
-handlers receive it as a callback; the order of recognition is explicit here.
+This traversal handles binding and structural expressions. Ordinary operations
+use the shared rule registry; specialized execution adapters receive recursive
+translation as a callback.
 -/
 
 public meta section
@@ -56,15 +57,14 @@ partial def translate (ctx : Context) (original : Expr) : MetaM Expr := do
     if e.isAppOfArity ``Std.Legacy.Range.mk 4 then
       return ← operands translate ctx (args.extract 0 3) #[] fun values =>
         pureM ctx (mkAppN e.getAppFn (values.push args[3]!))
-    if let some result ← storage translate ctx e then return result
+    if let some operation ← parseOperation e (monadic := true) then
+      return ← translateOperation translate ctx operation
+    if e.isAppOfArity ``PythonByteArray.Value.setSlice 8 then
+      return ← translateSlice translate ctx e
     if e.isAppOfArity ``dite 5 then
       return ← translateDependentBranch translate ctx e
     if e.isAppOfArity ``WellFounded.Nat.fix 4 then
       return ← translateFix translate ctx e
-    if e.isAppOfArity ``Array.size 2 then
-      return ← translateArraySize translate ctx e
-    if e.isAppOf ``Std.Slice.toArray && args.back!.isAppOfArity ``Array.toSubarray 4 then
-      return ← translateArraySlice translate ctx e
     if e.isAppOf ``Python.Math.prod then
       return ← translateProd translate ctx e
     if let .fvar id := e.getAppFn then
@@ -108,6 +108,6 @@ partial def translate (ctx : Context) (original : Expr) : MetaM Expr := do
           (mkAppN (body.instantiate1 x) (args.extract 1 args.size)))
     if let some target := ctx.calls.find? (e.getAppFn.constName?.getD .anonymous) then
       return ← translateCall translate ctx e target
-    translatePrimitive translate ctx e
+    runChecked ctx (← Instrumentation.translate e)
 
 end Python.Cost.Instrumentation.Monadic

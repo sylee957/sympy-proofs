@@ -1,6 +1,8 @@
 module
 
-public import SympyProofs.Python.Cost.Instrumentation.Primitives
+public import SympyProofs.Python.Cost.Instrumentation.Rules.ByteArray
+public import SympyProofs.Python.Cost.Instrumentation.Rules.Arrays
+public import SympyProofs.Python.Cost.Instrumentation.Rules.Arithmetic
 public import SympyProofs.Python.Cost.Instrumentation.Loops
 public import SympyProofs.Python.ByteArray
 public meta import Lean
@@ -14,6 +16,9 @@ Notation and macros have already been resolved by Lean. The translator handles
 registered arithmetic, lets, `Id` sequencing, branches, finite list loops and
 calls to previously derived helpers. Unknown calls, recursion, and unsupported
 control operators are errors.
+
+Primitive recognition comes from composable rules registered by the modules in
+`Instrumentation.Rules`. The monadic backend uses the same registry and audit.
 
 For example, `derive_costed valuation as valuationInstrumented` leaves the
 original definition unchanged. `(valuationInstrumented I n k).run` selects
@@ -50,85 +55,10 @@ private def checkedNS := ``Checked
 
 private def checkedName (s : String) : Name := checkedNS ++ Name.mkSimple s
 
-/-- Normalize only documented interface aliases, never arbitrary definitions. -/
-partial def aliases (e : Expr) : Expr :=
-  let e := e.consumeMData
-  if e.isAppOfArity ``inferInstance 2 then
-    aliases e.appArg!
-  else if e.isAppOfArity ``PythonInt.Value 1 || e.isAppOfArity ``PythonByteArray.Value 1 then
-    aliases e.appArg!
-  else if e.isAppOfArity ``PythonInt.Value.bitCount 3 then
-    mkAppN (mkConst ``PythonInt.bitCount) (e.getAppArgs.map aliases)
-  else if e.isAppOfArity ``PythonInt.Value.bitLength 3 then
-    mkAppN (mkConst ``PythonInt.bitLength) (e.getAppArgs.map aliases)
-  else
-    match e with
-    | .app f a => .app (aliases f) (aliases a)
-    | _ => e
-
-private def sourceOf (checked : Expr) : MetaM Expr := do
-  let t ← inferType checked
-  unless t.isAppOfArity ``Checked 2 do
-    throwError "instrumentation: invalid primitive contract {t}"
-  return t.appArg!
-
-/-- Ignore proof terms, which Lean erases, while retaining runtime structure. -/
-partial def sameResolved (a b : Expr) : MetaM Bool := do
-  if a == b then return true
-  if (← isProof a) && (← isProof b) then
-    return ← isDefEq (← inferType a) (← inferType b)
-  match a, b with
-  | .app f x, .app g y => return (← sameResolved f g) && (← sameResolved x y)
-  | _, _ => return false
-
-/-- Exact resolved operation matching also checks the selected arithmetic instance.
-Only proof terms may differ. Definitional equality of runtime terms is
-deliberately insufficient for this coverage check. -/
-def auditPrimitive (source result : Expr) : MetaM Unit := do
-  let expected ← instantiateMVars (← sourceOf result)
-  unless ← sameResolved (aliases source) (aliases expected) do
-    throwError "instrumentation: resolved call {source.getAppFn} does not match \
-      contract {result.getAppFn} (including its instances)"
-
 private def pureValue (e : Expr) : MetaM Expr := mkAppM (checkedName "pure") #[e]
 
 private def bindChecked (p : Expr) (x : Expr) (body : Expr) : MetaM Expr := do
   mkAppM (checkedName "bind") #[p, ← mkLambdaFVars #[x] body]
-
-def primitive? (e : Expr) : MetaM (Option (Name × Nat)) := do
-  let name := (e.getAppFn.constName?.getD .anonymous)
-  let args := e.getAppArgs
-  let (suffix, arity) ←
-    if name == ``HAdd.hAdd then pure ("Add", 2)
-    else if name == ``HSub.hSub then pure ("Sub", 2)
-    else if name == ``HMul.hMul then pure ("Mul", 2)
-    else if name == ``HDiv.hDiv then pure ("Div", 2)
-    else if name == ``HMod.hMod then pure ("Mod", 2)
-    else if name == ``HPow.hPow then pure ("Pow", 2)
-    else if name == ``HAnd.hAnd then pure ("And", 2)
-    else if name == ``HShiftLeft.hShiftLeft then pure ("Shl", 2)
-    else if name == ``HShiftRight.hShiftRight then pure ("Shr", 2)
-    else if name == ``Neg.neg then pure ("Neg", 1)
-    else if name == ``BEq.beq then pure ("Eq", 2)
-    else if name == ``bne then pure ("Ne", 2)
-    else if name == ``PythonInt.bitCount then pure ("BitCount", 1)
-    else if name == ``PythonInt.bitLength then pure ("BitLength", 1)
-    else if name == ``Int.fdiv then return some (checkedName "intFdiv", 2)
-    else if name == ``Nat.sqrt then return some (checkedName "natSqrt", 1)
-    else if name == ``Bool.not then return some (checkedName "boolNot", 1)
-    else if name == ``ForInStep.yield then return some (checkedName "stepYield", 1)
-    else if name == ``ForInStep.done then return some (checkedName "stepDone", 1)
-    else return none
-  if args.size < arity then return none
-  let ty ← inferType args[args.size - arity]!
-  let ty := aliases ty
-  let carrier :=
-    if ty == mkConst ``Nat then "nat"
-    else if ty == mkConst ``Int then "int"
-    else "py"
-  let contract := checkedName (carrier ++ suffix)
-  if !(← getEnv).contains contract then return none
-  return some (contract, arity)
 
 mutual
 
@@ -158,6 +88,8 @@ partial def translate (original : Expr) : MetaM Expr := do
       let p ← translate args[2]!
       return ← withLocalDeclD `record (← inferType args[2]!) fun x => do
         bindChecked p x (← pureValue (mkAppN e.getAppFn (args.set! 2 x)))
+    if let some operation ← parseOperation e then
+      return ← translateOperands operation.operands #[] operation.checked
     if e.isAppOf ``OfNat.ofNat then
       unless args.size == 3 do
         throwError "instrumentation: unsupported numeral instance in {original}"
@@ -215,13 +147,6 @@ partial def translate (original : Expr) : MetaM Expr := do
       return ← withLocalDeclD name type fun x => do
         let rest := mkAppN (body.instantiate1 x) (args.extract 1 args.size)
         bindChecked p x (← translate rest)
-    if let some (contract, arity) ← primitive? e then
-      let operands := args.extract (args.size - arity) args.size
-      let head := mkAppN e.getAppFn (args.extract 0 (args.size - arity))
-      return ← translateOperands operands #[] fun xs => do
-        let result ← mkAppM contract xs
-        auditPrimitive (mkAppN head xs) result
-        return result
     if let some target := derivedExt.getState (← getEnv) |>.find? (e.getAppFn.constName?.getD .anonymous) then
       return ← translateCallArguments args #[] fun xs => do
         let result := mkAppN (mkConst target e.getAppFn.constLevels!) xs
@@ -253,6 +178,8 @@ private partial def translateCallArguments (todo done : Array Expr)
     bindChecked p x (← translateCallArguments (todo.extract 1 todo.size) (done.push x) finish)
 
 partial def translateDecision (prop inst : Expr) : MetaM Expr := do
+  if let some operation ← parseOperation (mkApp2 (mkConst ``decide) prop inst) then
+    return ← translateOperands operation.operands #[] operation.checked
   let args := prop.getAppArgs
   if prop.isAppOfArity ``Eq 3 && args[0]! == mkConst ``Bool &&
       args[2]! == mkConst ``Bool.true then
