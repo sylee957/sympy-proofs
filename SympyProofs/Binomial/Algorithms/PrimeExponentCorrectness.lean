@@ -2,6 +2,7 @@ module
 
 public import SympyProofs.Binomial.Algorithms.PrimeExponent
 public import SympyProofs.Binomial.Algorithms.ByteSieveGeneratorCorrectness
+public import SympyProofs.Binomial.Kummer
 public import Mathlib.Data.Nat.Choose.Factorization
 
 /-!
@@ -59,6 +60,14 @@ theorem valuation_nonneg (n k : Value I)
     (hk0 : 0 ≤ toInt k) (hk : toInt k ≤ toInt n) : 0 ≤ toInt (valuation I n k) := by
   rw [valuation_eq_factorization I n k hk0 hk]
   positivity
+
+/-- The Python bit-count expression counts binary borrows, by Kummer's theorem. -/
+theorem valuation_eq_borrowCount (n k : Value I)
+    (hk0 : 0 ≤ toInt k) (hk : toInt k ≤ toInt n) :
+    toInt (valuation I n k) = (Kummer.borrowCount 2 (toNat n) (toNat k) : ℤ) := by
+  have hkN : toNat k ≤ toNat n := by unfold toNat; omega
+  rw [valuation_eq_factorization I n k hk0 hk,
+    Kummer.factorization_choose_eq_borrowCount Nat.prime_two hkN]
 
 private theorem balancedFactors_rec_eq_prod (factors : Array I) (leaf : ℕ)
     (hleaf : 0 < leaf) (lo hi : ℕ) (hlo : lo ≤ hi) (hhi : hi ≤ factors.size) :

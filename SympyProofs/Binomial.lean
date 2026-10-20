@@ -1,6 +1,7 @@
 module
 
 public import SympyProofs.Binomial.Basic
+public import SympyProofs.Binomial.Kummer
 public import SympyProofs.Binomial.Naive
 public import SympyProofs.Binomial.BinarySplitting
 public import SympyProofs.Binomial.Algorithms.PrimeExponentCorrectness
