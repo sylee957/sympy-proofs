@@ -270,7 +270,7 @@ theorem sieve_spec (limit : ℕ) :
     simp only [phase_skip (m := 2 * i + 1) (by omega) hpo hp3 hnp]
 
 /-- Marked slots correspond exactly to the increasing list of odd primes. -/
-private theorem sieve_slots_eq_primes (limit : ℕ) :
+theorem sieve_slots_eq_primes (limit : ℕ) :
     (((List.range (size (sieve B limit))).filter
       (fun j => getByte (sieve B limit) j == 1)).map (fun j => 2 * j + 1)) =
       (List.range (limit + 1)).filter (fun p => decide (p.Prime ∧ p ≠ 2)) := by
@@ -331,14 +331,17 @@ private theorem search_step (bytes : B) (i : ℤ) :
     simp [search, searchBody, Computation.step, h, Bind.bind, Pure.pure,
       Generator.bind, Generator.yield]
 
-private def slotsFrom (bytes : B) (start : ℕ) : List ℕ :=
+/-- Remaining marked slots at or after a search position. -/
+def slotsFrom (bytes : B) (start : ℕ) : List ℕ :=
   (List.range (size bytes)).filter (fun j => decide (start ≤ j) && getByte bytes j == 0x01)
 
-private theorem mem_slotsFrom (bytes : B) (start j : ℕ) :
+/-- Membership records the bounds, search position, and marked byte. -/
+theorem mem_slotsFrom (bytes : B) (start j : ℕ) :
     j ∈ slotsFrom B bytes start ↔ j < size bytes ∧ start ≤ j ∧ getByte bytes j = 0x01 := by
   simp [slotsFrom]
 
-private theorem slotsFrom_next (bytes : B) (start : ℕ) :
+/-- A successful search removes exactly the first remaining marked slot. -/
+theorem slotsFrom_next (bytes : B) (start : ℕ) :
     slotsFrom B bytes start =
       if find bytes 0x01 start = -1 then []
       else (find bytes 0x01 start).toNat ::

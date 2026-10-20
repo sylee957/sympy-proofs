@@ -4,6 +4,7 @@ public import SympyProofs.Binomial.Basic
 public import SympyProofs.Binomial.Naive
 public import SympyProofs.Binomial.BinarySplitting
 public import SympyProofs.Binomial.Algorithms.PrimeExponentCorrectness
+public import SympyProofs.Binomial.Costs
 public import SympyProofs.Binomial.Complex
 public import SympyProofs.Binomial.UniqueExteensions.CircleIntegral
 public import SympyProofs.Binomial.UniqueExteensions.Interpolation
