@@ -1,7 +1,7 @@
 module
 
 public import SympyProofs.Binomial.Costs.PrimeExponent
-public import SympyProofs.Python.Cost.ExprBounds
+public import SympyProofs.Python.Cost.ComputationBounds
 public import SympyProofs.Python.Cost.Asymptotics
 
 /-!
@@ -31,8 +31,8 @@ def valuationCost (model : Model) (n k : I) : ℕ :=
 theorem valuation_schoolbook_le (n k : I) :
     valuationCost I schoolbook n k ≤ 29 * max (width (toInt n)) (width (toInt k)) := by
   let W := max (width (toInt n)) (width (toInt k))
-  have hn : CostExpr.Sized (CostExpr.value n) W 0 := CostExpr.Sized.value n (le_max_left _ _)
-  have hk : CostExpr.Sized (CostExpr.value k) W 0 := CostExpr.Sized.value k (le_max_right _ _)
+  have hn : Sized (pure n) W 0 := Sized.value n (le_max_left _ _)
+  have hk : Sized (pure k) W 0 := Sized.value k (le_max_right _ _)
   have h := ((hk.bitCount).add ((hn.sub hk).bitCount)).sub hn.bitCount
   apply h.cost_le.trans
   have hW : 1 ≤ W := (one_le_width (toInt n)).trans (le_max_left _ _)
@@ -41,7 +41,11 @@ theorem valuation_schoolbook_le (n k : I) :
 /-- Reading the two input integers already costs at least their maximum width. -/
 theorem width_le_valuation_schoolbook (n k : I) :
     max (width (toInt n)) (width (toInt k)) ≤ valuationCost I schoolbook n k := by
-  simp [valuationCost, valuation_run, charge, valuationEvents, schoolbook, integerSchoolbook]
+  simp [valuationCost, valuation_run, charge, valuationEvents, valuationInstrumented, Instrumentation.Checked.bind,
+    Instrumentation.Checked.primitive, Instrumentation.Checked.pure,
+    Instrumentation.Checked.pyBitCount, Instrumentation.Checked.pySub,
+    Instrumentation.Checked.pyAdd, Instrumentation.Program.events, Instrumentation.Program.value,
+    schoolbook, integerSchoolbook]
   omega
 
 /-- A tight bound for any family of inputs and any limiting filter. -/

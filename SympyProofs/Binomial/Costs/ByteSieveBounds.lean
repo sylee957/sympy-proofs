@@ -31,9 +31,9 @@ private theorem mark_zero_budgeted (allowed : Event ⊕ ℕ → Prop)
     (hallowed : ∀ e, allowed (.inl e)) (price p : ℕ) (bytes : B) (hz : bytes[p/2]! = 0) :
     Budgeted (traceWeight price) (traceMeasure measure) allowed (markM (m := Generator.Computation (Event ⊕ ℕ)) B p bytes)
       (fun r => r = Id.run (markM (m := Id) B p bytes) ∧ size r = size bytes) (16*(size bytes+1+(width (p : ℤ))^2)) 0 := by
-  simp only [markM, Index.div, Index.binary, BufferIndex.get, perform, MonadCost.emit,
+  simp only [markM, perform, MonadCost.emit,
     Bind.bind, Pure.pure, Generator.bind, Generator.yield, hz, ne_self_iff_false,
-    ↓reduceIte]
+    decide_eq_true_eq, ↓reduceIte]
   refine ⟨_,_,by repeat first | apply Returns.yield rfl | apply Returns.skip rfl | exact Returns.done _,?_,?_,?_,?_⟩
   · constructor
     · rfl
@@ -94,9 +94,9 @@ private theorem mark_nonzero_budgeted (allowed : Event ⊕ ℕ → Prop)
   have windex : width ((p/2 : ℕ) : ℤ) ≤ W := wn _ ((Nat.div_le_self _ _).trans (by nlinarith))
   have h2 : width (2 : ℤ) = 2 := by decide
   have h1 : width (1 : ℤ) = 1 := by decide
-  simp only [markM, Index.div, Index.mul, Index.binary, Index.signed, BufferIndex.get,
-    BufferIndex.length, BufferIndex.literal, BufferIndex.repeatBytes, BufferIndex.setSlice,
-    perform, MonadCost.emit, Bind.bind, Pure.pure, Generator.bind, Generator.yield]
+  simp only [markM, BufferIndex.setSlice,
+    perform, MonadCost.emit, Bind.bind, Pure.pure, Generator.bind, Generator.yield,
+    decide_eq_true_eq, Value.len]
   refine ⟨_,_,by
     iterate 4
       apply Returns.yield rfl
@@ -105,8 +105,8 @@ private theorem mark_nonzero_budgeted (allowed : Event ⊕ ℕ → Prop)
     rw [ite_eq_left hnz]
     repeat first | apply Returns.yield rfl | apply Returns.skip rfl | exact Returns.done _,?_,?_,?_,?_⟩
   · constructor
-    · change _ = if bytes[p/2]! ≠ 0 then _ else _
-      rw [ite_eq_left hnz]
+    · change _ = if decide (bytes[p/2]! ≠ 0) then _ else _
+      rw [ite_eq_left (decide_eq_true hnz)]
       rfl
     · split_ifs
       · exact PythonByteArray.size_setSlice _ _ _ _ _ _
@@ -165,9 +165,8 @@ theorem initial_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Pr
   have hcountN : (n+1)/2 ≤ n+1 := Nat.div_le_self _ _
   by_cases hpos : 0 < (n+1)/2
   all_goals
-    simp only [initialM, BufferIndex.literal, BufferIndex.ofBytes, BufferIndex.repeatArray,
-      BufferIndex.set, Index.add, Index.div, Index.binary, perform, MonadCost.emit,
-      Bind.bind, Pure.pure, Generator.bind, Generator.yield]
+    simp only [initialM, perform, MonadCost.emit,
+      Bind.bind, Pure.pure, Generator.bind, Generator.yield, decide_eq_true_eq]
     refine ⟨_,_,by
       iterate 6
         apply Returns.yield rfl
@@ -177,8 +176,8 @@ theorem initial_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Pr
         Nat.one_mul,hpos,↓reduceIte]
       repeat first | apply Returns.yield rfl | apply Returns.skip rfl | exact Returns.done _,?_,?_,?_,?_⟩
     · constructor
-      · change _ = if 0 < size ((bytearray (b[0x01]) : B)*((n+1)/2)) then _ else _
-        simp only [size_mul,size_bytearray,PythonBytes.size_literal,Array.size_singleton,
+      · simp only [Id.run, decide_eq_true_eq, Value.size,
+          size_mul,size_bytearray,PythonBytes.size_literal,Array.size_singleton,
           Nat.one_mul,hpos,↓reduceIte]
       · simp only [size_set!,size_mul,size_bytearray,PythonBytes.size_literal,Array.size_singleton,
           Nat.one_mul]
@@ -203,6 +202,7 @@ theorem initial_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Pr
 private theorem sieveM_id_fold (n : ℕ) : Id.run (sieveM (m := Id) B n) =
     (List.range' 3 ((n.sqrt+1-3+2-1)/2) 2).foldl
       (fun bytes p => Id.run (markM (m := Id) B p bytes)) (Id.run (initialM (m := Id) B n)) := by
+  rw [sieveM_eq]
   change Id.run (ForIn.forIn ([3:n.sqrt+1:2] : Std.Legacy.Range)
     (Id.run (initialM (m := Id) B n))
     (fun p bytes => ForInStep.yield <$> markM (m := Id) B p bytes)) = _
@@ -305,7 +305,7 @@ theorem sieve_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop
       (sieveM (m := Generator.Computation (Event ⊕ ℕ)) B n)
       (fun r => r = Id.run (sieveM (m := Id) B n) ∧ size r = (n+1)/2)
       (32*T+(8*W^2+64*(n+1)*T)) 0 := by
-    simpa only [sieveM,_root_.bind_pure,bind_pure_comp,Nat.zero_add] using hall
+    simpa only [sieveM_eq,Nat.zero_add] using hall
   apply h.mono (fun _ h => h) ?_ (le_refl _)
   have hT : T ≤ (n+1)*T := Nat.le_mul_of_pos_left _ (by omega)
   have hW : W^2 ≤ T := by dsimp [T]; omega

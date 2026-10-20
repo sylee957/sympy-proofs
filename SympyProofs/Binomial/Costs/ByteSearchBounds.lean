@@ -39,7 +39,7 @@ private theorem advance_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ �
     rcases find_spec bytes 1 (i.toNat+1) with h | h
     · rw [ite_eq_left h.1]; omega
     · rw [ite_eq_right (by omega)]; omega
-  simp only [advanceM,Index.mul,Index.add,Index.binary,BufferIndex.find,perform,
+  simp only [advanceM,perform,
     MonadCost.emit,Bind.bind,Pure.pure,Generator.bind,Generator.yield]
   refine ⟨_,_,by repeat first | apply Returns.yield rfl | apply Returns.skip rfl | exact Returns.done _,rfl,?_,?_,?_⟩
   · simp [hallowed,hprime]
@@ -55,18 +55,6 @@ private theorem advance_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ �
     change _ ≤ 32*(n+1+W^2)+price
     nlinarith only [hwi,hwm,hwa,hwj,hfind,hm1,hm2,hw2,hw]
   · simp [traceMeasure]
-
-private theorem search_step (bytes : B) (i : ℤ) :
-    (searchM (m := Generator.Computation (Event ⊕ ℕ)) B (fun p => Generator.yield (.inr p)) bytes i).step =
-      .skip (do
-        let test ← Index.ne i (-1)
-        if test then
-          let next ← advanceM B (fun p => Generator.yield (.inr p)) bytes i
-          searchM B (fun p => Generator.yield (.inr p)) bytes next
-        else pure ()) := by
-  by_cases h : i = -1 <;>
-    simp [searchM,ForIn.forIn,Computation.step,Index.ne,perform,MonadCost.emit,Bind.bind,Pure.pure,
-      Generator.bind,Generator.yield,h,advanceM,Index.mul,Index.add,Index.binary,BufferIndex.find]
 
 private theorem ne_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Prop)
     (hallowed : ∀ e, allowed (.inl e)) (price : ℕ) (i : ℤ) (w : ℕ) (hi : width i ≤ w)
@@ -145,7 +133,7 @@ theorem search_budgeted (measure : ℕ → ℕ) (allowed : Event ⊕ ℕ → Pro
       · rw [slotsFrom_next B bytes start,ite_eq_right hz,List.map_cons,List.sum_cons]
   have hrun := ht.bind htail
   obtain ⟨a,xs,hr,hpost,hall,hcost,hcount⟩ := hrun
-  refine ⟨a,xs,.skip (search_step B bytes i) hr,hpost,hall,?_,by simpa only [Nat.zero_add] using hcount⟩
+  refine ⟨a,xs,.skip (searchM_step B bytes i) hr,hpost,hall,?_,by simpa only [Nat.zero_add] using hcount⟩
   have hW : W ≤ W^2 := Nat.le_self_pow (by omega) W
   have hpay : W+1+(32*T+price) ≤ L := by dsimp [T,L]; omega
   change _ ≤ (size bytes+1-start+1)*L

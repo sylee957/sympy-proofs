@@ -3,12 +3,17 @@ module
 public import SympyProofs.Binomial.Algorithms.ByteSieveGeneratorCorrectness
 public import SympyProofs.Python.Cost.BufferIndex
 public import SympyProofs.Python.Cost.GeneratorBounds
+public import SympyProofs.Python.Cost.Instrumentation.Monadic
+public meta import SympyProofs.Binomial.Costs.ByteSieveFragments
 
 /-!
 # Cost instrumentation for the odd-prime generator
 
-Cost operations are separate from the original generator. The stream delivers
-cost events lazily, including the final unsuccessful search on exhaustion.
+`oddPrimesGenerated` is generated from the original generator's elaborated body.
+The stream delivers cost events lazily, including the final unsuccessful search
+on exhaustion. The phase definitions are extracted from that generated body:
+`oddPrimesBodyM_eq` proves exact computational equality to the generated body,
+so the phase bounds apply to the automatically instrumented source.
 `ByteSieveRefinement` proves that table construction returns the verified sieve.
 `ByteSieveBounds`, `ByteSearchBounds`, and `PrimeStreamBounds` bound its actual
 finite event trace, including allocations, searches, and suspension control.
@@ -27,76 +32,66 @@ variable (B : Type) [PythonByteArray B]
 
 open Python.Cost
 
-/-- One candidate of the instrumented sieve. -/
-def markM {m : Type → Type v} [Monad m] [MonadCost m]
-    (p : ℕ) (sieve : B) : m B := do
-  MonadCost.emit (.control "sieve.next")
-  let index ← Index.div p 2
-  let flag ← BufferIndex.get sieve index
-  MonadCost.emit (.control "sieve.byteTruth")
-  if flag ≠ 0 then
-    let start ← Index.mul p p >>= fun x => Index.div x 2
-    let size ← BufferIndex.length sieve
-    let count ← Index.signed .sub (· - ·) size 1
-    let count ← Index.signed .sub (· - ·) count start
-    let count ← Index.signed .floorDiv Int.fdiv count p
-    let count ← Index.signed .add (· + ·) count 1
-    let zero ← BufferIndex.literal B 0x00
-    let replacement ← BufferIndex.repeatBytes B zero count
-    return ← BufferIndex.setSlice sieve start p replacement
-  return sieve
+derive_costed_generator oddPrimesGenerator as oddPrimesGenerated
 
-/-- Allocate the initial table and clear the nonprime slot for one. -/
-def initialM {m : Type → Type v} [Monad m] [MonadCost m] (limit : ℕ) : m B := do
-  let one ← BufferIndex.literal B 0x01
-  let initial ← BufferIndex.ofBytes (B := B) one
-  let count ← Index.add limit 1 >>= fun x => Index.div x 2
-  let mut sieve ← BufferIndex.repeatArray initial count
-  MonadCost.emit (.control "sieve.truth")
-  if 0 < PythonByteArray.size sieve then
-    sieve ← BufferIndex.set sieve 0 0
-  return sieve
+-- Initialization, marking, and search are selected from the generated computation.
+extract_sieve_fragments oddPrimesGenerated
 
-/-- Initialize and mark the byte table before the first generator yield. -/
-def sieveM {m : Type → Type v} [Monad m] [MonadCost m] (limit : ℕ) : m B := do
-  let mut sieve ← initialM B limit
-  let bound ← Index.sqrt limit >>= fun x => Index.add x 1
-  for p in [3:bound:2] do
-    sieve ← markM B p sieve
-  return sieve
-
-/-- Deliver one marked slot and find the next one after resumption. -/
-def advanceM {m : Type → Type v} [Monad m] [MonadCost m]
-    (yieldPrime : ℕ → m Unit) (sieve : B) (i : ℤ) : m ℤ := do
-  let prime ← Index.mul 2 i.toNat >>= fun x => Index.add x 1
-  MonadCost.emit (.control "generator.yield")
-  yieldPrime prime
-  MonadCost.emit (.control "generator.resume")
-  let next ← Index.add i.toNat 1
-  BufferIndex.find sieve 0x01 next
-
-/-- Resume the search at an index returned by `find`, charging every suspension. -/
-def searchM {m : Type → Type v} [Monad m] [MonadCost m]
-    [ForIn m Lean.Loop Unit] (yieldPrime : ℕ → m Unit) (sieve : B) (index : ℤ) : m Unit := do
-  let mut i := index
-  while ← Index.ne i (-1) do
-    i ← advanceM B yieldPrime sieve i
-
-/-- The instrumented sieve body, interpreted with ignored or recorded events. -/
+/-- Generated from the original body; its caller supplies the suspension operation. -/
 def oddPrimesBodyM {m : Type → Type v} [Monad m] [MonadCost m]
-    [ForIn m Lean.Loop Unit] (yieldPrime : ℕ → m Unit) (limit : ℕ) : m Unit := do
-  let sieve ← sieveM B limit
-  MonadCost.emit (.control "sieve.stop")
-  let i ← BufferIndex.find sieve 0x01 1
-  searchM B yieldPrime sieve i
+    [ForIn m Lean.Loop Unit] (yieldPrime : ℕ → m Unit) (limit : ℕ) : m Unit :=
+  oddPrimesGenerated B limit yieldPrime
 
-/-- Execute the instrumented body with cost events ignored. -/
-def oddPrimesIgnored (limit : ℕ) : Generator.Computation ℕ Unit :=
-  Generator.create fun () => oddPrimesBodyM B Generator.yield limit
+private theorem bind_ite' {m : Type → Type v} [Monad m] {α β : Type} (c : Prop) [Decidable c]
+    (a b : m α) (f : α → m β) :
+    (if c then a else b) >>= f = if c then a >>= f else b >>= f := by
+  split <;> rfl
+
+/-- The extracted prefix consists of initialization and the extracted marking updates. -/
+theorem sieveM_eq {m : Type → Type v} [Monad m] [LawfulMonad m] [MonadCost m]
+    (limit : ℕ) :
+    sieveM (m := m) B limit = (do
+      let bytes ← initialM B limit
+      let bound ← Index.sqrt limit >>= fun x => Index.add x 1
+      ForIn.forIn ([3:bound:2] : Std.Legacy.Range) bytes
+        (fun p bytes => ForInStep.yield <$> markM B p bytes)) := by
+  simp only [sieveM, initialM, markM, Index.sqrt, Index.add, Index.binary, perform,
+    LawfulMonad.bind_assoc, LawfulMonad.pure_bind, _root_.bind_pure,
+    bind_ite', decide_eq_true_eq, map_eq_pure_bind]
+
+/-- Exact computational equality to the phases used by the lazy trace and resource proofs. -/
+theorem oddPrimesBodyM_eq {m : Type → Type v} [Monad m] [LawfulMonad m] [MonadCost m]
+    [ForIn m Lean.Loop Unit] (yieldPrime : ℕ → m Unit) (limit : ℕ) :
+    oddPrimesBodyM B yieldPrime limit = (do
+      let sieve ← sieveM B limit
+      MonadCost.emit (.control "sieve.stop")
+      let i ← BufferIndex.find sieve 0x01 1
+      searchM B yieldPrime sieve i) := by
+  simp only [oddPrimesBodyM, oddPrimesGenerated, sieveM, searchM, BufferIndex.find,
+    perform, LawfulMonad.bind_assoc, LawfulMonad.pure_bind, bind_ite', decide_eq_true_eq]
 
 /-- Lazy cost stream: events are charged only when the consumer reaches them. -/
 def oddPrimesCostStream (limit : ℕ) : Stream ℕ :=
   letI := eventCost (V := ℕ)
   ⟨Generator.create fun () => oddPrimesBodyM B (fun p => Generator.yield (.inr p)) limit⟩
+
+section
+open Generator
+local instance : MonadCost (Generator.Computation (Event ⊕ ℕ)) := eventCost
+
+/-- One resume of the extracted search loop, shared by resource and erasure proofs. -/
+theorem searchM_step (bytes : B) (i : ℤ) :
+    (searchM (m := Generator.Computation (Event ⊕ ℕ)) B (fun p => Generator.yield (.inr p)) bytes i).step =
+      .skip (do
+        let test ← Index.ne i (-1)
+        if test then
+          let next ← advanceM B (fun p => Generator.yield (.inr p)) bytes i
+          searchM B (fun p => Generator.yield (.inr p)) bytes next
+        else pure ()) := by
+  by_cases h : i = -1 <;>
+    simp [searchM,ForIn.forIn,Computation.step,Index.ne,perform,MonadCost.emit,Bind.bind,Pure.pure,
+      Generator.bind,Generator.yield,h,advanceM]
+
+end
 
 end SympyBinomial.ByteSieve

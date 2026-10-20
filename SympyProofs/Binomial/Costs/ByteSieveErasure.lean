@@ -36,26 +36,14 @@ private theorem advance_yields (bytes : B) (i : ℤ) :
     Yields (advanceM (m := Generator.Computation (Event ⊕ ℕ)) B
       (fun p => Generator.yield (.inr p)) bytes i)
       (find bytes 0x01 (i.toNat+1)) [2*i.toNat+1] := by
-  simp only [advanceM,Index.mul,Index.add,Index.binary,BufferIndex.find,perform,
+  simp only [advanceM,perform,
     MonadCost.emit,Bind.bind,Pure.pure,Generator.bind,Generator.yield]
   refine ⟨_,by repeat first | apply Returns.yield rfl | apply Returns.skip rfl | exact Returns.done _,rfl⟩
-
-private theorem search_cost_step (bytes : B) (i : ℤ) :
-    (searchM (m := Generator.Computation (Event ⊕ ℕ)) B (fun p => Generator.yield (.inr p)) bytes i).step =
-      .skip (do
-        let test ← Index.ne i (-1)
-        if test then
-          let next ← advanceM B (fun p => Generator.yield (.inr p)) bytes i
-          searchM B (fun p => Generator.yield (.inr p)) bytes next
-        else pure ()) := by
-  by_cases h : i = -1 <;>
-    simp [searchM,ForIn.forIn,Computation.step,Index.ne,perform,MonadCost.emit,Bind.bind,Pure.pure,
-      Generator.bind,Generator.yield,h,advanceM,Index.mul,Index.add,Index.binary,BufferIndex.find]
 
 private theorem search_yields (bytes : B) (start : ℕ) :
     Yields (searchM (m := Generator.Computation (Event ⊕ ℕ)) B (fun p => Generator.yield (.inr p))
       bytes (find bytes 0x01 start)) () ((slotsFrom B bytes start).map (fun j => 2*j+1)) := by
-  apply Yields.skip (search_cost_step B bytes _)
+  apply Yields.skip (searchM_step B bytes _)
   have ht : Yields (Index.ne (m := Generator.Computation (Event ⊕ ℕ)) (find bytes 0x01 start) (-1))
       (decide (find bytes 0x01 start ≠ -1)) [] := Yields.perform _ _
   have htail : Yields (if decide (find bytes 0x01 start ≠ -1) then do
@@ -79,6 +67,7 @@ decreasing_by
 theorem oddPrimesCostStream_yields (n : ℕ) :
     Yields (oddPrimesCostStream B n).computation ()
       ((List.range (n+1)).filter (fun p => decide (p.Prime ∧ p ≠ 2))) := by
+  simp only [oddPrimesCostStream, oddPrimesBodyM_eq]
   have hstart : slotsFrom B (sieve B n) 1 =
       (List.range (size (sieve B n))).filter (fun j => getByte (sieve B n) j == 1) := by
     apply List.filter_congr

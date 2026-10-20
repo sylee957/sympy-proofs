@@ -1,7 +1,7 @@
 module
 
 public import SympyProofs.Python.Cost.Sequence
-public import SympyProofs.Python.Cost.ExprBounds
+public import SympyProofs.Python.Cost.ComputationBounds
 public import SympyProofs.Python.Cost.Asymptotics
 
 /-!
@@ -67,7 +67,7 @@ private theorem mul_potential_bound (xs : List I) (w : ℕ) (start : I)
   · intro w s hs x _hx
     let v := width (toInt x)
     have hv : 1 ≤ v := one_le_width _
-    have hm := (CostExpr.Sized.value s hs.2).mul (CostExpr.Sized.value x (le_refl v))
+    have hm := (Sized.value s hs.2).mul (Sized.value x (le_refl v))
     have he : Bounded schoolbook (MonadCost.emit (.control "prod.next"))
         (fun _ => True) 1 := (RunsWith.emit _).bounded trivial (by rfl)
     have hb := he.bind (next := fun _ => Python.Cost.Int.mul s x) (fun _ _ => hm)

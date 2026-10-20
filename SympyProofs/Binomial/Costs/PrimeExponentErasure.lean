@@ -39,7 +39,7 @@ private theorem balanced_rec_erases (factors : Array I) (leaf : ℕ) (hleaf : 0 
     (lo hi : ℕ) (hlo : lo ≤ hi) (hhi : hi ≤ factors.size) :
     Erases (balancedFactorsM.rec (m := CostT Id) I factors leaf hleaf lo hi)
       (balancedFactors.rec I factors leaf hleaf lo hi) := by
-  rw [balancedFactorsM.rec, balancedFactors.rec]
+  rw [balancedFactorsM_rec_eq, balancedFactors.rec]
   apply (Erases.perform _ _).bind
   apply (Erases.perform _ _).bind
   by_cases h : hi-lo ≤ leaf
@@ -65,73 +65,29 @@ theorem balancedFactorsM_erases (factors : Array I) (leaf : ℕ := 32) (hleaf : 
   (Erases.perform _ _).bind (balanced_rec_erases I factors leaf hleaf 0 factors.size (by omega) (by omega))
 
 private abbrev State := I × I × I × I
-private abbrev CostState := CostExpr (CostT Id) I × CostExpr (CostT Id) I ×
-  CostExpr (CostT Id) I × CostExpr (CostT Id) I
-private def pack (s : State I) : CostState I :=
-  (.value s.1, .value s.2.1, .value s.2.2.1, .value s.2.2.2)
-private def step (p : I) (s : State I) : ForInStep (State I) :=
-  let (a,b,c,e) := s
-  if a != 0 then .yield (a/p,b/p,c/p,e+(a/p-b/p-c/p)) else .done s
-private def costStep (p : I) (s : CostState I) : CostT Id (ForInStep (CostState I)) := do
-  let (a,b,c,e) := s
-  let p : CostExpr (CostT Id) I := .value p
-  if !(← a.eq 0) then
-    let a ← (a / p).eval
-    let b ← (b / p).eval
-    let c ← (c / p).eval
-    let e ← (e + (a-b-c)).eval
-    return .yield (a,b,c,e)
-  else return .done (a,b,c,e)
-
-private theorem costStep_erases (p : I) (s : State I) :
-    Erases (costStep I p (pack I s))
-      (match step I p s with | .done t => .done (pack I t) | .yield t => .yield (pack I t)) := by
+private theorem quotientStepM_erases (p : I) (s : State I) :
+    Erases (quotientStepM (m := CostT Id) I p (id s))
+      (match quotientStep I p s with | .done t => .done (id t) | .yield t => .yield (id t)) := by
   rcases s with ⟨a,b,c,e⟩
   intro model initial
-  have hz : (0 : CostExpr (CostT Id) I).run = pure 0 := rfl
-  have he : ((CostT.run (costStep I p (pack I (a,b,c,e))) model initial).1) =
-      (if !(a == 0) then
-        ForInStep.yield (pack I (a/p,b/p,c/p,e+(a/p-b/p-c/p)))
-       else .done (pack I (a,b,c,e))) := by
-    simp only [costStep,pack,CostExpr.eq,hz,CostExpr.run_value,LawfulMonad.pure_bind]
-    change (CostT.run (do
-      let test ← Python.Cost.Int.eq a 0
-      if !test then _ else _ : CostT Id (ForInStep (CostState I))) model initial).1 = _
-    rw [CostT.run_bind]
-    change (CostT.run (if !(a == 0) then _ else _ : CostT Id (ForInStep (CostState I))) model _).1 = _
-    split <;> rfl
-  rw [he]
-  simp only [step, bne]
+  unfold quotientStepM id quotientStep
+  rw [CostT.run_bind]
+  change (CostT.run (if !(a == 0) then _ else _ : CostT Id (ForInStep (State I))) model _).1 = _
+  simp only [bne]
   split <;> rfl
-
-/-- The original inline quotient loop, named only to state its code equivalence. -/
-private def quotientCode (n k p : I) : I := Id.run do
-  let mut a := n
-  let mut b := k
-  let mut c := n-k
-  let mut e := 0
-  while a != 0 do
-    a := a/p
-    b := b/p
-    c := c/p
-    e := e+(a-b-c)
-  return e
 
 private theorem quotient_erases (n k : I) (p : ℕ) (hn : 0 ≤ toInt n) (hp : 2 ≤ p) :
     Erases (quotientExponentM (m := CostT Id) I n k (p:I)) (quotientCode I n k (p:I)) := by
-  have hloop := Erases.loop (costStep I (p:I)) (step I (p:I)) (pack I)
+  have hloop := Erases.loop (quotientStepM (m := CostT Id) I (p:I)) (quotientStep I (p:I)) (id)
     (fun s => 0 ≤ toInt s.1) (fun s => toNat s.1)
-    (by intro s hs; cases he : step I (p:I) s <;> simpa only [he] using costStep_erases I (p:I) s) ?_ (n,k,n-k,0) hn
-  · change Erases (do
-      let c ← Python.Cost.Int.sub n k
-      let s ← Lean.Loop.forIn ⟨⟩ (pack I (n,k,c,0)) (fun _ => costStep I (p:I))
-      s.2.2.2.run) _
+    (by intro s hs; cases he : quotientStep I (p:I) s <;> simpa only [he] using quotientStepM_erases I (p:I) s) ?_ (n,k,n-k,0) hn
+  · rw [quotientExponentM_eq]
     apply (Erases.perform _ _).bind
     apply hloop.bind
     exact Erases.pure _
   · intro s t hs ht
     rcases s with ⟨a,b,c,e⟩
-    simp only [step] at ht
+    simp only [quotientStep] at ht
     split at ht
     · rename_i h
       cases ht
@@ -144,36 +100,26 @@ private theorem quotient_erases (n k : I) (p : ℕ) (hn : 0 ≤ toInt n) (hp : 2
         exact Nat.div_lt_self (by unfold toNat; omega) (by omega)⟩
     · contradiction
 
-private def factorCode (n k : I) (prime : ℕ) (factors : Array I) : Array I :=
-  let p : I := prime
-  let e := quotientCode I n k p
-  if e != 0 then factors.push (p ^ e) else factors
-
 private theorem primeFactorM_erases (n k : I) (hn : 0 ≤ toInt n) (p : ℕ) (hp : 2 ≤ p)
     (factors : Array I) :
     Erases (primeFactorM (m := CostT Id) I n k p factors) (factorCode I n k p factors) := by
-  have hz : (0 : CostExpr (CostT Id) I).run = pure 0 := rfl
-  simp only [primeFactorM,CostExpr.eq,CostExpr.run_value,hz,LawfulMonad.pure_bind]
+  simp only [primeFactorM_eq]
   apply (Erases.emit _).bind
   apply (quotient_erases I n k p hn hp).bind
   apply (Erases.perform _ _).bind
-  unfold factorCode
+  rw [factorCode_eq]
   by_cases he : (quotientCode I n k (p:I) == 0) = true
   · simp only [he,Bool.not_true,bne]
     exact Erases.pure _
   · have hf : (quotientCode I n k (p:I) == 0) = false := Bool.eq_false_iff.mpr he
     simp only [hf,Bool.not_false,↓reduceIte,bne]
-    change Erases (do
-      let value ← Python.Cost.Int.pow (p:I) (quotientCode I n k (p:I))
-      Sequence.append factors value) _
     exact (Erases.perform _ _).bind (Erases.perform _ _)
 
 /-- Removing cost effects recovers the original imperative program, before using its specification. -/
 theorem primeExponentsM_erases (B : Type) [PythonByteArray B] (n k : Value I)
     (hn : 0 ≤ toInt n) :
     Erases (primeExponentsM (m := CostT Id) I B n k) (primeExponents I B n k) := by
-  have hz : (0 : CostExpr (CostT Id) I).run = pure 0 := rfl
-  simp only [primeExponentsM,CostExpr.eq,CostExpr.run_value,hz,LawfulMonad.pure_bind]
+  rw [primeExponentsM_eq]
   apply (Erases.perform _ _).bind
   by_cases hk : (k == 0) = true
   · simp only [primeExponents,hk,↓reduceIte]
@@ -193,7 +139,6 @@ theorem primeExponentsM_erases (B : Type) [PythonByteArray B] (n k : Value I)
       intro model initial
       rw [valuation_run I n k model initial]
     apply hv.bind
-    change Erases (Python.Cost.Int.shiftLeft _ _) _
     have he : primeExponents I B n k =
         balancedFactors I (Id.run (ForIn.forIn (ByteSieve.oddPrimesGenerator B (toNat n)) #[]
           (fun p factors => pure (ForInStep.yield (factorCode I n k p factors))))) <<< valuation I n k := by
@@ -204,7 +149,7 @@ theorem primeExponentsM_erases (B : Type) [PythonByteArray B] (n k : Value I)
       change (if quotientCode I n k (p:I) != 0 then
         ForInStep.yield (factors.push ((p:I) ^ quotientCode I n k (p:I)))
         else .yield factors) = .yield (factorCode I n k p factors)
-      by_cases h : (quotientCode I n k (p:I) != 0) = true <;> simp only [factorCode,h,Bool.false_eq_true,↓reduceIte]
+      by_cases h : (quotientCode I n k (p:I) != 0) = true <;> simp only [factorCode_eq,h,Bool.false_eq_true,↓reduceIte]
     rw [he]
     exact Erases.perform _ _
 

@@ -41,56 +41,40 @@ theorem primeFactorM_bounded (n k p : ℕ) (hk : k ≤ n) (hp : p.Prime) (hpn : 
         toInt_natCast, Nat.cast_pow]
     apply (RunsWith.perform _ ((p : I)^(E : I))).bounded (post := fun r => r = ((p^E : ℕ) : I)) hr
     simpa only [hr, toInt_natCast] using primePower_schoolbook_le n k p hn hpn
-  have htail : Bounded schoolbook (do
-      let test ← Python.Cost.Int.eq (E : I) 0
-      if (!test) = true then
-        let power ← Python.Cost.Int.pow (p : I) (E : I)
-        Sequence.append factors power
-      else pure factors)
-      (fun r => r = if E = 0 then factors else factors.push ((p^E : ℕ) : I))
-      ((W+1)+(4*W^3+2)) := by
-    apply (Python.Cost.Int.eq_bounded (E : I) 0 W hew hzero).bind
-    intro test ht
-    subst test
-    by_cases hz : E = 0
-    · simp only [hz, Nat.cast_zero, beq_self_eq_true, Bool.not_true, Bool.false_eq_true,
-        ↓reduceIte]
-      exact (Bounded.pure (post := fun r => r = factors) factors rfl).mono (fun _ h => h) (Nat.zero_le _)
-    · have hzI : (E : I) ≠ 0 := by
-        intro h
-        have ht := congrArg toInt h
-        simp only [toInt_natCast,toInt_zero] at ht
-        omega
-      simp only [hz, beq_eq_false_iff_ne.mpr hzI, Bool.not_false, ↓reduceIte]
-      exact hpow.bind fun value hv => by
-        subst value
-        exact (RunsWith.perform _ _).bounded (post := fun r => r = factors.push ((p^E : ℕ) : I)) rfl (by rfl)
-  have hq := quotientExponentM_bounded I n k p hk hp hpn
-  have hmain := hq.bind (next := fun e => do
-      let test ← Python.Cost.Int.eq e 0
-      if (!test) = true then
-        let power ← Python.Cost.Int.pow (p : I) e
-        Sequence.append factors power
-      else pure factors)
-      (post' := fun r => r = if E = 0 then factors else factors.push ((p^E : ℕ) : I))
-      (d := (W+1)+(4*W^3+2)) (by
-        intro e he
-        have heq : e = (E : I) := toInt_injective (he.trans (toInt_natCast E).symm)
-        subst e
-        exact htail)
-  have hstart : Bounded schoolbook (MonadCost.emit (.control "primes.next")) (fun _ => True) 1 :=
+  rw [primeFactorM_eq]
+  apply Bounded.mono (budget := 1+(64*W^3+((W+1)+(4*W^3+2)))) ?_
+    (by intro _ h; exact h) (by
+      have hc : W ≤ W^3 := Nat.le_self_pow (by omega) W
+      nlinarith only [hc,hw])
+  have hstart : Bounded schoolbook (MonadCost.emit (.control "for.next")) (fun _ => True) 1 :=
     (RunsWith.emit _).bounded trivial (by rfl)
-  have h := hstart.bind (next := fun _ => do
-      let e ← quotientExponentM I (n : I) (k : I) (p : I)
-      let test ← Python.Cost.Int.eq e 0
-      if (!test) = true then
-        let power ← Python.Cost.Int.pow (p : I) e
-        Sequence.append factors power
-      else pure factors) (fun _ _ => hmain)
-  apply h.mono (fun _ h => h)
-  have hc : W ≤ W^3 := Nat.le_self_pow (by omega) W
-  change 1+(64*W^3+((W+1)+(4*W^3+2))) ≤ 128*W^3
-  nlinarith only [hc,hw]
+  apply hstart.bind
+  intro _ _
+  apply (quotientExponentM_bounded I n k p hk hp hpn).bind
+  intro e he
+  have heq : e = (E : I) := toInt_injective (he.trans (toInt_natCast E).symm)
+  subst e
+  apply (Python.Cost.Int.eq_bounded (E : I) 0 W hew hzero).bind
+  intro test ht
+  subst test
+  by_cases hz : E = 0
+  · simp only [hz, show (n.choose k).factorization p = 0 from hz, Nat.cast_zero,
+      beq_self_eq_true, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
+    exact (Bounded.pure (post := fun r => r = factors) factors rfl).mono
+      (fun _ h => h) (Nat.zero_le _)
+  · have hzI : (E : I) ≠ 0 := by
+      intro h
+      have ht := congrArg toInt h
+      simp only [toInt_natCast,toInt_zero] at ht
+      omega
+    simp only [show (n.choose k).factorization p ≠ 0 from hz,
+      beq_eq_false_iff_ne.mpr hzI, Bool.not_false, ↓reduceIte]
+    apply hpow.bind
+    intro value hv
+    subst value
+    exact (RunsWith.perform _ _).bounded
+      (post := fun r => r = factors.push ((p^E : ℕ) : I)) rfl (by rfl)
+
 /-- A uniform cubic bit-width bound on every valid prime-consumer call. -/
 theorem primeFactorM_isBigO {X : Type} (l : Filter X) (n k p : X → ℕ)
     (hk : ∀ x, k x ≤ n x) (hp : ∀ x, (p x).Prime) (hpn : ∀ x, p x ≤ n x)

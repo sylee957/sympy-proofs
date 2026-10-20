@@ -17,10 +17,9 @@ variable (B : Type) [PythonByteArray B]
 theorem initialM_id (n : ℕ) : Id.run (initialM (m := Id) B n) =
     let bytes : B := (bytearray (b[0x01]) : B)*((n+1)/2)
     if 0 < size bytes then PythonByteArray.set! bytes 0 0 else bytes := by
-  simp only [initialM, BufferIndex.literal, BufferIndex.ofBytes, BufferIndex.repeatArray,
-    BufferIndex.set, Index.add, Index.div, Index.binary, perform,
-    Bind.bind, Pure.pure, Id.run]
-  rfl
+  dsimp (config := { instances := true }) only
+    [initialM, perform, Bind.bind, Pure.pure, Id.run, MonadCost.emit]
+  simp only [decide_eq_true_eq]
 
 /-- The cost adapter performs exactly the valid Python slice assignment. -/
 theorem markM_id (p : ℕ) (bytes : B) (hp : 0 < p) :
@@ -30,6 +29,8 @@ theorem markM_id (p : ℕ) (bytes : B) (hp : 0 < p) :
           ((b[0x00] : Bytes B) * ((len bytes-1-((p*p/2 : ℕ) : ℤ)).fdiv p+1)) hp
           (size_singleton_mul_sliceCount bytes 0 (p*p/2) p hp)
       else bytes := by
+  dsimp only [markM, perform, Bind.bind, Pure.pure, Id.run, MonadCost.emit]
+  simp only [decide_eq_true_eq]
   change (if bytes[p/2]! ≠ 0 then _ else bytes) = _
   by_cases h : bytes[p/2]! ≠ 0
   · repeat rw [ite_eq_left h]
@@ -43,6 +44,7 @@ theorem markM_id (p : ℕ) (bytes : B) (hp : 0 < p) :
 
 /-- The instrumented table agrees with the sieve whose slots are proved prime. -/
 theorem sieveM_id (n : ℕ) : Id.run (sieveM (m := Id) B n) = sieve B n := by
+  rw [sieveM_eq]
   change Id.run (ForIn.forIn ([3:n.sqrt+1:2] : Std.Legacy.Range)
     (Id.run (initialM (m := Id) B n))
     (fun p bytes => pure (ForInStep.yield (Id.run (markM (m := Id) B p bytes))))) = _

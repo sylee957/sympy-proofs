@@ -51,22 +51,23 @@ private theorem rec_bounded (xs : Array I) (lo hi w : ℕ)
     omega
   have hsub := Index.sub_bounded hi lo w hhigh hlow
   have hle := Index.le_bounded (hi-lo) 32 w hcount h32
-  rw [balancedFactorsM.rec]
+  rw [balancedFactorsM_rec_eq]
   by_cases hcut : hi-lo ≤ 32
   · simp only [hcut, ↓reduceIte]
     have hleaf := (slice_bound I xs lo hi).bind (fun ys hys => by
       subst ys
       exact Sequence.prod_bounded (xs.extract lo hi))
-    have h := hsub.bind (next := fun _ => do
-      let _ ← Index.le (hi-lo) 32
-      let ys ← Sequence.slice xs lo hi
-      Sequence.prod ys) (fun _ _ => hle.bind (fun _ _ => hleaf))
-    apply h.mono
+    refine Bounded.mono (post := fun r => width (toInt r) ≤ 1+S)
+      (budget := (2*w+1)+((w+1)+((1+2*(xs.extract lo hi).size)+(S+2)^2))) ?_ ?_ ?_
+    · apply hsub.bind
+      intro _ _
+      apply hle.bind
+      intro _ _
+      exact hleaf
     · intro r hr
       dsimp only [S] at hS
       omega
-    · change (2*w+1) + ((w+1) + ((1+2*(xs.extract lo hi).size) + (S+2)^2)) ≤ _
-      rw [hspan]
+    · rw [hspan]
       have hsquare : (S+2)^2 ≤ 9*S^2 := by nlinarith
       have hnodes : 1 ≤ 2*(hi-lo)-1 := by omega
       have hp := Nat.mul_le_mul_left (64*w^2) hnodes
@@ -97,7 +98,7 @@ private theorem rec_bounded (xs : Array I) (lo hi w : ℕ)
     have hmul (a b : I) (ha : width (toInt a) ≤ 2*L) (hb : width (toInt b) ≤ 2*R) :
         Bounded schoolbook (Python.Cost.Int.mul a b) (fun r => width (toInt r) ≤ 2*S)
           (9*L*R) := by
-      have h := (CostExpr.Sized.value a ha).mul (CostExpr.Sized.value b hb)
+      have h := (Sized.value a ha).mul (Sized.value b hb)
       apply Bounded.mono h
       · intro r hr
         change width (toInt r) ≤ 2*L+2*R at hr
@@ -106,18 +107,19 @@ private theorem rec_bounded (xs : Array I) (lo hi w : ℕ)
         have h₂ := Nat.mul_le_mul_right R hL
         have h₃ : 1 ≤ L*R := by nlinarith
         nlinarith
-    have hrec := hl.bind (fun a ha => hr.bind (fun b hb => hmul a b ha hb))
-    have h := hsub.bind (next := fun _ => do
-      let _ ← Index.le (hi-lo) 32
-      let _ ← Index.add lo hi
-      let _ ← Index.div (lo+hi) 2
-      let a ← balancedFactorsM.rec I xs 32 (by omega) lo mid
-      let b ← balancedFactorsM.rec I xs 32 (by omega) mid hi
-      Python.Cost.Int.mul a b)
-      (fun _ _ => hle.bind (fun _ _ => hadd.bind (fun _ _ => hdiv.bind (fun _ _ => hrec))))
-    apply h.mono (fun _ hr => hr)
-    change (2*w+1)+((w+1)+((2*w+2)+((1+(w+1)*2+2*(w+1)+2)+
-      (16*L^2+64*w^2*(2*(mid-lo)-1)+(16*R^2+64*w^2*(2*(hi-mid)-1)+9*L*R))))) ≤ _
+    refine Bounded.mono (post := fun r => width (toInt r) ≤ 2*S)
+      (budget := (2*w+1)+((w+1)+((2*w+2)+((1+(w+1)*2+2*(w+1)+2)+
+        (16*L^2+64*w^2*(2*(mid-lo)-1)+(16*R^2+64*w^2*(2*(hi-mid)-1)+9*L*R))))))
+      ?_ (fun _ hr => hr) ?_
+    · apply hsub.bind
+      intro _ _
+      apply hle.bind
+      intro _ _
+      apply hadd.bind
+      intro _ _
+      apply hdiv.bind
+      intro _ _
+      exact hl.bind (fun a ha => hr.bind (fun b hb => hmul a b ha hb))
     have hlen : (2*(mid-lo)-1)+(2*(hi-mid)-1)+1 = 2*(hi-lo)-1 := by omega
     have hwidth : (2*w+1)+(w+1)+(2*w+2)+(1+(w+1)*2+2*(w+1)+2) ≤ 64*w^2 := by nlinarith
     have hcross : 16*L^2+16*R^2+9*L*R ≤ 16*S^2 := by
@@ -141,8 +143,10 @@ theorem balancedFactorsM_bounded (xs : Array I) (w : ℕ) (hw : 6 ≤ w)
     have hrun : RunsWith schoolbook (balancedFactorsM (m := CostT Id) I (#[] : Array I))
         (1 : I) 13 := by
       intro initial
-      rw [balancedFactorsM, balancedFactorsM.rec]
-      simp only [Array.size_empty, Nat.sub_zero, Nat.zero_le, ↓reduceIte]
+      change CostT.run (balancedFactorsM.rec (m := CostT Id) I #[] 32 (by omega) 0 0)
+        schoolbook (initial + 1) = _
+      rw [balancedFactorsM_rec_eq]
+      simp only [Nat.sub_zero, Nat.zero_le, ↓reduceIte]
       rfl
     apply hrun.bounded
     · simp [toInt_one, width, Sequence.inputBits]

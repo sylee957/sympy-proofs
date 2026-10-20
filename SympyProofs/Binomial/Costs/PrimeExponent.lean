@@ -1,21 +1,29 @@
 module
 
 public import SympyProofs.Binomial.Algorithms.PrimeExponentCorrectness
-public import SympyProofs.Python.Cost.Expr
 public import SympyProofs.Python.Cost.Models
 public import SympyProofs.Binomial.Costs.ByteSieve
 public import SympyProofs.Python.Cost.Sequence
+public import SympyProofs.Python.Cost.Instrumentation.Monadic
+public meta import SympyProofs.Binomial.Costs.PrimeExponentFragments
 
 /-!
 # Cost interpretation of prime-exponent evaluation
 
-`valuationM` uses ordinary arithmetic instances on `CostExpr`. The original
-algorithm stays unchanged. `valuationM_id` proves value equivalence, and
+`valuationM` is generated from the elaborated body of `valuation`; there is no
+second arithmetic formula to maintain. The original algorithm stays unchanged.
+`valuationM_id` proves value equivalence, and
 `valuation_trace` checks the exact evaluation order and operation events.
 It makes six primitive calls, of which three are bit counts. This is a call count,
 not constant bit complexity: the operands' widths remain in the events.
 The complete kernel is instrumented by `primeExponentsM`, including the lazy sieve,
 quotient loops, powers, list allocation, balanced multiplication and final shift.
+The complete body and the original well-founded product recursion are translated
+from elaborated source. Quotient and consumer proof fragments are then extracted
+from the complete source and generated kernels, without separate loop definitions.
+The sieve stream is likewise generated. Unfolding equations identify the generated computations with
+the phases used by the compositional resource proofs; they preserve effects,
+not just return values.
 `PrimeExponentErasure` proves equivalence of the complete costed program to the
 original imperative kernel, for every charging policy and initial counter.
 The complete executed counter is bounded in `FullAsymptotics`, using contracts for
@@ -33,54 +41,51 @@ open PythonInt Python.Cost
 
 variable (I : Type) [PythonInt I]
 
-/-- Interpret the same formula with effectful arithmetic operations. -/
+derive_costed valuation as valuationInstrumented
+
+/-- Interpret automatically generated instrumentation of the original formula. -/
 def valuationM {m : Type → Type v} [Monad m] [MonadCost m]
     (n k : Value I) : m I :=
-  let n : CostExpr m I := CostExpr.value n
-  let k : CostExpr m I := CostExpr.value k
-  (k.bitCount + (n - k).bitCount - n.bitCount).run
+  (valuationInstrumented I n k).run
 
 /-- Erasing the instrumentation recovers the algorithm's formula. -/
 theorem valuationM_id (n k : Value I) :
-    valuationM (m := Id) I n k = valuation I n k := rfl
+    valuationM (m := Id) I n k = valuation I n k :=
+  (valuationInstrumented I n k).run_id
 
-/-- Exact evaluation order of `k.bit_count() + (n-k).bit_count() - n.bit_count()`. -/
+/-- The event sequence computed by the automatically instrumented formula. -/
 def valuationEvents (n k : Value I) : List Event :=
-  let a := bitCount k
-  let d := n - k
-  let b := bitCount d
-  let s := a + b
-  let c := bitCount n
-  [.integer ⟨.bitCount, [toInt k], toInt a⟩,
-   .integer ⟨.sub, [toInt n, toInt k], toInt d⟩,
-   .integer ⟨.bitCount, [toInt d], toInt b⟩,
-   .integer ⟨.add, [toInt a, toInt b], toInt s⟩,
-   .integer ⟨.bitCount, [toInt n], toInt c⟩,
-   .integer ⟨.sub, [toInt s, toInt c], toInt (s - c)⟩]
+  (valuationInstrumented I n k).program.events
 
 /-- The trace records all six calls, including reused operands and intermediate results. -/
 theorem valuation_trace (n k : Value I) :
     TraceT.run (valuationM (m := TraceT Id) I n k) =
-      (valuation I n k, valuationEvents I n k) := rfl
+      (valuation I n k, valuationEvents I n k) :=
+  (valuationInstrumented I n k).run_trace
 
 /-- Every charging policy changes only cost, not the computed valuation. -/
 theorem valuation_run (n k : Value I) (model : Model) (initial : ℕ := 0) :
     CostT.run (valuationM (m := CostT Id) I n k) model initial =
-      (valuation I n k, initial + charge model (valuationEvents I n k)) := by
-  change (valuation I n k,
-    (valuationEvents I n k).foldl (fun total event => total + model event) initial) = _
-  rw [foldl_charge]
+      (valuation I n k, initial + charge model (valuationEvents I n k)) :=
+  (valuationInstrumented I n k).run_cost model initial
 
 /-- This exact count is independent of the integer magnitudes. -/
 theorem valuation_operations (n k : Value I) :
     CostT.run (valuationM (m := CostT Id) I n k) Models.operations =
       (valuation I n k, 6) := by
   rw [valuation_run I n k Models.operations 0]
-  simp [valuationEvents]
+  simp [valuationEvents, valuationInstrumented, Instrumentation.Checked.bind,
+    Instrumentation.Checked.primitive, Instrumentation.Checked.pure,
+    Instrumentation.Checked.pyBitCount, Instrumentation.Checked.pySub,
+    Instrumentation.Checked.pyAdd, Instrumentation.Program.events, Instrumentation.Program.value]
 
 theorem valuation_bitCount_calls (n k : Value I) :
     charge (Models.integerCalls .bitCount) (valuationEvents I n k) = 3 := by
-  simp [charge, valuationEvents, Models.integerCalls]
+  simp [charge, valuationEvents, valuationInstrumented, Instrumentation.Checked.bind,
+    Instrumentation.Checked.primitive, Instrumentation.Checked.pure,
+    Instrumentation.Checked.pyBitCount, Instrumentation.Checked.pySub,
+    Instrumentation.Checked.pyAdd, Instrumentation.Program.events, Instrumentation.Program.value,
+    Models.integerCalls]
 
 /-- Costed execution retains the established arithmetic correctness theorem. -/
 theorem valuation_run_eq_factorization (n k : Value I)
@@ -90,35 +95,54 @@ theorem valuation_run_eq_factorization (n k : Value I)
   rw [valuation_run I n k model 0]
   exact valuation_eq_factorization I n k hk0 hk
 
-/-- Costed balanced product, including leaf slices and index arithmetic. -/
-def balancedFactorsM {m : Type → Type} [Monad m] [MonadCost m]
-    (factors : Array I) (leaf : ℕ := 32) (hleaf : 0 < leaf := by omega) : m I := do
-  let rec «rec» (lo hi : ℕ) : m I := do
-    have : 0 < leaf := hleaf
-    -- Values of indices remain pure so termination does not depend on the cost interpreter.
-    let count := hi - lo
-    let _ ← Index.sub hi lo
-    let _ ← Index.le count leaf
-    if count ≤ leaf then
-      let xs ← Sequence.slice factors lo hi
-      return ← Sequence.prod xs
-    else
-      let mid := (lo + hi) / 2
-      let _ ← Index.add lo hi
-      let _ ← Index.div (lo + hi) 2
-      let a ← «rec» lo mid
-      let b ← «rec» mid hi
-      Python.Cost.Int.mul a b
-  termination_by hi - lo
-  decreasing_by all_goals omega
-  let _ ← Sequence.length factors
-  «rec» 0 factors.size
+derive_costed_monadic balancedFactors.rec._unary as balancedFactorsUnaryM
+  using [] streams []
+
+/-- The original well-founded measure and termination proofs are retained. -/
+def balancedFactorsM.rec {m : Type → Type v} [Monad m] [MonadCost m]
+    (factors : Array I) (leaf : ℕ) (hleaf : 0 < leaf) (lo hi : ℕ) : m I :=
+  balancedFactorsUnaryM I factors leaf hleaf ⟨lo, hi⟩
+
+/-- Unfolding equation used to compose resource contracts for the generated recursion. -/
+theorem balancedFactorsM_rec_eq {m : Type → Type v} [Monad m] [LawfulMonad m] [MonadCost m]
+    (factors : Array I) (leaf : ℕ) (hleaf : 0 < leaf) (lo hi : ℕ) :
+    balancedFactorsM.rec (m := m) I factors leaf hleaf lo hi = (do
+      let _ ← Index.sub hi lo
+      let _ ← Index.le (hi - lo) leaf
+      if hi - lo ≤ leaf then
+        let xs ← Sequence.slice factors lo hi
+        Sequence.prod xs
+      else
+        let _ ← Index.add lo hi
+        let _ ← Index.div (lo + hi) 2
+        let a ← balancedFactorsM.rec I factors leaf hleaf lo ((lo + hi) / 2)
+        let b ← balancedFactorsM.rec I factors leaf hleaf ((lo + hi) / 2) hi
+        Python.Cost.Int.mul a b) := by
+  conv_lhs =>
+    unfold balancedFactorsM.rec balancedFactorsUnaryM
+    rw [WellFounded.Nat.fix_eq]
+  simp only [Index.sub, Index.add, Index.div, Index.binary, Index.le,
+    Sequence.slice, Python.Cost.Int.mul, Python.Cost.Int.binary,
+    balancedFactorsM.rec, balancedFactorsUnaryM,
+    perform, LawfulMonad.bind_assoc, LawfulMonad.pure_bind]
+  split <;> rfl
+
+derive_costed_monadic balancedFactors.rec as balancedFactorsRecEntry
+  using [balancedFactors.rec._unary, balancedFactorsUnaryM] streams []
+
+derive_costed_monadic balancedFactors as balancedFactorsGenerated
+  using [balancedFactors.rec, balancedFactorsRecEntry] streams []
+
+/-- Compatibility interface to the generated product tree. -/
+def balancedFactorsM {m : Type → Type v} [Monad m] [MonadCost m]
+    (factors : Array I) (leaf : ℕ := 32) (hleaf : 0 < leaf := by omega) : m I :=
+  balancedFactorsGenerated I factors leaf hleaf
 
 private theorem balancedFactorsM_rec_id (factors : Array I) (leaf : ℕ)
     (hleaf : 0 < leaf) (lo hi : ℕ) (hlo : lo ≤ hi) (hhi : hi ≤ factors.size) :
     balancedFactorsM.rec (m := Id) I factors leaf hleaf lo hi =
       balancedFactors.rec I factors leaf hleaf lo hi := by
-  rw [balancedFactorsM.rec, balancedFactors.rec]
+  rw [balancedFactorsM_rec_eq, balancedFactors.rec]
   by_cases h : hi - lo ≤ leaf
   · simp only [h, ↓reduceIte]
     change Python.Math.prod (factors.extract lo hi) = Python.Math.prod (factors[lo:hi].toArray)
@@ -140,54 +164,73 @@ theorem balancedFactorsM_id (factors : Array I) (leaf : ℕ := 32)
     balancedFactorsM (m := Id) I factors leaf hleaf = balancedFactors I factors leaf hleaf := by
   exact balancedFactorsM_rec_id I factors leaf hleaf 0 factors.size (by omega) (by omega)
 
-/-- The costed Legendre loop, preserving the imperative statement order. -/
-def quotientExponentM {m : Type → Type} [Monad m] [MonadCost m]
-    (n k p : I) : m I := do
-  let p : CostExpr m I := .value p
-  let mut a : CostExpr m I := .value n
-  let mut b : CostExpr m I := .value k
-  let mut c ← (CostExpr.value n - CostExpr.value k : CostExpr m I).eval
-  let mut e : CostExpr m I := 0
-  while !(← a.eq 0) do
-    a ← (a / p).eval
-    b ← (b / p).eval
-    c ← (c / p).eval
-    e ← (e + (a - b - c)).eval
-  e.run
+derive_costed_monadic primeExponents as primeExponentsM
+  using [balancedFactors, balancedFactorsGenerated]
+  streams [ByteSieve.oddPrimesGenerator, ByteSieve.oddPrimesCostStream]
 
-/-- Consume one generated prime, including its quotient loop, power and possible append. -/
-def primeFactorM {m : Type → Type} [Monad m] [MonadCost m]
-    (n k : I) (prime : ℕ) (factors : Array I) : m (Array I) := do
-  MonadCost.emit (.control "primes.next")
-  let p : CostExpr m I := .value (prime : I)
-  let exponent ← quotientExponentM I n k (prime : I)
-  let e : CostExpr m I := .value exponent
-  if !(← e.eq 0) then
-    Sequence.append factors (← (p ^ e).run)
-  else return factors
+-- Both proof views are selected from their respective complete kernels.
+extract_prime_fragments primeExponents
+extract_prime_fragments primeExponentsM
 
-/-- Complete instrumented kernel. Values bound by `eval` are never re-evaluated. -/
-def primeExponentsM (B : Type) [PythonByteArray B] {m : Type → Type} [Monad m] [MonadCost m]
-    (n k : Value I) : m I := do
-  let n : CostExpr m I := .value n
-  let k : CostExpr m I := .value k
-  if ← k.eq 0 then return 1
-  let mut factors ← Sequence.empty
-  for prime in ByteSieve.oddPrimesCostStream B (toNat (← n.run)) do
-    factors ← primeFactorM I (← n.run) (← k.run) prime factors
-  MonadCost.emit (.control "primes.stop")
-  let result ← balancedFactorsM I factors
-  let shift ← valuationM I (← n.run) (← k.run)
-  (CostExpr.value result <<< CostExpr.value shift : CostExpr m I).run
+private theorem bind_ite' {m : Type → Type} [Monad m] {α β : Type} (c : Prop) [Decidable c]
+ (a b : m α) (f : α → m β) : (if c then a else b) >>= f = if c then a >>= f else b >>= f := by
+  split <;> rfl
+/-- The extracted transition is exactly the transition used by the extracted loop. -/
+theorem quotientExponentM_eq {m : Type → Type} [Monad m] [LawfulMonad m] [MonadCost m]
+    (n k p : I) :
+    quotientExponentM (m := m) I n k p = (do
+      let c ← Python.Cost.Int.sub n k
+      let state ← Lean.Loop.forIn ⟨⟩ (n, k, c, 0) (fun _ => quotientStepM (m := m) I p)
+      pure state.2.2.2) := rfl
+
+/-- The consumer's source fragment returns the optional factor after its quotient loop. -/
+theorem factorCode_eq (n k : I) (p : ℕ) (factors : Array I) :
+    factorCode I n k p factors =
+      let e := quotientCode I n k (p : I)
+      if e != 0 then factors.push ((p : I) ^ e) else factors := rfl
+
+/-- Recompose the generated consumer from its extracted loop and final conditional. -/
+theorem primeFactorM_eq {m : Type → Type} [Monad m] [LawfulMonad m] [MonadCost m]
+    (n k : I) (p : ℕ) (factors : Array I) :
+    primeFactorM (m := m) I n k p factors = (do
+      MonadCost.emit (.control "for.next")
+      let e ← quotientExponentM I n k (p : I)
+      let test ← Python.Cost.Int.eq e 0
+      if !test then
+        let power ← Python.Cost.Int.pow (p : I) e
+        Sequence.append factors power
+      else pure factors) := by
+  simp only [primeFactorM, quotientExponentM, Python.Cost.Int.eq, Python.Cost.Int.pow,
+    Python.Cost.Int.binary, perform, LawfulMonad.bind_assoc, LawfulMonad.pure_bind,
+    _root_.bind_pure]
+  rfl
+
+/-- A compositional unfolding of the generated full program, with the same effects. -/
+theorem primeExponentsM_eq {m : Type → Type} [Monad m] [LawfulMonad m] [MonadCost m]
+    (B : Type) [PythonByteArray B] (n k : I) :
+    primeExponentsM (m := m) I B n k = (do
+      if ← Python.Cost.Int.eq k 0 then return 1
+      let factors ← Sequence.empty
+      let factors ← ForIn.forIn (SympyBinomial.ByteSieve.oddPrimesCostStream B (toNat n)) factors
+        (fun p factors => ForInStep.yield <$> primeFactorM (m := m) I n k p factors)
+      MonadCost.emit (.control "for.stop")
+      let value ← balancedFactorsM I factors
+      let shift ← valuationM I n k
+      Python.Cost.Int.shiftLeft value shift) := by
+  simp only [primeExponentsM, primeFactorM,
+    map_eq_pure_bind, LawfulMonad.bind_assoc, LawfulMonad.pure_bind, bind_ite', balancedFactorsM, valuationM, valuationInstrumented,
+    Instrumentation.Checked.run, Instrumentation.Checked.bind,
+    Instrumentation.Checked.pure, Instrumentation.Checked.primitive,
+    Instrumentation.Checked.pyBitCount, Instrumentation.Checked.pySub,
+    Instrumentation.Checked.pyAdd, Instrumentation.Program.run]
+  rfl
 
 /-- The complete execution takes only its initial equality test when `k = 0`.
 In particular, it does not construct or resume the sieve. -/
 theorem primeExponentsM_zero_run (B : Type) [PythonByteArray B] (n : I) (initial : ℕ) :
     CostT.run (primeExponentsM (m := CostT Id) I B n 0) Models.schoolbook initial =
       (1, initial + 2) := by
-  have hz : (0 : CostExpr (CostT Id) I).run = pure 0 := rfl
-  simp [hz, primeExponentsM, CostExpr.eq, CostExpr.value, Python.Cost.Int.eq,
-    CostT.run, perform, MonadCost.emit]
+  simp [primeExponentsM_eq, Python.Cost.Int.eq, CostT.run, perform, MonadCost.emit]
   rfl
 
 end SympyBinomial.PrimeExponent

@@ -64,6 +64,7 @@ theorem oddPrimesCostStream_budgeted (n k price : ℕ) :
       (256*(n+1)*(n+1+PrimeExponent.inputWidth n^2)+(n+1)*price)
       (PrimeExponent.factorBits n k) := by
   let W := PrimeExponent.inputWidth n
+  simp only [oddPrimesCostStream, oddPrimesBodyM_eq]
   let T := n+1+W^2
   have hsize : size (sieve B n) = (n+1)/2 := size_sieve B n
   have hs : size (sieve B n) ≤ n := by rw [hsize]; omega
