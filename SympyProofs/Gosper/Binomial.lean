@@ -2,7 +2,12 @@ module
 
 public import SympyProofs.Gosper.Basic
 
-/-! # The binomial-quotient identity on p. 41 -/
+/-! # Binomial identities and parameter conditions
+
+The binomial-quotient identity on p. 41 and the alternating binomial sum.
+The latter records the exceptional parameter in SymPy issue #30593:
+https://github.com/sympy/sympy/issues/30593.
+-/
 
 @[expose] public section
 noncomputable section
@@ -77,5 +82,48 @@ theorem binomialBoundary_zero (p r : K) (q : ℕ) (hpr : p - r + 1 ≠ 0)
   field_simp
   push_cast at h
   linear_combination (p - q + 1) * Ring.choose (p + 1) q * h
+
+section Alternating
+
+omit [CharZero K]
+
+open Polynomial
+
+/-- For `(-1)^k * choose(ν, k)`, the backward convention uses
+`p = 1`, `q = X - C (ν + 1)`, and `r = X`. The constant certificate
+equation is `-ν * c = 1`, so solving it requires a parameter condition. -/
+theorem alternating_binomial_operator_const (ν c : K) :
+    operator (X - C (ν + 1)) X (C c) = C (-ν * c) := by
+  simp only [operator_apply, map_sub, taylor_X, taylor_C, map_add, map_one,
+    map_mul, map_neg, taylor_one]
+  ring
+
+/-- The generic certificate is valid only away from `ν = 0`.
+This condition comes from solving for a coefficient, even though `p = 1`. -/
+theorem alternating_binomial_certificate (ν : K) (hν : ν ≠ 0) :
+    operator (X - C (ν + 1)) X (C (-ν⁻¹)) = 1 := by
+  rw [alternating_binomial_operator_const]
+  simp [hν]
+
+/-- The condition is necessary for any polynomial certificate, not merely
+for the constant ansatz. At `ν = 0`, evaluating the equation at zero gives
+`0 = 1`. This does not exclude computing the finite sum separately. -/
+theorem alternating_binomial_polynomial_solution_iff (ν : K) :
+    (∃ f : K[X], operator (X - C (ν + 1)) X f = 1) ↔ ν ≠ 0 := by
+  constructor
+  · rintro ⟨f, hf⟩ rfl
+    have h := congrArg (fun P : K[X] => P.eval 0) hf
+    simp at h
+  · intro hν
+    exact ⟨C (-ν⁻¹), alternating_binomial_certificate ν hν⟩
+
+/-- The finite sum retains its exceptional value at `n = 0`.
+Mathlib's integer identity supplies both branches without dividing by `n`. -/
+theorem alternating_binomial_sum (n : ℕ) :
+    ∑ k ∈ Finset.range (n + 1), (-1 : K) ^ k * (n.choose k : K) =
+      if n = 0 then 1 else 0 := by
+  simpa using congrArg (Int.castRingHom K) (Int.alternating_sum_range_choose (n := n))
+
+end Alternating
 
 end Gosper
