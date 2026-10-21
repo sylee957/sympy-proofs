@@ -21,8 +21,9 @@ finite sums follow from `Gosper.certificate_sum` and the product-sum theorems.
 `Algorithm.gosperTerm` models the procedure on Mathlib polynomials over a
 characteristic-zero coefficient field with decidable `IsLocalization.IsInteger ℤ`
 membership. `Encodable.choose` recovers integer witnesses constructively; a rational
-instance decides membership by checking the reduced denominator. A `Backend` supplies only factorization,
-resultant, and RREF; shift resultants, natural integer roots, and linear solving
+instance decides membership by checking the reduced denominator. A `Backend`
+supplies factorization, resultant, zero matrices, entry updates, column reads, and RREF;
+shift resultants, natural integer roots, and linear solving
 are derived from them. Gcd and translation remain Mathlib operations. Ordinary
 and fraction-free RREF use the same matrix/denominator/pivots contract.
 `referenceBackend rref` supplies Mathlib factorization and resultant with the

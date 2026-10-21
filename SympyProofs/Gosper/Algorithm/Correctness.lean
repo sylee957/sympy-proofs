@@ -2,6 +2,7 @@ module
 
 public import SympyProofs.Gosper.Algorithm.Algorithm
 public import SympyProofs.Gosper.Algorithm.NormalizationCorrectness
+public import SympyProofs.Gosper.Backend.Matrix
 public import SympyProofs.Gosper.Rational
 public import SympyProofs.Gosper.Hypergeometric
 
@@ -73,10 +74,45 @@ theorem NormalForm.verify_solution_of_ratio (P Q : K[X]) (hQ : Q ≠ 0) (s : Nor
 
 variable [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
 
+omit [CharZero K] in
+/-- The matrix and reconstruction loops implement the coefficient-system specification. -/
+theorem gosperTerm_eq (hbackend : backend.Valid) (P Q : K[X]) :
+    gosperTerm backend P Q =
+      let s := gosperNormal backend P Q
+      let B := taylor (-1) s.B
+      let d := degreeBound s.A B s.C
+      if d < 0 then none else
+        let M := coefficientSystem s.A B s.C d.toNat
+        let b := toFn (equationDegree s.A B s.C d.toNat + 1) s.C
+        let r := backend.rref (augmented M b)
+        if Fin.last (d.toNat + 1) ∈ r.pivots then none else
+          some ⟨B * ofFn (d.toNat + 1) r.solution, s.C⟩ := by
+  let s := gosperNormal backend P Q
+  let B := taylor (-1) s.B
+  let d := degreeBound s.A B s.C
+  have hM := backend.fill_augmented_eq hbackend (coefficientSystem s.A B s.C d.toNat)
+    (toFn (equationDegree s.A B s.C d.toNat + 1) s.C)
+  simp only [Id.run, bind, pure, coefficientSystem, forwardOperator_apply,
+    toFn, LinearMap.pi_apply, lcoeff_apply] at hM
+  dsimp only [s, B, d] at hM
+  have hrec (r : RrefResult K (equationDegree s.A B s.C d.toNat + 1) (d.toNat + 1 + 1))
+      (hp : Fin.last (d.toNat + 1) ∉ r.pivots) := backend.reconstruct_eq hbackend r hp
+  simp only [Id.run, bind, pure] at hrec
+  dsimp only [s, B, d] at hrec
+  simp only [gosperTerm, Id.run, bind, pure, toFn]
+  conv_rhs => simp only [← hM]
+  split_ifs with hd hp
+  · rfl
+  · rfl
+  · conv_lhs =>
+      pattern (forIn _ _ _)
+      tactic => exact hrec _ hp
+
 /-- Every certificate constructed by `gosperTerm` satisfies the original equation.
 This follows from the algorithm's steps, independently of running `verify`. -/
 theorem gosperTerm_verified (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
     (h : gosperTerm backend P Q = some c) : verify P Q c.numerator c.denominator = true := by
+  rw [gosperTerm_eq backend hbackend] at h
   let s := gosperNormal backend P Q
   let B := taylor (-1) s.B
   let d := degreeBound s.A B s.C

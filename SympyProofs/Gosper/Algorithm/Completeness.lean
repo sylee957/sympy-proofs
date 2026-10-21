@@ -94,7 +94,8 @@ theorem gosperTerm_of_solution (hbackend : backend.Valid) (P Q : K[X]) (hQ : Q �
     (coefficientSystem_correct _ _ _ _ _).mp
       (RrefResult.solution_correct M b r (hbackend.rref_valid _) hp)
   refine ⟨⟨B * y, s.C⟩, ?_, ?_⟩
-  · change (if d < 0 then none else if Fin.last (d.toNat + 1) ∈ r.pivots then none
+  · rw [gosperTerm_eq backend hbackend]
+    change (if d < 0 then none else if Fin.last (d.toNat + 1) ∈ r.pivots then none
       else some (⟨B * y, s.C⟩ : Certificate K)) = _
     simp [not_lt.mpr hd, hp]
   · exact s.verify_solution P Q hQ hs y hy

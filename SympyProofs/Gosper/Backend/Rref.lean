@@ -17,13 +17,14 @@ structure RrefResult (K : Type*) (m n : ℕ) where
   matrix : Matrix (Fin m) (Fin n) K
   denominator : K
   pivots : List (Fin n)
+  /-- Each pivot corresponds to a row of the matrix. -/
+  length_le : pivots.length ≤ m
 
 /-- The numerator matrix is a nonzero scalar multiple of RREF. The pivot list
 enumerates the leading columns of the nonzero rows, in row order. Equality of
 kernels is the row-equivalence property needed for an augmented system. -/
 structure RrefResult.Valid (A : Matrix (Fin m) (Fin n) K) (r : RrefResult K m n) : Prop where
   denominator_ne_zero : r.denominator ≠ 0
-  length_le : r.pivots.length ≤ m
   ordered : r.pivots.Pairwise (· < ·)
   pivot_column : ∀ (i : Fin m) (j : Fin n), r.pivots[i.val]? = some j →
     ∀ k : Fin m, r.matrix k j = if k = i then r.denominator else 0
@@ -32,8 +33,8 @@ structure RrefResult.Valid (A : Matrix (Fin m) (Fin n) K) (r : RrefResult K m n)
   zero_row : ∀ i : Fin m, r.pivots[i.val]? = none → r.matrix i = 0
   kernel_iff : ∀ x : Fin n → K, A.mulVec x = 0 ↔ r.matrix.mulVec x = 0
 
-/-- The raw matrix primitive used by a backend. Its contract is separate from
-the operation, so executing Gosper never takes proof arguments. -/
+/-- The matrix primitive returns a pivot list with its structural row bound.
+Its algebraic correctness contract is separate from the operation. -/
 abbrev RrefOperation (K : Type*) :=
   {m n : ℕ} → Matrix (Fin m) (Fin n) K → RrefResult K m n
 
@@ -46,10 +47,48 @@ theorem augmented_mulVec (A : Matrix (Fin m) (Fin n) K) (b : Fin m → K)
   ext i
   simp [augmented, Matrix.mulVec, dotProduct, Fin.sum_univ_castSucc, sub_eq_add_neg]
 
-/-- Read a particular solution from the pivot rows; all free variables are zero. -/
+/-- Mathematical specification of a particular solution; all free variables are zero. -/
 def RrefResult.solution (r : RrefResult K m (n + 1)) : Fin n → K := fun j =>
   ∑ i : Fin m, if r.pivots[i.val]? = some j.castSucc then
     r.matrix i (Fin.last n) / r.denominator else 0
+
+/-- The solution polynomial is obtained by adding one monomial for each pivot row. -/
+theorem RrefResult.ofFn_solution_eq [DecidableEq K] (r : RrefResult K m (n + 1))
+    (hlast : Fin.last n ∉ r.pivots) :
+    Polynomial.ofFn n r.solution =
+      ∑ i : Fin m, (r.pivots[i.val]?).elim 0
+        (fun pivot => Polynomial.monomial (pivot : ℕ) (r.matrix i (Fin.last n) / r.denominator)) := by
+  rw [Polynomial.ofFn_eq_sum_monomial]
+  simp only [solution, map_sum]
+  rw [Finset.sum_comm]
+  apply Finset.sum_congr rfl
+  intro i _
+  cases hp : r.pivots[i.val]? with
+  | none => simp
+  | some pivot =>
+    have hpne : pivot ≠ Fin.last n := by
+      intro he
+      exact hlast (he ▸ List.mem_of_getElem? hp)
+    obtain ⟨j, rfl⟩ := Fin.eq_castSucc_of_ne_last hpne
+    simp [apply_ite]
+
+/-- Reconstructing the solution only requires the enumerated pivot rows. -/
+theorem RrefResult.ofFn_solution_eq_pivots [DecidableEq K]
+    (r : RrefResult K m (n + 1)) (hlast : Fin.last n ∉ r.pivots) :
+    Polynomial.ofFn n r.solution =
+      (r.pivots.mapFinIdx fun i pivot hi =>
+        Polynomial.monomial (pivot : ℕ)
+          (r.matrix ⟨i, lt_of_lt_of_le hi r.length_le⟩ (Fin.last n) / r.denominator)).sum := by
+  rw [r.ofFn_solution_eq hlast, List.mapFinIdx_eq_ofFn, List.sum_ofFn]
+  symm
+  apply Fintype.sum_of_injective (Fin.castLE r.length_le) (Fin.castLE_injective _)
+  · intro i hi
+    have houtside : ¬i.val < r.pivots.length := by
+      intro hlt
+      exact hi ⟨⟨i.val, hlt⟩, rfl⟩
+    simp [houtside]
+  · intro i
+    simp [i.isLt, Fin.castLE]
 
 theorem RrefResult.solution_correct (A : Matrix (Fin m) (Fin n) K) (b : Fin m → K)
     (r : RrefResult K m (n + 1)) (hr : r.Valid (augmented A b))
@@ -93,7 +132,7 @@ theorem RrefResult.inconsistent (A : Matrix (Fin m) (Fin n) K) (b : Fin m → K)
     (r : RrefResult K m (n + 1)) (hr : r.Valid (augmented A b))
     (hlast : Fin.last n ∈ r.pivots) : ¬∃ x, A.mulVec x = b := by
   obtain ⟨i, hi, hp⟩ := List.getElem_of_mem hlast
-  let k : Fin m := ⟨i, lt_of_lt_of_le hi hr.length_le⟩
+  let k : Fin m := ⟨i, lt_of_lt_of_le hi r.length_le⟩
   have hk : r.pivots[k.val]? = some (Fin.last n) := by simp [k, hi, hp]
   rintro ⟨x, hx⟩
   have he := congrFun ((hr.kernel_iff (Fin.snoc x (-1))).mp

@@ -13,13 +13,15 @@ ratio a(n+1)/a(n). This is the boundary after SymPy's
 `parallel_poly_from_expr((p, q), n, field=True, extension=True)`.
 
 Control flow is explicit. Arithmetic uses Mathlib polynomials for gcd, quotient,
-and translation. `Backend` supplies exactly factorization, resultant, and RREF.
+and translation. `Backend` supplies factorization, resultant, zero matrices,
+entry updates, column reads, and RREF.
 Natural roots are extracted from linear factors, the shift resultant is formed
 by translating a bivariate input, and linear solutions are read from augmented
 RREF. Correctness of these interpretations is proved from the primitive contracts.
 
-`referenceBackend rref` pairs Mathlib's factorization and resultant with a supplied
-RREF operation. Alternative implementations need only satisfy `Backend.Valid`;
+`referenceBackend rref` pairs Mathlib's polynomial operations and functional
+matrix updates with a supplied RREF operation. Alternative implementations need
+only satisfy `Backend.Valid`;
 the normalization and Gosper proofs do not depend on their internal algorithms.
 
 `DecidablePred (IsLocalization.IsInteger ℤ : K → Prop)` supplies an integer
@@ -58,11 +60,23 @@ def gosperTerm (P Q : K[X]) : Option (Certificate K) := Id.run do
   let B := taylor (-1) normal.B
   let d := degreeBound normal.A B normal.C
   if d < 0 then return none
-  let M := coefficientSystem normal.A B normal.C d.toNat
-  let b := toFn (equationDegree normal.A B normal.C d.toNat + 1) normal.C
-  let r := backend.rref (augmented M b)
-  if Fin.last (d.toNat + 1) ∈ r.pivots then return none
-  let x := ofFn (d.toNat + 1) r.solution
+  let n := d.toNat + 1
+  let m := equationDegree normal.A B normal.C d.toNat + 1
+  -- Rows are coefficient equations; the final column is the right-hand side.
+  let mut M := backend.zeros m (n + 1)
+  for i in List.finRange m do
+    for j in List.finRange n do
+      let monomial : K[X] := X ^ (j : ℕ)
+      let coeff := (normal.A * taylor 1 monomial - B * monomial).coeff i
+      M := backend.setElement M i j.castSucc coeff
+    M := backend.setElement M i (Fin.last n) (normal.C.coeff i)
+  let r := backend.rref M
+  if Fin.last n ∈ r.pivots then return none
+  let rhs := backend.getCol r.matrix (Fin.last n)
+  let mut x : K[X] := 0
+  for ⟨(pivot, row), h⟩ in r.pivots.zipIdx.attach do
+    let row : Fin m := ⟨row, lt_of_lt_of_le (List.mem_zipIdx' h).1 r.length_le⟩
+    x := x + Polynomial.monomial (pivot : ℕ) (rhs row / r.denominator)
   let U := B * x
   let V := normal.C
   return some ⟨U, V⟩
