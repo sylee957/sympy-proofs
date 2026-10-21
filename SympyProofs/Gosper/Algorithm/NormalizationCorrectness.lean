@@ -8,50 +8,28 @@ noncomputable section
 
 namespace Gosper.Algorithm
 
-open Polynomial
+open Polynomial IsLocalization
 
-variable {K : Type*} [Field K]
-
-local instance normalizationProofDecidableEq : DecidableEq K := Classical.decEq K
-
-theorem shiftResultant_map {L : Type*} [Field L] (f : K →+* L) (p q : K[X]) :
-    (shiftResultant p q).map f = shiftResultant (p.map f) (q.map f) := by
-  unfold shiftResultant
-  have h := Polynomial.resultant_map_map (p.map (Polynomial.C : K →+* K[X]))
-    (taylor (X : K[X]) (q.map (Polynomial.C : K →+* K[X])))
-    p.natDegree q.natDegree (Polynomial.mapRingHom f)
-  change (Polynomial.mapRingHom f) _ = _
-  rw [← h]
-  congr 1 <;> simp [Polynomial.map_map, Polynomial.mapRingHom_comp_C,
-    Polynomial.natDegree_map_eq_of_injective f.injective]
-
-theorem shiftResultant_ne_zero_of_splits (p q : K[X]) (hp : p ≠ 0) (hq : q ≠ 0)
-    (hs : p.Splits) : shiftResultant p q ≠ 0 := by
-  have hpC : p.map (Polynomial.C : K →+* K[X]) ≠ 0 := by simpa using hp
-  unfold shiftResultant
-  rw [← Polynomial.natDegree_map_eq_of_injective Polynomial.C_injective (p := p)]
-  rw [Polynomial.resultant_eq_prod_eval _ _ _ (by simp) (hs.map _)]
-  apply mul_ne_zero (pow_ne_zero _ (Polynomial.leadingCoeff_ne_zero.mpr hpC))
-  rw [hs.roots_map (Polynomial.C : K →+* K[X]), Multiset.map_map]
-  apply Multiset.prod_ne_zero
-  intro hz
-  obtain ⟨a, _, he⟩ := Multiset.mem_map.mp hz
-  have hn : ((taylor (X : K[X]) (q.map Polynomial.C)).eval (Polynomial.C a)) ≠ 0 := by
-    simp only [taylor_eval, Polynomial.eval_map]
-    change q.comp (Polynomial.C a + X) ≠ 0
-    rw [add_comm]
-    exact (Polynomial.taylor_eq_zero a q).not.mpr hq
-  exact hn he
-
-theorem shiftResultant_ne_zero (p q : K[X]) (hp : p ≠ 0) (hq : q ≠ 0) :
-    shiftResultant p q ≠ 0 := by
-  let f := algebraMap K (AlgebraicClosure K)
-  have h := shiftResultant_ne_zero_of_splits (p.map f) (q.map f)
-    (by simpa using hp) (by simpa using hq) (IsAlgClosed.splits _)
-  rw [← shiftResultant_map f] at h
-  exact fun hz => h (by rw [hz, Polynomial.map_zero])
+variable {K : Type} [Field K] [DecidableEq K]
 
 def NormalForm.Nonzero (s : NormalForm K) : Prop := s.A ≠ 0 ∧ s.B ≠ 0 ∧ s.C ≠ 0
+
+/-- The inline root test inserts exactly the nonnegative integer root of a linear factor. -/
+theorem normalization_root_step [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
+    (factor : K[X] × ℕ) (shifts : Finset ℕ) :
+    (if factor.1.natDegree = 1 then
+      if h : IsInteger ℤ (-factor.1.coeff 0 / factor.1.coeff 1) then
+        let n : ℤ := Encodable.choose h
+        if 0 ≤ n then pure (ForInStep.yield (insert n.toNat shifts))
+          else pure (ForInStep.yield shifts)
+      else pure (ForInStep.yield shifts)
+    else pure (ForInStep.yield shifts) : Id (ForInStep (Finset ℕ))) =
+      pure (ForInStep.yield ((nonnegativeIntegerRoot factor.1).elim shifts
+        (fun n => insert n shifts))) := by
+  by_cases hd : factor.1.natDegree = 1
+  · simp only [nonnegativeIntegerRoot, linearRoot, hd, ↓reduceIte]
+    split_ifs <;> rfl
+  · simp [nonnegativeIntegerRoot, linearRoot, hd]
 
 /-- The explicit gcd update in the normalization loop preserves the ratio and
 nonzero polynomials, clears the current shift, and preserves earlier coprimality. -/
@@ -59,7 +37,7 @@ theorem normalization_step_spec (P Q : K[X]) (s : NormalForm K) (hs : s.Nonzero)
     (he : P * (s.B * s.C) = Q * (s.A * taylor 1 s.C)) (j : ℕ) :
     let d := gcd s.A (taylor (j : K) s.B)
     let t : NormalForm K := ⟨s.A / d, taylor (-(j : K)) (taylor (j : K) s.B / d),
-      s.C * taylor (-1) (Gosper.shiftProduct d j), s.shifts⟩
+      s.C * taylor (-1) (Gosper.shiftProduct d j)⟩
     t.Nonzero ∧ P * (t.B * t.C) = Q * (t.A * taylor 1 t.C) ∧
       IsCoprime t.A (taylor (j : K) t.B) ∧
       ∀ k, IsCoprime s.A (taylor (k : K) s.B) → IsCoprime t.A (taylor (k : K) t.B) := by
@@ -94,6 +72,7 @@ theorem normalization_step_spec (P Q : K[X]) (s : NormalForm K) (hs : s.Nonzero)
     have hdb : b ∣ s.B := ⟨_, by rw [hb]; ring⟩
     exact IsCoprime.mono hda ((taylorAlgHom (k : K)).toRingHom.map_dvd hdb) hk
 
+omit [DecidableEq K] in
 /-- Fold form of the inline loop invariant. Each step clears its own shift and
 preserves all coprimality established before it. -/
 theorem normalization_foldl_spec (P Q : K[X]) (step : NormalForm K → ℕ → NormalForm K)
@@ -127,17 +106,21 @@ def NormalForm.Valid (P Q : K[X]) (s : NormalForm K) : Prop :=
   s.Nonzero ∧ Gosper.ShiftCoprime s.A s.B ∧
     P * (s.B * s.C) = Q * (s.A * taylor 1 s.C)
 
+omit [DecidableEq K] in
 theorem monic_ne_zero (p : K[X]) (hp : p ≠ 0) : monic p ≠ 0 := by
   exact mul_ne_zero (Polynomial.C_ne_zero.mpr (inv_ne_zero (leadingCoeff_ne_zero.mpr hp))) hp
 
+omit [DecidableEq K] in
 theorem leadingCoeff_mul_monic (p : K[X]) (hp : p ≠ 0) : C p.leadingCoeff * monic p = p := by
   unfold monic
   rw [← mul_assoc, ← map_mul, mul_inv_cancel₀ (leadingCoeff_ne_zero.mpr hp), map_one, one_mul]
 
-/-- Normalization preserves the input ratio over any coefficient
-field. Shift-coprimality is only needed for completeness. -/
-theorem gosperNormal_sound (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : NormalForm K)
-    (h : gosperNormal P Q = s) :
+variable [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
+
+/-- Normalization preserves the input ratio over a characteristic-zero
+coefficient field. Shift-coprimality is only needed for completeness. -/
+theorem gosperNormal_sound (backend : Backend K) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : NormalForm K)
+    (h : gosperNormal backend P Q = s) :
     s.Nonzero ∧ P * (s.B * s.C) = Q * (s.A * taylor 1 s.C) := by
   let a := monic P
   let b := monic Q
@@ -145,18 +128,26 @@ theorem gosperNormal_sound (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : Norma
   have ha : a ≠ 0 := monic_ne_zero P hP
   have hb : b ≠ 0 := monic_ne_zero Q hQ
   have hz : z ≠ 0 := div_ne_zero (leadingCoeff_ne_zero.mpr hP) (leadingCoeff_ne_zero.mpr hQ)
-  let roots := nonnegativeIntegerRoots (shiftResultant a b)
-  let initial : NormalForm K := ⟨a, b, 1, roots⟩
+  let roots := backend.nonnegativeIntegerRoots (backend.shiftResultant a b)
+  let initial : NormalForm K := ⟨a, b, 1⟩
   let step (s : NormalForm K) (j : ℕ) : NormalForm K :=
     let d := gcd s.A (taylor (j : K) s.B)
     ⟨s.A / d, taylor (-(j : K)) (taylor (j : K) s.B / d),
-      s.C * taylor (-1) (Gosper.shiftProduct d j), s.shifts⟩
-  let t := roots.foldl step initial
+      s.C * taylor (-1) (Gosper.shiftProduct d j)⟩
+  let t := (roots.sort (· ≤ ·)).foldl step initial
   have ht := normalization_foldl_spec a b step (normalization_step_spec a b)
-    initial roots ⟨ha, hb, one_ne_zero⟩
+    initial (roots.sort (· ≤ ·)) ⟨ha, hb, one_ne_zero⟩
     (by simp [initial]; ring)
-  have hs : s = ⟨Polynomial.C z * t.A, t.B, t.C, roots⟩ := by
-    simpa [gosperNormal, a, b, z, roots, t, initial, step] using h.symm
+  have hs : s = ⟨Polynomial.C z * t.A, t.B, t.C⟩ := by
+    simp only [gosperNormal] at h
+    conv at h =>
+      pattern (forIn _ (∅ : Finset ℕ) _)
+      arg 3
+      ext factor shifts
+      tactic => exact normalization_root_step factor shifts
+    simpa [Backend.shiftResultant, Backend.nonnegativeIntegerRoots,
+      nonnegativeIntegerRootsFromFactors_foldl,
+      a, b, z, roots, t, initial, step] using h.symm
   rw [hs]
   refine ⟨⟨mul_ne_zero (Polynomial.C_ne_zero.mpr hz) ht.1.1,
     ht.1.2.1, ht.1.2.2⟩, ?_⟩
@@ -178,42 +169,49 @@ theorem gosperNormal_sound (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : Norma
 
 /-- Normalization returns the exact
 ratio identity and shift-coprimality required by Gosper's theorem. -/
-theorem gosperNormal_exists [CharZero K] (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) :
-    ∃ s, gosperNormal P Q = s ∧ s.Valid P Q := by
+theorem gosperNormal_exists (backend : Backend K) (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) :
+    ∃ s, gosperNormal backend P Q = s ∧ s.Valid P Q := by
   let a := monic P
   let b := monic Q
   let z := P.leadingCoeff / Q.leadingCoeff
   have ha : a ≠ 0 := monic_ne_zero P hP
   have hb : b ≠ 0 := monic_ne_zero Q hQ
   have hz : z ≠ 0 := div_ne_zero (leadingCoeff_ne_zero.mpr hP) (leadingCoeff_ne_zero.mpr hQ)
-  have hR := shiftResultant_ne_zero a b ha hb
-  let roots := nonnegativeIntegerRoots (shiftResultant a b)
-  let initial : NormalForm K := ⟨a, b, 1, roots⟩
+  let roots := backend.nonnegativeIntegerRoots (backend.shiftResultant a b)
+  let initial : NormalForm K := ⟨a, b, 1⟩
   let step (s : NormalForm K) (j : ℕ) : NormalForm K :=
     let d := gcd s.A (taylor (j : K) s.B)
     ⟨s.A / d, taylor (-(j : K)) (taylor (j : K) s.B / d),
-      s.C * taylor (-1) (Gosper.shiftProduct d j), s.shifts⟩
-  let s := roots.foldl step initial
+      s.C * taylor (-1) (Gosper.shiftProduct d j)⟩
+  let s := (roots.sort (· ≤ ·)).foldl step initial
   have hs := normalization_foldl_spec a b step (normalization_step_spec a b)
-    initial roots ⟨ha, hb, one_ne_zero⟩
+    initial (roots.sort (· ≤ ·)) ⟨ha, hb, one_ne_zero⟩
     (by simp [initial]; ring)
-  let result : NormalForm K := ⟨Polynomial.C z * s.A, s.B, s.C, roots⟩
-  have hr : gosperNormal P Q = result := by
-    simp [gosperNormal, result, s, initial, a, b, roots, z, step]
-  have hv := gosperNormal_sound P Q hP hQ result hr
+  let result : NormalForm K := ⟨Polynomial.C z * s.A, s.B, s.C⟩
+  have hr : gosperNormal backend P Q = result := by
+    simp only [gosperNormal]
+    conv_lhs =>
+      pattern (forIn _ (∅ : Finset ℕ) _)
+      arg 3
+      ext factor shifts
+      tactic => exact normalization_root_step factor shifts
+    simp [Backend.shiftResultant, Backend.nonnegativeIntegerRoots,
+      nonnegativeIntegerRootsFromFactors_foldl,
+      result, s, initial, a, b, roots, z, step]
+  have hv := gosperNormal_sound backend P Q hP hQ result hr
   refine ⟨result, hr, hv.1, ?_, hv.2⟩
   intro j
   apply (isCoprime_mul_unit_left_left (isUnit_C.mpr (isUnit_iff_ne_zero.mpr hz)) _ _).mpr
   apply hs.2.2 j
-  by_cases hj : j ∈ roots
+  by_cases hj : j ∈ roots.sort (· ≤ ·)
   · exact Or.inl hj
   · right
     by_contra hn
-    exact hj ((mem_normalization_shifts a b ha hR j).mpr hn)
+    exact hj ((backend.mem_shifts hbackend a b ha hb j).mpr hn)
 
-theorem gosperNormal_spec [CharZero K] (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
-    (s : NormalForm K) (h : gosperNormal P Q = s) : s.Valid P Q := by
-  obtain ⟨t, ht, hs⟩ := gosperNormal_exists P Q hP hQ
+theorem gosperNormal_spec (backend : Backend K) (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
+    (s : NormalForm K) (h : gosperNormal backend P Q = s) : s.Valid P Q := by
+  obtain ⟨t, ht, hs⟩ := gosperNormal_exists backend hbackend P Q hP hQ
   have : t = s := ht.symm.trans h
   simpa [this] using hs
 

@@ -11,9 +11,7 @@ namespace Gosper.Algorithm
 
 open Polynomial
 
-variable {K : Type*} [Field K]
-
-local instance coefficientDecidableEq : DecidableEq K := Classical.decEq K
+variable {K : Type*} [Field K] [DecidableEq K]
 
 def forwardOperator (A B : K[X]) : K[X] →ₗ[K] K[X] where
   toFun x := A * taylor 1 x - B * x
@@ -22,6 +20,7 @@ def forwardOperator (A B : K[X]) : K[X] →ₗ[K] K[X] where
     simp only [RingHom.id_apply, smul_eq_C_mul, taylor_mul, taylor_C]
     ring
 
+omit [DecidableEq K] in
 @[simp] theorem forwardOperator_apply (A B x : K[X]) :
     forwardOperator A B x = A * taylor 1 x - B * x := rfl
 
@@ -45,6 +44,7 @@ theorem coefficientSystem_mulVec (A B C : K[X]) (d : ℕ) (c : Fin (d + 1) → K
   intro j _
   ring
 
+omit [DecidableEq K] in
 theorem forwardOperator_degree_le (A B x : K[X]) (d : ℕ) (hx : x.natDegree ≤ d) :
     (forwardOperator A B x).natDegree ≤ max A.natDegree B.natDegree + d := by
   apply (natDegree_sub_le _ _).trans

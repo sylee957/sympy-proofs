@@ -19,9 +19,7 @@ namespace Gosper
 
 open Polynomial
 
-variable {K : Type*} [Field K]
-
-local instance : DecidableEq K := Classical.decEq K
+variable {K : Type*} [Field K] [DecidableEq K]
 
 def equationDegree (p q r : K[X]) (N : ℕ) : ℕ :=
   max p.natDegree (max q.natDegree r.natDegree + N)
@@ -42,6 +40,7 @@ theorem coefficientMatrix_mulVec (p q r : K[X]) (N : ℕ) (c : Fin (N + 1) → K
   intro j _
   ring
 
+omit [DecidableEq K] in
 theorem operator_degree_le (q r f : K[X]) (N : ℕ) (hf : f.natDegree ≤ N) :
     (operator q r f).natDegree ≤ max q.natDegree r.natDegree + N := by
   apply (natDegree_sub_le _ _).trans

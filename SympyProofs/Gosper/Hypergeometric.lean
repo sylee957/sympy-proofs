@@ -57,6 +57,8 @@ theorem hypergeometric_iff_rational (ρ : RatFunc K) (hρ : ρ ≠ 0) :
     field_simp
     linear_combination hg
 
+variable [DecidableEq K]
+
 /-- The paper's decision criterion in terms of the hypergeometric sum ratio. -/
 theorem hypergeometric_gosper_criterion [CharZero K] (p q r : K[X])
     (hp : p ≠ 0) (hq : q ≠ 0) (hr : r ≠ 0) (hqr : ShiftCoprime q r) :

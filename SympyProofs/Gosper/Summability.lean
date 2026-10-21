@@ -83,6 +83,8 @@ theorem summable_iff_rational_solution (p q r : K[X])
   · rintro ⟨f, hf⟩
     exact ⟨_, (multiplier_equation_iff p q r hp hq hr f).mpr hf⟩
 
+variable [DecidableEq K]
+
 /-- Gosper's complete criterion, with the paper's signed bound and rejection test. -/
 theorem gosper_criterion [CharZero K] (p q r : K[X])
     (hp : p ≠ 0) (hq : q ≠ 0) (hr : r ≠ 0) (hqr : ShiftCoprime q r) :

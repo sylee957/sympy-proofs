@@ -11,9 +11,7 @@ namespace Gosper.Algorithm
 
 open Polynomial
 
-variable {K : Type*} [Field K]
-
-local instance certificateDecidableEq : DecidableEq K := Classical.decEq K
+variable {K : Type*} [Field K] [DecidableEq K]
 
 /-- Cross-multiplied forward Gosper equation for the multiplier U/V. -/
 def residual (P Q U V : K[X]) : K[X] :=

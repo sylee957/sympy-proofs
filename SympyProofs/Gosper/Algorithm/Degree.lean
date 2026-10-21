@@ -10,11 +10,9 @@ noncomputable section
 
 namespace Gosper.Algorithm
 
-open Polynomial
+open Polynomial IsLocalization
 
-variable {K : Type*} [Field K]
-
-local instance degreeDecidableEq : DecidableEq K := Classical.decEq K
+variable {K : Type*} [Field K] [CharZero K] [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
 
 /-- Bound for A(X)x(X+1) - B(X)x(X) = C(X). Testing coefficients at the
 maximum degree combines SymPy's unequal-degree / unequal-leading-term cases.
@@ -25,20 +23,25 @@ def degreeBound (A B C : K[X]) : ℤ := Id.run do
   if l = 0 then return (C.natDegree : ℤ) + 1
   let ordinary := (C.natDegree : ℤ) - l + 1
   let exceptional := (B.coeff (l - 1) - A.coeff (l - 1)) / B.coeff l
-  match integerValue exceptional with
-  | some k => return max k ordinary
-  | none => return ordinary
+  if h : IsInteger ℤ exceptional then
+    let k : ℤ := Encodable.choose h
+    return max k ordinary
+  return ordinary
 
 theorem degreeBound_eq_paper (A B C : K[X]) :
     degreeBound A B C = Gosper.paperDegreeBound C A B := by
   classical
   simp only [degreeBound, Id.run, pure, Gosper.paperDegreeBound]
-  split_ifs <;> simp_all [Gosper.caseTwoDegreeBound, integerValue, Gosper.exceptionalDegree]
-  split_ifs <;> rfl
+  split_ifs with hc hl hi
+  · rfl
+  · rfl
+  · exact (Gosper.caseTwoDegreeBound_of_integer C A B _ (Encodable.choose hi)
+      (Encodable.choose_spec hi)).symm
+  · exact (Gosper.caseTwoDegreeBound_of_not_integer C A B _ hi).symm
 
 /-- Reuse the proved paper bound: translate x forward to turn the forward
 equation into the paper's backward equation; translation preserves degree. -/
-theorem solution_degree_le [CharZero K] (A B C x : K[X])
+theorem solution_degree_le (A B C x : K[X])
     (hA : A ≠ 0) (hB : B ≠ 0) (hx : x ≠ 0)
     (he : A * taylor 1 x - B * x = C) :
     (x.natDegree : ℤ) ≤ degreeBound A B C := by

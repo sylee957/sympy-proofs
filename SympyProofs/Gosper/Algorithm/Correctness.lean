@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.Gosper.Algorithm
+public import SympyProofs.Gosper.Algorithm.Algorithm
 public import SympyProofs.Gosper.Algorithm.NormalizationCorrectness
 public import SympyProofs.Gosper.Rational
 public import SympyProofs.Gosper.Hypergeometric
@@ -19,9 +19,10 @@ noncomputable section
 
 namespace Gosper.Algorithm
 
-open Polynomial
+open Polynomial IsLocalization
 
-variable {K : Type*} [Field K]
+variable {K : Type} [Field K] [DecidableEq K]
+variable (backend : Backend K)
 
 theorem verify_identity (P Q U V : K[X]) (h : verify P Q U V = true) (x : K) :
     P.eval x * U.eval (x + 1) * V.eval x -
@@ -70,49 +71,44 @@ theorem NormalForm.verify_solution_of_ratio (P Q : K[X]) (hQ : Q ≠ 0) (s : Nor
   simp only [residual, taylor_mul, taylor_taylor, add_neg_cancel, taylor_zero]
   linear_combination taylor 1 x * hratio + (Q * taylor 1 s.C) * hx
 
-/-- The unreduced multiplier B*x/C satisfies the certificate identity over
-any coefficient field. -/
-theorem gosperTerm_of_normalized_solution (P Q : K[X]) (hQ : Q ≠ 0)
-    (s : NormalForm K) (hn : gosperNormal P Q = s) (hC : s.C ≠ 0)
-    (hratio : P * (s.B * s.C) = Q * (s.A * taylor 1 s.C)) (x : K[X])
-    (hx : solvePolynomial s.A (taylor (-1) s.B) s.C = some x) :
-    ∃ c, gosperTerm P Q = some c ∧ verify P Q c.numerator c.denominator = true := by
-  let U := taylor (-1) s.B * x
-  let c : Certificate K := ⟨U, s.C⟩
-  refine ⟨c, ?_, ?_⟩
-  · simp [gosperTerm, hn, hx, c, U]
-  · exact s.verify_solution_of_ratio P Q hQ hC hratio x (solvePolynomial_sound _ _ _ _ hx)
+variable [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
 
 /-- Every certificate constructed by `gosperTerm` satisfies the original equation.
 This follows from the algorithm's steps, independently of running `verify`. -/
-theorem gosperTerm_verified (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm P Q = some c) : verify P Q c.numerator c.denominator = true := by
-  let s := gosperNormal P Q
-  obtain ⟨hs, hratio⟩ := gosperNormal_sound P Q hP hQ s rfl
-  cases hx : solvePolynomial s.A (taylor (-1) s.B) s.C with
-  | none =>
-    dsimp [s] at hx
-    simp [gosperTerm, hx] at h
-  | some x =>
-    obtain ⟨candidate, hc, hv⟩ :=
-      gosperTerm_of_normalized_solution P Q hQ s rfl hs.2.2 hratio x hx
-    have he : candidate = c := Option.some.inj (hc.symm.trans h)
-    simpa [he] using hv
+theorem gosperTerm_verified (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
+    (h : gosperTerm backend P Q = some c) : verify P Q c.numerator c.denominator = true := by
+  let s := gosperNormal backend P Q
+  let B := taylor (-1) s.B
+  let d := degreeBound s.A B s.C
+  let M := coefficientSystem s.A B s.C d.toNat
+  let b := toFn (equationDegree s.A B s.C d.toNat + 1) s.C
+  let r := backend.rref (augmented M b)
+  let x := ofFn (d.toNat + 1) r.solution
+  change (if d < 0 then none else if Fin.last (d.toNat + 1) ∈ r.pivots then none
+    else some (⟨B * x, s.C⟩ : Certificate K)) = some c at h
+  split_ifs at h with hd hp
+  cases Option.some.inj h
+  have hx : s.A * taylor 1 x - B * x = s.C :=
+    (coefficientSystem_correct _ _ _ _ _).mp
+      (RrefResult.solution_correct M b r (hbackend.rref_valid _) hp)
+  obtain ⟨hs, hratio⟩ := gosperNormal_sound backend P Q hP hQ s rfl
+  exact s.verify_solution_of_ratio P Q hQ hs.2.2 hratio x hx
 
 /-- Every successful execution supplies a rational Gosper multiplier. -/
-theorem gosperTerm_sound (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm P Q = some c) :
+theorem gosperTerm_sound (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
+    (h : gosperTerm backend P Q = some c) :
     toRatFunc P Q * Gosper.rationalShift 1 (toRatFunc c.numerator c.denominator) -
       toRatFunc c.numerator c.denominator = 1 :=
-  verify_ratFunc P Q _ _ (gosperTerm_verified P Q hP hQ c h)
+  verify_ratFunc P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h)
 
 /-- The polynomial identity holds even at roots of its denominators; dividing
 after specialization instead requires the hypotheses of `verify_at`. -/
-theorem gosperTerm_identity (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm P Q = some c) :
+theorem gosperTerm_identity (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
+    (h : gosperTerm backend P Q = some c) :
     Q ≠ 0 ∧ c.denominator ≠ 0 ∧ residual P Q c.numerator c.denominator = 0 :=
-  verify_sound P Q _ _ (gosperTerm_verified P Q hP hQ c h)
+  verify_sound P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h)
 
+omit [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)] [DecidableEq K] in
 /-- Translate the forward multiplier equation to the paper's backward ratio.
 The paper's multiplier is `g + 1`. -/
 theorem forward_iff_backward (ρ : RatFunc K) :
@@ -134,6 +130,7 @@ theorem forward_iff_backward (ρ : RatFunc K) :
     simp only [map_sub, map_one]
     linear_combination hs
 
+omit [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)] [DecidableEq K] in
 theorem forward_iff_hypergeometric (ρ : RatFunc K) (hρ : ρ ≠ 0) :
     (∃ g : RatFunc K, ρ * Gosper.rationalShift 1 g - g = 1) ↔
       Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) ρ) := by
@@ -143,26 +140,26 @@ theorem forward_iff_hypergeometric (ρ : RatFunc K) (hρ : ρ ≠ 0) :
 
 /-- A returned certificate implies a hypergeometric antidifference for the
 paper's backward term ratio, provided the input numerator is nonzero. -/
-theorem gosperTerm_hypergeometric (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm P Q = some c) :
+theorem gosperTerm_hypergeometric (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
+    (h : gosperTerm backend P Q = some c) :
     Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) := by
   have hρ : toRatFunc P Q ≠ 0 := by
     unfold toRatFunc
     exact div_ne_zero (by simpa using hP) (by simpa using hQ)
-  exact (forward_iff_hypergeometric _ hρ).mp ⟨_, gosperTerm_sound P Q hP hQ c h⟩
+  exact (forward_iff_hypergeometric _ hρ).mp ⟨_, gosperTerm_sound backend hbackend P Q hP hQ c h⟩
 
 /-- The forward antidifference reconstructed from the returned multiplier. -/
 def certificateValue (a : ℕ → K) (c : Certificate K) (n : ℕ) : K :=
   a n * (c.numerator.eval (n : K) / c.denominator.eval (n : K))
 
-theorem gosperTerm_step (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm P Q = some c) (a : ℕ → K) (n : ℕ)
+theorem gosperTerm_step (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Certificate K)
+    (h : gosperTerm backend P Q = some c) (a : ℕ → K) (n : ℕ)
     (hQ : Q.eval (n : K) ≠ 0)
     (hV : c.denominator.eval (n : K) ≠ 0)
     (hVnext : c.denominator.eval ((n + 1 : ℕ) : K) ≠ 0)
     (hratio : a (n + 1) * Q.eval (n : K) = a n * P.eval (n : K)) :
     certificateValue a c (n + 1) - certificateValue a c n = a n := by
-  have he := verify_at P Q c.numerator c.denominator (gosperTerm_verified P Q hP0 hQ0 c h)
+  have he := verify_at P Q c.numerator c.denominator (gosperTerm_verified backend hbackend P Q hP0 hQ0 c h)
     (n : K) hQ hV (by simpa using hVnext)
   have ha := (eq_div_iff hQ).mpr hratio
   simp only [certificateValue, Nat.cast_add, Nat.cast_one]
@@ -171,8 +168,8 @@ theorem gosperTerm_step (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Certif
 
 /-- A finite sum on [m,n), with denominator assumptions only on that interval
 and its endpoints. No nonvanishing assumption on the terms a(k) is needed. -/
-theorem gosperTerm_sum (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm P Q = some c) (a : ℕ → K) (m n : ℕ) (hmn : m ≤ n)
+theorem gosperTerm_sum (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Certificate K)
+    (h : gosperTerm backend P Q = some c) (a : ℕ → K) (m n : ℕ) (hmn : m ≤ n)
     (hQ : ∀ k ∈ Finset.Ico m n, Q.eval (k : K) ≠ 0)
     (hV : ∀ k ∈ Finset.Icc m n, c.denominator.eval (k : K) ≠ 0)
     (hratio : ∀ k ∈ Finset.Ico m n,
@@ -183,7 +180,7 @@ theorem gosperTerm_sum (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Certifi
       apply Finset.sum_congr rfl
       intro k hk
       have hk' := Finset.mem_Ico.mp hk
-      exact (gosperTerm_step P Q hP0 hQ0 c h a k (hQ k hk)
+      exact (gosperTerm_step backend hbackend P Q hP0 hQ0 c h a k (hQ k hk)
         (hV k (Finset.mem_Icc.mpr ⟨hk'.1, by omega⟩))
         (hV (k + 1) (Finset.mem_Icc.mpr ⟨by omega, by omega⟩)) (hratio k hk)).symm
     _ = _ := Finset.sum_Ico_sub _ hmn
