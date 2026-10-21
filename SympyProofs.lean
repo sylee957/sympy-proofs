@@ -6,3 +6,4 @@ import SympyProofs.JordanKrylov
 import SympyProofs.LambertW
 import SympyProofs.RiemannZeta
 import SympyProofs.Geometry
+import SympyProofs.Gosper
