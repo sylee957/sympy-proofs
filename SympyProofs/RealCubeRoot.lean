@@ -1,0 +1,12 @@
+module
+
+public import SympyProofs.RealCubeRoot.RealCubicSurd
+public import SympyProofs.RealCubeRoot.Principal
+public import SympyProofs.RealCubeRoot.CubicSurd
+public import SympyProofs.RealCubeRoot.Analytic
+public import SympyProofs.RealCubeRoot.Extensions
+public import SympyProofs.RealCubeRoot.Uniqueness
+public import SympyProofs.RealCubeRoot.Boundary
+public import SympyProofs.RealCubeRoot.BoundaryClassification
+public import SympyProofs.RealCubeRoot.ModifiedPrincipal
+public import SympyProofs.RealCubeRoot.Cardano
