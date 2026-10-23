@@ -7,3 +7,4 @@ public import SympyProofs.RealCubeRoot.Cardano.CubicSurd
 public import SympyProofs.RealCubeRoot.Cardano.CubicSurdParts
 public import SympyProofs.RealCubeRoot.Cardano.ModifiedPrincipal
 public import SympyProofs.RealCubeRoot.Cardano.ModifiedPrincipalParts
+public import SympyProofs.RealCubeRoot.Cardano.Piecewise
