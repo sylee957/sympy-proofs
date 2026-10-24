@@ -3,7 +3,9 @@ module
 public import SympyProofs.RealCubeRoot.Cardano.Principal
 public import SympyProofs.RealCubeRoot.Cardano.PhaseCorrected
 public import SympyProofs.RealCubeRoot.Cardano.ConjugateCorrected
+public import SympyProofs.RealCubeRoot.Cardano.ConjugateCorrectedCounterexample
 public import SympyProofs.RealCubeRoot.Cardano.CubicSurd
+public import SympyProofs.RealCubeRoot.Cardano.CubicSurdRealness
 public import SympyProofs.RealCubeRoot.Cardano.CubicSurdParts
 public import SympyProofs.RealCubeRoot.Cardano.ModifiedPrincipal
 public import SympyProofs.RealCubeRoot.Cardano.ModifiedPrincipalParts

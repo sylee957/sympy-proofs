@@ -17,6 +17,8 @@ A real-valued solution is also defined for every real cubic with nonzero
 leading coefficient.
 See `cardano_formula_cubicSurd` for the equation and the direct two-surd
 formula with either choice, using `let` bindings for every intermediate quantity.
+See `CubicSurdRealness.lean` for the proof that its first expression is real
+for either choice, without a condition on the discriminant.
 The `surdU`/`surdV` definitions use the right side.
 See `CubicSurdParts.lean` for explicit real/imaginary coordinates, real cubic
 surds when the discriminant is nonnegative, and sorted real solutions when it
