@@ -117,6 +117,35 @@ theorem conjugatePairedRoot_eq (U W C : ℂ) :
     simp only [conjugatePairedRoot, he, zero_mul, add_zero, hU, ↓reduceIte]
     field_simp
 
+/-- Pairing leaves an already compatible second radical unchanged, including at zero. -/
+theorem conjugatePairedRoot_eq_of_mul_eq {U W C : ℂ} (h : U * W = C) :
+    conjugatePairedRoot U W C = W := by
+  rw [conjugatePairedRoot_eq]
+  by_cases hU : U = 0
+  · simp [hU]
+  · rw [ite_eq_right hU]
+    apply (div_eq_iff hU).mpr
+    rw [← h]
+    ring
+
+/-- Correct any pair of cube roots whose cubes have the required product. -/
+theorem conjugatePairedRoot_spec {U W C : ℂ} (h : U ^ 3 * W ^ 3 = C ^ 3) :
+    conjugatePairedRoot U W C ^ 3 = W ^ 3 ∧
+      U * conjugatePairedRoot U W C = C := by
+  by_cases hU : U = 0
+  · have hC : C = 0 := by simpa [hU] using h.symm
+    simp [conjugatePairedRoot_eq, hU, hC]
+  · have hprod : U * conjugatePairedRoot U W C = C := by
+      rw [conjugatePairedRoot_eq, ite_eq_right hU]
+      field_simp
+    refine ⟨?_, hprod⟩
+    apply mul_left_cancel₀ (pow_ne_zero 3 hU)
+    calc
+      U ^ 3 * conjugatePairedRoot U W C ^ 3 =
+          (U * conjugatePairedRoot U W C) ^ 3 := (mul_pow _ _ _).symm
+      _ = C ^ 3 := by rw [hprod]
+      _ = U ^ 3 * W ^ 3 := h.symm
+
 /-- Cardano's second radical, expressed using the conjugation-based detector. -/
 def conjugateCorrectedV (p q : ℂ) : ℂ :=
   conjugatePairedRoot (u p q) (principal (radicandMinus p q)) (-p / 3)

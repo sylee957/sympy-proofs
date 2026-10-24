@@ -9,4 +9,6 @@ public import SympyProofs.RealCubeRoot.Cardano.CubicSurdRealness
 public import SympyProofs.RealCubeRoot.Cardano.CubicSurdParts
 public import SympyProofs.RealCubeRoot.Cardano.ModifiedPrincipal
 public import SympyProofs.RealCubeRoot.Cardano.ModifiedPrincipalParts
+public import SympyProofs.RealCubeRoot.Cardano.ModifiedConjugateCorrected
+public import SympyProofs.RealCubeRoot.Cardano.ModifiedConjugateCorrectedRealness
 public import SympyProofs.RealCubeRoot.Cardano.Piecewise
