@@ -10,9 +10,11 @@ are x, y, z; a point or normal vector can be written as `!₂[x, y, z]`.
 The constructors remain `plane P n`, `segment A B`, `ray A B`, and `line A B`.
 
 The distance formulas below expand every inner product and norm into real
-coordinate arithmetic. The only nondegeneracy assumption is `n ≠ 0`.
+coordinate arithmetic. Each plane's normal is assumed nonzero.
 The ray and line formulas use `Real.sign`, including when the direction is parallel
-to the plane or the two defining points coincide.
+to the plane or the two defining points coincide. The plane-to-plane formula uses
+`Real.sign` of the squared cross-product length, covering parallel, intersecting,
+and coincident planes.
 -/
 
 @[expose] public section
@@ -29,6 +31,19 @@ theorem inner_sub_eq_coordinates_3d (n X P : Point3D) :
     ⟪n, X - P⟫_ℝ =
       n 0 * (X 0 - P 0) + n 1 * (X 1 - P 1) + n 2 * (X 2 - P 2) := by
   simp [PiLp.inner_apply, Fin.sum_univ_succ, add_assoc, mul_comm]
+
+/-- The dot product of two vectors in x, y, z coordinates. -/
+theorem inner_eq_coordinates_3d (n m : Point3D) :
+    ⟪n, m⟫_ℝ = n 0 * m 0 + n 1 * m 1 + n 2 * m 2 := by
+  simpa only [sub_zero, PiLp.zero_apply] using inner_sub_eq_coordinates_3d n m 0
+
+/-- The Gram determinant of the normals is the squared length of their cross product. -/
+theorem plane_normal_gram_eq_coordinates_3d (n m : Point3D) :
+    ⟪n, n⟫_ℝ * ⟪m, m⟫_ℝ - ⟪n, m⟫_ℝ ^ 2 =
+      (n 1 * m 2 - n 2 * m 1) ^ 2 +
+        (n 2 * m 0 - n 0 * m 2) ^ 2 + (n 0 * m 1 - n 1 * m 0) ^ 2 := by
+  simp only [inner_eq_coordinates_3d]
+  ring
 
 /-- Euclidean length in three coordinates. -/
 theorem norm_eq_coordinates_3d (n : Point3D) :
@@ -81,5 +96,18 @@ theorem line_plane_distance_3d (P n : Point3D) (hn : n ≠ 0) (A B : Point3D) :
         Real.sqrt (n 0 ^ 2 + n 1 ^ 2 + n 2 ^ 2) := by
   rw [line_plane_distance P n hn A B, ← norm_eq_sqrt_real_inner n]
   simp only [inner_sub_eq_coordinates_3d, norm_eq_coordinates_3d]
+
+/-- Plane-to-plane distance in coordinates, with no conditional branch.
+`Δ` is the squared length of the cross product of the two normals. -/
+theorem plane_plane_distance_3d (P n : Point3D) (hn : n ≠ 0)
+    (Q m : Point3D) (hm : m ≠ 0) :
+    let a := n 0 * (Q 0 - P 0) + n 1 * (Q 1 - P 1) + n 2 * (Q 2 - P 2)
+    let Δ := (n 1 * m 2 - n 2 * m 1) ^ 2 +
+      (n 2 * m 0 - n 0 * m 2) ^ 2 + (n 0 * m 1 - n 1 * m 0) ^ 2
+    let N := Real.sqrt (n 0 ^ 2 + n 1 ^ 2 + n 2 ^ 2)
+    distance (plane P n) (plane Q m) = |a| * (1 - Real.sign Δ) / N := by
+  rw [plane_plane_distance P n hn Q m hm, ← norm_eq_sqrt_real_inner n]
+  simp only [inner_sub_eq_coordinates_3d, plane_normal_gram_eq_coordinates_3d,
+    norm_eq_coordinates_3d]
 
 end SympyGeometry

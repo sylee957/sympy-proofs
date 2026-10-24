@@ -6,7 +6,7 @@ public import Mathlib.Analysis.InnerProductSpace.PiL2
 public import Mathlib.Topology.MetricSpace.HausdorffDistance
 
 /-!
-# Euclidean distances from planes to segments, rays, and lines
+# Euclidean distances from planes to segments, rays, lines, and other planes
 
 For `plane P n`, `segment A B`, `ray A B`, and `line A B`, write
 `a = ⟪n, A - P⟫`, `b = ⟪n, B - P⟫`, `c = ⟪n, B - A⟫`, and
@@ -15,9 +15,13 @@ bindings for these quantities, with `c = b - a`.
 The segment distance is `(|a| + |b| - |c|) / (2 * N)`.
 The ray distance is `|a| * (1 + min 0 (Real.sign (a * c))) / N`.
 The line distance is `|a| * (1 - |Real.sign c|) / N`.
+For a second plane `plane Q m`, put
+`Δ = ⟪n, n⟫ * ⟪m, m⟫ - ⟪n, m⟫ ^ 2`. The plane-to-plane distance is
+`|⟪n, Q - P⟫| * (1 - Real.sign Δ) / N`: `Δ` vanishes for parallel normals
+and is positive otherwise.
 
 Planes, segments, rays, and lines use the set-based definitions in `SympyGeometry`.
-The only nondegeneracy assumption is `n ≠ 0`, needed for a proper plane.
+Each plane's normal is assumed nonzero, so that it defines a proper plane.
 No hypothesis excludes parallelism, containment, or coincident defining points
 for a segment, ray, or line. We prove these formulas for the infimum of actual pairwise
 Euclidean distances and exhibit a closest pair.
@@ -178,5 +182,83 @@ theorem line_plane_distance (P n : E) (hn : n ≠ 0) (A B : E) :
   dsimp only
   rw [← norm_eq_sqrt_real_inner n, distance, (line_plane_isLeast P n hn A B).csInf_eq,
     lineValue]
+
+/-- The sign formula is a global lower bound attained by a pair of points on the planes.
+For a positive Gram determinant we explicitly construct an intersection point;
+when the determinant is zero we project a point of the second plane onto the first. -/
+theorem plane_plane_isLeast (P n : E) (hn : n ≠ 0) (Q m : E) (hm : m ≠ 0) :
+    let a := ⟪n, Q - P⟫_ℝ
+    let Δ := ⟪n, n⟫_ℝ * ⟪m, m⟫_ℝ - ⟪n, m⟫_ℝ ^ 2
+    IsLeast {r | ∃ x ∈ plane P n, ∃ y ∈ plane Q m, dist x y = r}
+      (|a| * (1 - Real.sign Δ) / ‖n‖) := by
+  intro a Δ
+  let v := ⟪m, m⟫_ℝ • n - ⟪n, m⟫_ℝ • m
+  have hmv : ⟪m, v⟫_ℝ = 0 := by
+    dsimp [v]
+    simp only [inner_sub_right, real_inner_smul_right, real_inner_comm m n]
+    ring
+  have hnv : ⟪n, v⟫_ℝ = Δ := by
+    dsimp [v, Δ]
+    simp only [inner_sub_right, real_inner_smul_right]
+    ring
+  have hvv : ⟪v, v⟫_ℝ = ⟪m, m⟫_ℝ * Δ := by
+    dsimp [v, Δ]
+    simp only [inner_sub_left, inner_sub_right, real_inner_smul_left,
+      real_inner_smul_right, real_inner_comm m n]
+    ring
+  have hmm : 0 < ⟪m, m⟫_ℝ := by
+    rw [real_inner_self_eq_norm_sq]
+    exact sq_pos_of_pos (norm_pos_iff.mpr hm)
+  have hΔ : 0 ≤ Δ := by
+    have hvnonneg : 0 ≤ ⟪v, v⟫_ℝ := by rw [real_inner_self_eq_norm_sq]; positivity
+    rw [hvv] at hvnonneg
+    exact nonneg_of_mul_nonneg_right hvnonneg hmm
+  by_cases hzero : Δ = 0
+  · rw [hzero, Real.sign_zero, sub_zero, mul_one]
+    have hvzero : v = 0 := inner_self_eq_zero.mp (by rw [hvv, hzero, mul_zero])
+    have hres (y : E) (hy : y ∈ plane Q m) : ⟪n, y - P⟫_ℝ = a := by
+      have hmy : ⟪m, y - Q⟫_ℝ = 0 := hy
+      have h := congrArg (fun w : E => ⟪w, y - Q⟫_ℝ) hvzero
+      simp only [v, inner_sub_left, real_inner_smul_left, hmy, mul_zero,
+        sub_zero, inner_zero_left] at h
+      have hny : ⟪n, y - Q⟫_ℝ = 0 := (mul_eq_zero.mp h).resolve_left hmm.ne'
+      rw [show y - P = (y - Q) + (Q - P) by abel, inner_add_right, hny, zero_add]
+    constructor
+    · exact ⟨planeProjection P n Q, planeProjection_mem P n hn Q, Q,
+        point_mem_plane Q m, by rw [dist_comm, dist_planeProjection P n hn Q]⟩
+    · rintro r ⟨x, hx, y, hy, rfl⟩
+      simpa only [hres y hy, dist_comm y x] using residual_div_norm_le_dist P n hn y x hx
+  · have hpos : 0 < Δ := lt_of_le_of_ne hΔ (Ne.symm hzero)
+    rw [Real.sign_of_pos hpos, sub_self, mul_zero, zero_div]
+    let x := Q - (a / Δ) • v
+    have hxP : x ∈ plane P n := by
+      change ⟪n, x - P⟫_ℝ = 0
+      simp only [x, inner_sub_right, real_inner_smul_right, hnv, div_mul_cancel₀ _ hzero]
+      dsimp [a]
+      rw [inner_sub_right]
+      ring
+    have hxQ : x ∈ plane Q m := by
+      change ⟪m, x - Q⟫_ℝ = 0
+      simp only [x, inner_sub_right, real_inner_smul_right, hmv, mul_zero, sub_zero, sub_self]
+    constructor
+    · exact ⟨x, hxP, x, hxQ, dist_self x⟩
+    · rintro r ⟨y, _, z, _, rfl⟩
+      exact dist_nonneg
+
+/-- A single plane-to-plane distance formula using `sign`, including intersecting,
+parallel, and coincident planes. Only the two normals must be nonzero. -/
+theorem plane_plane_distance (P n : E) (hn : n ≠ 0) (Q m : E) (hm : m ≠ 0) :
+    let a := ⟪n, Q - P⟫_ℝ
+    let Δ := ⟪n, n⟫_ℝ * ⟪m, m⟫_ℝ - ⟪n, m⟫_ℝ ^ 2
+    let N := Real.sqrt ⟪n, n⟫_ℝ
+    distance (plane P n) (plane Q m) = |a| * (1 - Real.sign Δ) / N := by
+  dsimp only
+  rw [← norm_eq_sqrt_real_inner n, distance, (plane_plane_isLeast P n hn Q m hm).csInf_eq]
+
+/-- With the same normal, only the perpendicular displacement between the planes matters. -/
+theorem plane_plane_distance_same_normal (P Q n : E) (hn : n ≠ 0) :
+    distance (plane P n) (plane Q n) = |⟪n, Q - P⟫_ℝ| / Real.sqrt ⟪n, n⟫_ℝ := by
+  rw [plane_plane_distance P n hn Q n hn]
+  simp only [pow_two, sub_self, Real.sign_zero, sub_zero, mul_one]
 
 end SympyGeometry
