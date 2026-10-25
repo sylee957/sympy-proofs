@@ -6,6 +6,7 @@ public import SympyProofs.Gosper.Applications
 public import SympyProofs.Gosper.Binomial
 public import SympyProofs.Gosper.Cubic
 public import SympyProofs.Gosper.Algorithm
+public import SympyProofs.Gosper.PolynomialSum
 
 /-!
 # Gosper's indefinite hypergeometric summation theorem
@@ -36,4 +37,15 @@ nonsummability under explicit nonzero-input hypotheses. The algorithm returns
 certificate gives finite sums via `Algorithm.gosperTerm_sum`, with explicit
 denominator conditions on the summation interval. Mathlib's noncomputable
 operations keep this a mathematical algorithm model.
+
+`PolynomialSum.antidifference` handles polynomial summands directly over any
+commutative rational algebra, including polynomial parameter rings. It constructs
+a normalized primitive using Bernoulli polynomials and proves the difference
+identity, a degree bound, finite sums, and compatibility with every parameter
+specialization. `PolynomialSum.antidifferenceCoefficients` implements the same
+construction by generating and accumulating one monomial primitive row at a time;
+`PolynomialSum.antidifferenceOfFn_sound` proves that the executable output has
+the required difference and vanishes at zero. The implementation and proofs live
+in `PolynomialSum.Algorithm` and `PolynomialSum.Correctness`. The algorithm uses
+no candidate search, parameter zero tests, or parameter-dependent division.
 -/
