@@ -52,7 +52,7 @@ theorem Partition.layer_factorization [CharZero K] {ops : Primitives K} (hops : 
     intro b hbn
     obtain ⟨hbm, hba⟩ := Finset.mem_filter.mp hbn
     have hu := hb.homogeneous_shift hops hS hl (List.mem_toFinset.mp hbm) a ha 0
-    simpa only [shift_zero] using (hu.resolve_left (by simpa using hba)).symm
+    simpa only [Int.cast_zero, taylor_zero] using (hu.resolve_left (by simpa using hba)).symm
   have hay : a ∣ ∏ b ∈ yes, b :=
     hcop.dvd_of_dvd_mul_right (hp.symm ▸ hl a ha)
   have hym : (∏ b ∈ yes, b).Monic := monic_prod_of_monic _ _ fun b hby =>
@@ -107,7 +107,7 @@ theorem Partition.exponent_pos [CharZero K] {ops : Primitives K} (hops : ops.Val
     apply (coprime_list_prod_iff b layers).mpr
     intro a ha
     have hu := hb.homogeneous_shift hops hS hl hbm a ha 0
-    apply (by simpa only [shift_zero] using hu : Homogeneous b a).resolve_left
+    apply (by simpa only [Int.cast_zero, taylor_zero] using hu : Homogeneous b a).resolve_left
     intro hd
     exact hn ⟨a, ha, by simpa using hd⟩
   exact not_isUnit_of_natDegree_pos b (hb.nonconstant b hbm)

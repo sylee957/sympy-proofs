@@ -77,7 +77,7 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
   · by
       rename_i hdeg start rem la hi
       exact fun pref _ tests => tests.toList =
-        pref.flatMap (fun h => la.toList.map (fun a => shift a h))
+        pref.flatMap (fun h : ℤ => la.toList.map (fun a => taylor (h : K) a))
   · by
       rename_i hdeg start rem la hi ta ht
       exact fun pref _ blocks => blocks.toList = refineBlocks ops S pref
@@ -92,14 +92,14 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
   · by
       rename_i hdeg start rem la hi ta ht ba hb pref b suff hs ga hg hbase bm hm
       exact fun pref _ os => os.down.toList = occurrences.down.toList ++
-        pref.map (fun h => ⟨h, exponent la.toList (shift b h)⟩)
+        pref.map (fun h : ℤ => ⟨h, exponent la.toList (taylor (h : K) b)⟩)
   · fun pref _ multiplicity => multiplicity.down = exponent pref shifted
   · by
       rename_i pref test suff hs old hb
       exact fun pref _ next => next.toList = pref.flatMap (fun b => refineBlocks ops b [test])
   · by
       rename_i pref h suff hs old ht
-      exact fun pref _ current => current.toList = old.toList ++ pref.map (fun a => shift a h)
+      exact fun pref _ current => current.toList = old.toList ++ pref.map (fun a => taylor (h : K) a)
   case vc1 =>
     rename_i hdeg
     refine ⟨rfl, leadingCoeff_ne_zero.mpr hD, ?_, ?_, ?_⟩
@@ -160,7 +160,7 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
     rfl
   case vc10 => simp [exponent]
   case vc11 =>
-    simp_all +zetaDelta [Array.toList_push, shift]
+    simp_all +zetaDelta [Array.toList_push]
   case vc12 | vc13 | vc14 | vc15 =>
     simp_all +zetaDelta [exponent, List.filter_append]
   case vc16 =>
@@ -192,10 +192,10 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
   case vc23 => simp
   case vc24 =>
     rename_i pref h suff hs old ht new hn
-    simpa [List.flatMap_append, ht, shift] using hn
+    simpa [List.flatMap_append, ht] using hn
   case vc25 =>
     rename_i pref a suff hs old ht
-    simp [tests, Array.toList_push, ht, List.append_assoc, shift]
+    simp [tests, Array.toList_push, ht, List.append_assoc]
   case vc26 =>
     rename_i pref n suff hs rem layers hi hr
     refine ⟨?_, hi.2⟩

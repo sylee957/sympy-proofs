@@ -20,7 +20,7 @@ structure BlockSystem (S : Polynomial K) (bs : Finset (Polynomial K)) : Prop whe
   shiftFree : ∀ b ∈ bs, ShiftFree b
   reconstruct : (∏ b ∈ bs, b) = S
   compatible : ∀ b ∈ bs, ∀ c ∈ bs, ∀ h : ℤ,
-    ¬IsCoprime c (shift b h) → shift b h = c
+    ¬IsCoprime c (taylor (h : K) b) → taylor (h : K) b = c
 
 theorem Partition.blockSystem [CharZero K] {ops : Primitives K} (hops : ops.Valid)
     {S : Polynomial K} {layers bs : List (Polynomial K)} (hS : S.Monic) (hs : Squarefree S)
@@ -47,7 +47,7 @@ theorem BlockSystem.divides {S : Polynomial K} {bs : Finset (Polynomial K)} (hb 
 
 theorem BlockSystem.mem_shifts_iff [CharZero K] {ops : Primitives K} (hops : ops.Valid)
     {S : Polynomial K} {bs : Finset (Polynomial K)} (hb : BlockSystem S bs) {b : Polynomial K} (hbm : b ∈ bs)
-    (h : ℤ) : h ∈ ops.shiftSet S b ↔ shift b h ∈ bs := by
+    (h : ℤ) : h ∈ ops.shiftSet S b ↔ taylor (h : K) b ∈ bs := by
   rw [hops.mem_shiftSet S b hb.monic_support.ne_zero (hb.monic b hbm).ne_zero h]
   constructor
   · intro hn
@@ -59,7 +59,7 @@ theorem BlockSystem.mem_shifts_iff [CharZero K] {ops : Primitives K} (hops : ops
     by_contra hnc
     exact hm ((hb.compatible b hbm c hc h hnc).symm ▸ hc)
   · intro hm hc
-    exact not_isUnit_of_natDegree_pos (shift b h) (hb.nonconstant _ hm)
+    exact not_isUnit_of_natDegree_pos (taylor (h : K) b) (hb.nonconstant _ hm)
       (hc.symm.isUnit_of_dvd (hb.divides hm))
 
 theorem BlockSystem.zero_mem_shifts [CharZero K] {ops : Primitives K} (hops : ops.Valid)
@@ -72,12 +72,12 @@ def bases (ops : Primitives K) (S : Polynomial K) (bs : Finset (Polynomial K)) :
 
 theorem BlockSystem.exists_base [CharZero K] {ops : Primitives K} (hops : ops.Valid)
     {S : Polynomial K} {bs : Finset (Polynomial K)} (hb : BlockSystem S bs) {b : Polynomial K} (hbm : b ∈ bs) :
-    ∃ a ∈ bases ops S bs, ∃ h ∈ ops.shiftSet S a, shift a h = b := by
+    ∃ a ∈ bases ops S bs, ∃ h ∈ ops.shiftSet S a, taylor (h : K) a = b := by
   let H := ops.shiftSet S b
   have hH : H.Nonempty := ⟨0, hb.zero_mem_shifts hops hbm⟩
   let k := H.min' hH
   have hk : k ∈ H := H.min'_mem hH
-  let a := shift b k
+  let a := taylor (k : K) b
   have ham : a ∈ bs := (hb.mem_shifts_iff hops hbm k).mp hk
   have ha : a ∈ bases ops S bs := by
     apply Finset.mem_filter.mpr
@@ -85,27 +85,27 @@ theorem BlockSystem.exists_base [CharZero K] {ops : Primitives K} (hops : ops.Va
     intro h hh
     have hkh : k + h ∈ H := by
       apply (hb.mem_shifts_iff hops hbm (k + h)).mpr
-      simpa [a, shift_shift] using (hb.mem_shifts_iff hops ham h).mp hh
+      simpa [a, taylor_taylor, add_comm] using (hb.mem_shifts_iff hops ham h).mp hh
     have := H.min'_le _ hkh
     change k ≤ k + h at this
     omega
   refine ⟨a, ha, -k, ?_, ?_⟩
   · apply (hb.mem_shifts_iff hops ham (-k)).mpr
-    simpa [a, shift_shift] using hbm
-  · simp [a, shift_shift]
+    simpa [a, taylor_taylor, add_comm] using hbm
+  · simp [a, taylor_taylor, add_comm]
 
 theorem BlockSystem.base_unique [CharZero K] {ops : Primitives K} (hops : ops.Valid)
     {S : Polynomial K} {bs : Finset (Polynomial K)} (hb : BlockSystem S bs)
     {a b : Polynomial K} (ha : a ∈ bases ops S bs) (hb' : b ∈ bases ops S bs)
-    {h k : ℤ} (he : shift a h = shift b k) : a = b ∧ h = k := by
+    {h k : ℤ} (he : taylor (h : K) a = taylor (k : K) b) : a = b ∧ h = k := by
   obtain ⟨ham, ha0⟩ := Finset.mem_filter.mp ha
   obtain ⟨hbm, hb0⟩ := Finset.mem_filter.mp hb'
-  have hab : shift a (h - k) = b := by
-    have ht := congrArg (fun p => shift p (-k)) he
-    simpa [shift_shift, sub_eq_add_neg] using ht
-  have hba : shift b (k - h) = a := by
-    have ht := congrArg (fun p => shift p (-h)) he.symm
-    simpa [shift_shift, sub_eq_add_neg] using ht
+  have hab : taylor ((h - k : ℤ) : K) a = b := by
+    have ht := congrArg (fun p => taylor ((-k : ℤ) : K) p) he
+    simpa [taylor_taylor, sub_eq_add_neg, add_comm] using ht
+  have hba : taylor ((k - h : ℤ) : K) b = a := by
+    have ht := congrArg (fun p => taylor ((-h : ℤ) : K) p) he.symm
+    simpa [taylor_taylor, sub_eq_add_neg, add_comm] using ht
   have hh := ha0 (h - k) ((hb.mem_shifts_iff hops ham _).mpr (hab.symm ▸ hbm))
   have hk := hb0 (k - h) ((hb.mem_shifts_iff hops hbm _).mpr (hba.symm ▸ ham))
   have heq : h = k := by omega
@@ -119,15 +119,15 @@ theorem BlockSystem.bases_separated [CharZero K] {ops : Primitives K} (hops : op
   intro h
   by_contra hc
   have he := hb.compatible b (Finset.mem_filter.mp hb').1 a (Finset.mem_filter.mp ha).1 h hc
-  have hu := hb.base_unique hops hb' ha (show shift b h = shift a 0 by simpa using he)
+  have hu := hb.base_unique hops hb' ha (h := h) (k := 0) (by simpa using he)
   exact hab hu.1.symm
 
 theorem BlockSystem.prod_classes [CharZero K] {ops : Primitives K} (hops : ops.Valid)
     {S : Polynomial K} {bs : Finset (Polynomial K)} (hb : BlockSystem S bs) (ν : Polynomial K → ℕ) :
-    (∏ a ∈ bases ops S bs, ∏ h ∈ ops.shiftSet S a, shift a h ^ ν (shift a h)) =
+    (∏ a ∈ bases ops S bs, ∏ h ∈ ops.shiftSet S a, taylor (h : K) a ^ ν (taylor (h : K) a)) =
       ∏ b ∈ bs, b ^ ν b := by
   rw [Finset.prod_sigma']
-  apply Finset.prod_bij (fun u _ => shift u.1 u.2)
+  apply Finset.prod_bij (fun u _ => taylor (u.2 : K) u.1)
   · intro u hu
     obtain ⟨ha, hh⟩ := Finset.mem_sigma.mp hu
     exact (hb.mem_shifts_iff hops (Finset.mem_filter.mp ha).1 u.2).mp hh

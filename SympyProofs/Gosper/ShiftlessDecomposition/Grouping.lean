@@ -30,7 +30,7 @@ theorem Primitives.Valid.sorted_nonzero_shifts {ops : Primitives K} (hops : ops.
 
 /-- Specification of the occurrence loop for a base. -/
 def makeGroup (ops : Primitives K) (S : Polynomial K) (ν : Polynomial K → ℕ) (b : Polynomial K) : Group K :=
-  ⟨b, (⟨0, ν b⟩ :: ((ops.shiftSet S b).erase 0).sort.map (fun h => ⟨h, ν (shift b h)⟩)).toArray⟩
+  ⟨b, (⟨0, ν b⟩ :: ((ops.shiftSet S b).erase 0).sort.map (fun h : ℤ => ⟨h, ν (taylor (h : K) b)⟩)).toArray⟩
 
 /-- Specification of the grouping loop, up to the order of the groups. -/
 def groupBlocks (ops : Primitives K) (S : Polynomial K) (ν : Polynomial K → ℕ) (bs : Finset (Polynomial K)) :
@@ -75,14 +75,14 @@ theorem makeGroup_expand [CharZero K] {ops : Primitives K} (hops : ops.Valid)
     {S : Polynomial K} {bs : Finset (Polynomial K)} (hb : BlockSystem S bs) (ν : Polynomial K → ℕ)
     {b : Polynomial K} (hbm : b ∈ bs) :
     (makeGroup ops S ν b).expand =
-      ∏ h ∈ ops.shiftSet S b, shift b h ^ ν (shift b h) := by
+      ∏ h ∈ ops.shiftSet S b, taylor (h : K) b ^ ν (taylor (h : K) b) := by
   let H := ops.shiftSet S b
-  let f := fun h => shift b h ^ ν (shift b h)
+  let f := fun h : ℤ => taylor (h : K) b ^ ν (taylor (h : K) b)
   have ht : ((H.erase 0).sort.map f).prod = ∏ h ∈ H.erase 0, f h := by
     rw [← List.prod_toFinset f ((H.erase 0).sort_nodup (· ≤ ·)), Finset.sort_toFinset]
   simp only [makeGroup, Group.expand, ← Array.prod_toList, Array.toList_map,
     List.map_cons, List.prod_cons, List.map_map,
-    Function.comp_def, shift_zero]
+    Function.comp_def, Int.cast_zero, taylor_zero]
   change b ^ ν b * ((H.erase 0).sort.map f).prod = ∏ h ∈ H, f h
   rw [ht]
   simpa [f] using Finset.mul_prod_erase H f (hb.zero_mem_shifts hops hbm)
@@ -110,7 +110,7 @@ theorem groupBlocks_reconstruct [CharZero K] {ops : Primitives K} (hops : ops.Va
   unfold groupBlocks
   rw [List.map_map, Finset.prod_map_toList]
   calc
-    _ = ∏ b ∈ bases ops S bs, ∏ h ∈ ops.shiftSet S b, shift b h ^ ν (shift b h) := by
+    _ = ∏ b ∈ bases ops S bs, ∏ h ∈ ops.shiftSet S b, taylor (h : K) b ^ ν (taylor (h : K) b) := by
       apply Finset.prod_congr rfl
       intro b hbm
       exact makeGroup_expand hops hb ν (Finset.mem_filter.mp hbm).1
