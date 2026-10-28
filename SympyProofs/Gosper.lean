@@ -7,6 +7,7 @@ public import SympyProofs.Gosper.Binomial
 public import SympyProofs.Gosper.Cubic
 public import SympyProofs.Gosper.Algorithm
 public import SympyProofs.Gosper.PolynomialSum
+public import SympyProofs.Gosper.ShiftlessDecomposition
 
 /-!
 # Gosper's indefinite hypergeometric summation theorem
@@ -48,4 +49,13 @@ construction by generating and accumulating one monomial primitive row at a time
 the required difference and vanishes at zero. The implementation and proofs live
 in `PolynomialSum.Algorithm` and `PolynomialSum.Correctness`. The algorithm uses
 no candidate search, parameter zero tests, or parameter-dependent division.
+
+`ShiftlessDecomposition.decompose` constructs shiftless decompositions
+over any characteristic-zero field with decidable equality, using supplied gcd,
+derivative, division, resultant, and integer-root
+computations. Layer reconstruction and maximal multiplicity are proved;
+`decompose_sound` and `decompose_complete` prove full correctness and successful
+construction for every nonzero input. The function returns a decomposition
+directly; primitive contracts and the nonzero-input assumption occur only in
+the correctness theorems.
 -/
