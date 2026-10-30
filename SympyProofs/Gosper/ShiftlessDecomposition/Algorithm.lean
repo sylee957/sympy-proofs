@@ -6,7 +6,7 @@ public import SympyProofs.Gosper.ShiftlessDecomposition.Primitives
 # Total shiftless decomposition
 
 This module defines the result types `Occurrence`, `Group`, and `Decomposition`,
-the resultant-based shift enumeration, and the imperative decomposition algorithm.
+the shift-enumeration interface, and the imperative decomposition algorithm.
 
 `decompose ops D` returns a `Decomposition K` directly. The definition takes no
 proof arguments; the primitive contracts and nonzero-input assumption appear
@@ -47,17 +47,6 @@ structure Decomposition (K : Type*) [Semiring K] where
   coefficient : K
   groups : Array (Group K)
 
-/-- Enumerate integer shifts with a common factor.
-The inner variable is the shift; the resultant eliminates the outer one.
-Remove repeated factors from the resultant before finding its integer roots. -/
-def shifts (ops : Primitives K) (p q : Polynomial K) : Array ℤ := Id.run do
-  let p := p.map (Polynomial.C : K →+* Polynomial K)
-  let q := q.map (Polynomial.C : K →+* Polynomial K)
-  let q := taylor (X : Polynomial K) q
-  let r := ops.resultant p q
-  let r := r / ops.gcd r (ops.derivative r)
-  return ops.integerRoots r
-
 /-- Construct a shiftless decomposition. Correctness assumes characteristic zero,
 `ops.Valid`, and nonzero input; these conditions appear only in the theorems. -/
 def decompose (ops : Primitives K) (D : Polynomial K) : Decomposition K := Id.run do
@@ -72,7 +61,7 @@ def decompose (ops : Primitives K) (D : Polynomial K) : Decomposition K := Id.ru
     layers := layers.push layer
     remaining := remaining / layer
   let mut tests := #[]
-  for h in shifts ops S S do
+  for h in ops.shifts S S do
     for a in layers do
       tests := tests.push (taylor (h : K) a)
   let mut blocks := #[S]
@@ -86,7 +75,7 @@ def decompose (ops : Primitives K) (D : Polynomial K) : Decomposition K := Id.ru
     blocks := next
   let mut groups : Array (Group K) := #[]
   for b in blocks do
-    let shifts := shifts ops S b
+    let shifts := ops.shifts S b
     if ∀ h ∈ shifts, 0 ≤ h then
       -- Record the unshifted base first.
       let mut baseMultiplicity : ULift ℕ := 0

@@ -8,6 +8,7 @@ public import SympyProofs.Gosper.Cubic
 public import SympyProofs.Gosper.Algorithm
 public import SympyProofs.Gosper.PolynomialSum
 public import SympyProofs.Gosper.ShiftlessDecomposition
+public import SympyProofs.Gosper.ModularShifts
 
 /-!
 # Gosper's indefinite hypergeometric summation theorem
@@ -52,8 +53,9 @@ no candidate search, parameter zero tests, or parameter-dependent division.
 
 `ShiftlessDecomposition.decompose` constructs shiftless decompositions
 over any characteristic-zero field with decidable equality, using supplied gcd,
-derivative, division, resultant, and integer-root
-computations. Layer reconstruction and maximal multiplicity are proved;
+derivative, and complete integer-shift enumeration. Division uses polynomial
+operators. `ModularShifts` implements modular shift enumeration over ℚ.
+Layer reconstruction and maximal multiplicity are proved;
 `decompose_sound` and `decompose_complete` prove full correctness and successful
 construction for every nonzero input. The function returns a decomposition
 directly; primitive contracts and the nonzero-input assumption occur only in

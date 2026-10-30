@@ -40,7 +40,7 @@ private theorem valid_of_partition [CharZero K] (ops : Primitives K) (hops : ops
   have hblocks := hpart.blockSystem hops hSm hSs hlS hSl
   let ν := exponent layers
   have hν : ∀ b ∈ blocks.toFinset, 0 < ν b := fun b hb =>
-    hpart.exponent_pos hops hSm hlS hSprod (List.mem_toFinset.mp hb)
+    hpart.exponent_pos hops hSm hSs hlS hSprod (List.mem_toFinset.mp hb)
   have he : ((groupBlocks ops S ν blocks.toFinset).map Group.expand).prod =
       C D.leadingCoeff⁻¹ * D := by
     rw [groupBlocks_reconstruct hops hblocks ν,
@@ -84,7 +84,7 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
   · by
       rename_i hdeg start rem la hi ta ht ba hb
       exact fun pref _ groups => groups.toList =
-        (pref.filter (fun b => decide (∀ h ∈ shifts ops S b, 0 ≤ h))).map
+        (pref.filter (fun b => decide (∀ h ∈ ops.shifts S b, 0 ≤ h))).map
           (makeGroup ops S (exponent la.toList))
   · by
       rename_i hdeg start rem la hi ta ht ba hb pref b suff hs ga hg hbase
@@ -146,8 +146,9 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
     have hmem : b ∈ refineBlocks ops S ta.toList := by
       rw [← hb, hs]
       simp
-    have hm := (refineBlocks_spec ops hops S hS.monic hS.squarefree ta.toList).monic b hmem
-    have hsorted := hops.sorted_nonzero_shifts S b hS.monic.ne_zero hm.ne_zero
+    have hpart := refineBlocks_spec ops hops S hS.monic hS.squarefree ta.toList
+    have hsorted := hops.sorted_nonzero_shifts S b hS.monic (hpart.monic b hmem)
+      hS.squarefree (hpart.squarefree b hmem)
     simp only [Std.Internal.ForIn.toList_array] at ho hbm
     have hgroup : Group.mk b occs.down = makeGroup ops S (exponent la.toList) b := by
       unfold makeGroup

@@ -15,12 +15,13 @@ open Polynomial
 
 /-- Array sorting gives the same nonzero shifts as the finite-set specification. -/
 theorem Primitives.Valid.sorted_nonzero_shifts {ops : Primitives K} (hops : ops.Valid)
-    (S b : Polynomial K) (hS : S ≠ 0) (hb : b ≠ 0) :
-    ((shifts ops S b).filter (· != 0) |>.mergeSort (· ≤ ·)).toList =
+    (S b : Polynomial K) (hS : S.Monic) (hb : b.Monic)
+    (hSs : Squarefree S) (hbs : Squarefree b) :
+    ((ops.shifts S b).filter (· != 0) |>.mergeSort (· ≤ ·)).toList =
       ((ops.shiftSet S b).erase 0).sort := by
   rw [Array.toList_mergeSort, Array.toList_filter]
-  have hn := (hops.nodup_shifts S b hS hb).filter (· != 0)
-  have hp : ((shifts ops S b).toList.filter (· != 0)).Perm
+  have hn := (hops.nodup_shifts S b hS hb hSs hbs).filter (· != 0)
+  have hp : ((ops.shifts S b).toList.filter (· != 0)).Perm
       (((ops.shiftSet S b).erase 0).sort) := by
     apply (List.perm_ext_iff_of_nodup hn (Finset.sort_nodup _ _)).mpr
     intro h
@@ -39,7 +40,7 @@ def groupBlocks (ops : Primitives K) (S : Polynomial K) (ν : Polynomial K → �
 /-- Selecting bases while traversing the blocks gives the same groups, up to order. -/
 theorem groupBlocks_filter_perm (ops : Primitives K) (S : Polynomial K)
     (ν : Polynomial K → ℕ) (bs : List (Polynomial K)) (hbs : bs.Nodup) :
-    ((bs.filter (fun b => decide (∀ h ∈ shifts ops S b, 0 ≤ h))).map
+    ((bs.filter (fun b => decide (∀ h ∈ ops.shifts S b, 0 ≤ h))).map
       (makeGroup ops S ν)).Perm (groupBlocks ops S ν bs.toFinset) := by
   apply List.Perm.map
   apply (List.perm_ext_iff_of_nodup (hbs.filter _)

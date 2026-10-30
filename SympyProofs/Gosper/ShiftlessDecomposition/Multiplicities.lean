@@ -51,7 +51,7 @@ theorem Partition.layer_factorization [CharZero K] {ops : Primitives K} (hops : 
     apply IsCoprime.prod_right
     intro b hbn
     obtain ⟨hbm, hba⟩ := Finset.mem_filter.mp hbn
-    have hu := hb.homogeneous_shift hops hS hl (List.mem_toFinset.mp hbm) a ha 0
+    have hu := hb.homogeneous_shift hops hS hs hl (List.mem_toFinset.mp hbm) a ha 0
     simpa only [Int.cast_zero, taylor_zero] using (hu.resolve_left (by simpa using hba)).symm
   have hay : a ∣ ∏ b ∈ yes, b :=
     hcop.dvd_of_dvd_mul_right (hp.symm ▸ hl a ha)
@@ -97,7 +97,7 @@ theorem Partition.reconstruct_powers [CharZero K] {ops : Primitives K} (hops : o
       rw [exponent_eq layers b, prod_presence]
 
 theorem Partition.exponent_pos [CharZero K] {ops : Primitives K} (hops : ops.Valid)
-    {S : Polynomial K} {layers bs : List (Polynomial K)} (hS : S.Monic)
+    {S : Polynomial K} {layers bs : List (Polynomial K)} (hS : S.Monic) (hs : Squarefree S)
     (hl : ∀ a ∈ layers, a ∣ S) (hsp : S ∣ layers.prod)
     (hb : Partition S (shiftTests ops S layers) bs) {b : Polynomial K} (hbm : b ∈ bs) :
     0 < exponent layers b := by
@@ -106,7 +106,7 @@ theorem Partition.exponent_pos [CharZero K] {ops : Primitives K} (hops : ops.Val
   have hcop : IsCoprime b layers.prod := by
     apply (coprime_list_prod_iff b layers).mpr
     intro a ha
-    have hu := hb.homogeneous_shift hops hS hl hbm a ha 0
+    have hu := hb.homogeneous_shift hops hS hs hl hbm a ha 0
     apply (by simpa only [Int.cast_zero, taylor_zero] using hu : Homogeneous b a).resolve_left
     intro hd
     exact hn ⟨a, ha, by simpa using hd⟩

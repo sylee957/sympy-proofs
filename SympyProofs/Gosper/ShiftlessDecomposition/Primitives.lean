@@ -6,15 +6,14 @@ public import Mathlib
 # Supplied polynomial computations
 
 Polynomial arithmetic, coefficients, degree, equality, translation, quotients, and remainders
-use Mathlib polynomials. Gcd, derivative, resultant,
-and integer-root enumeration are supplied operations with separate correctness contracts.
+use Mathlib polynomials. Gcd, derivative, and integer-shift enumeration are supplied
+operations with separate correctness contracts.
 
-Integer-root enumeration is an additional assumption beyond gcd and derivative.
-It must enumerate all integer roots of every nonzero input polynomial exactly once,
-in an array whose order is unrestricted. No factorization of the input denominator
-is assumed. The existing Gosper resultant
-lemmas are reused only as mathematical proofs; its factorization backend is not
-an input to this algorithm.
+For monic square-free inputs, shift enumeration must return all overlaps exactly
+once, in arbitrary order. These preconditions are required only by the proofs.
+`Reference` realizes it using a resultant and integer roots; `ModularShifts` uses
+supplied modular factorization and Hensel lifting. The decomposition itself does
+not require either backend's auxiliary operations.
 -/
 
 @[expose] public section
@@ -29,16 +28,15 @@ open Polynomial
 structure Primitives (K : Type*) [Field K] where
   gcd : Polynomial K → Polynomial K → Polynomial K
   derivative : Polynomial K → Polynomial K
-  resultant : Polynomial (Polynomial K) → Polynomial (Polynomial K) → Polynomial K
-  integerRoots : Polynomial K → Array ℤ
+  shifts : Polynomial K → Polynomial K → Array ℤ
 
 structure Primitives.Valid (ops : Primitives K) : Prop where
   gcd_eq : ∀ p q, ops.gcd p q = GCDMonoid.gcd p q
   derivative_eq : ∀ p, ops.derivative p = p.derivative
-  resultant_eq : ∀ p q, ops.resultant p q = Polynomial.resultant p q
-  mem_integerRoots : ∀ p, p ≠ 0 → ∀ h : ℤ,
-    h ∈ ops.integerRoots p ↔ p.eval (h : K) = 0
-  nodup_integerRoots : ∀ p, p ≠ 0 → (ops.integerRoots p).toList.Nodup
+  mem_shifts : ∀ p q, p.Monic → q.Monic → Squarefree p → Squarefree q → ∀ h : ℤ,
+    h ∈ ops.shifts p q ↔ ¬IsCoprime p (taylor (h : K) q)
+  nodup_shifts : ∀ p q, p.Monic → q.Monic → Squarefree p → Squarefree q →
+    (ops.shifts p q).toList.Nodup
 
 def Primitives.squarefreePart (ops : Primitives K) (p : Polynomial K) : Polynomial K :=
   p / ops.gcd p (ops.derivative p)

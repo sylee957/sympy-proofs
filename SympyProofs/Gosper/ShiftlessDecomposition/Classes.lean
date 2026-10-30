@@ -30,14 +30,26 @@ theorem Partition.blockSystem [CharZero K] {ops : Primitives K} (hops : ops.Vali
   monic b hm := hb.monic b (List.mem_toFinset.mp hm)
   nonconstant b hm := hb.nonconstant b (List.mem_toFinset.mp hm)
   squarefree b hm := hb.squarefree b (List.mem_toFinset.mp hm)
-  shiftFree _b hm := hb.shiftFree hops hS hl hSl (List.mem_toFinset.mp hm)
+  shiftFree _b hm := hb.shiftFree hops hS hs hl hSl (List.mem_toFinset.mp hm)
   reconstruct := hb.prod_toFinset hs
   compatible _b hm _c hn h hc :=
-    hb.shift_overlap_eq hops hS hl hSl (List.mem_toFinset.mp hm) (List.mem_toFinset.mp hn) h hc
+    hb.shift_overlap_eq hops hS hs hl hSl (List.mem_toFinset.mp hm) (List.mem_toFinset.mp hn) h hc
 
 omit [DecidableEq K] in
 theorem BlockSystem.monic_support {S : Polynomial K} {bs : Finset (Polynomial K)} (hb : BlockSystem S bs) :
     S.Monic := hb.reconstruct ▸ monic_prod_of_monic bs id hb.monic
+
+omit [DecidableEq K] in
+theorem BlockSystem.squarefree_support {S : Polynomial K} {bs : Finset (Polynomial K)}
+    (hb : BlockSystem S bs) : Squarefree S := by
+  rw [← hb.reconstruct]
+  apply Finset.squarefree_prod_of_pairwise_isCoprime (f := id) ?_ hb.squarefree
+  intro b hbm c hcm hbc
+  apply IsCoprime.isRelPrime
+  by_contra hc
+  have hnc : ¬IsCoprime c (taylor ((0 : ℤ) : K) b) := by
+    simpa using (fun hcb : IsCoprime c b => hc hcb.symm)
+  exact hbc (by simpa using hb.compatible b hbm c hcm 0 hnc)
 
 omit [DecidableEq K] in
 theorem BlockSystem.divides {S : Polynomial K} {bs : Finset (Polynomial K)} (hb : BlockSystem S bs)
@@ -48,7 +60,8 @@ theorem BlockSystem.divides {S : Polynomial K} {bs : Finset (Polynomial K)} (hb 
 theorem BlockSystem.mem_shifts_iff [CharZero K] {ops : Primitives K} (hops : ops.Valid)
     {S : Polynomial K} {bs : Finset (Polynomial K)} (hb : BlockSystem S bs) {b : Polynomial K} (hbm : b ∈ bs)
     (h : ℤ) : h ∈ ops.shiftSet S b ↔ taylor (h : K) b ∈ bs := by
-  rw [hops.mem_shiftSet S b hb.monic_support.ne_zero (hb.monic b hbm).ne_zero h]
+  rw [hops.mem_shiftSet S b hb.monic_support (hb.monic b hbm)
+    hb.squarefree_support (hb.squarefree b hbm) h]
   constructor
   · intro hn
     by_contra hm
