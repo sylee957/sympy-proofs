@@ -39,8 +39,8 @@ def Residual.expand (r : Residual K) : RatFunc K :=
 
 /-- The rational certificate `G(X+h)`. -/
 def Result.primitiveAt (r : Result K) (h : K) : RatFunc K :=
-  (taylor h r.polynomialPart : RatFunc K) +
-    (r.certificate.map fun s => s.expandAt h).sum
+  (taylor h r.polynomial : RatFunc K) +
+    (r.rational.map fun s => s.expandAt h).sum
 
 def Result.residualPart (r : Result K) : RatFunc K :=
   (r.residual.map Residual.expand).sum

@@ -39,8 +39,7 @@ def prepareOccurrence (D : Polynomial ℚ) (g : ShiftlessDecomposition.Group ℚ
     (o : ShiftlessDecomposition.Occurrence) : PreparedOccurrence :=
   let f := taylor (o.shift : ℚ) g.base
   let F := f ^ o.multiplicity
-  let (d, u, _) := EuclideanDomain.xgcdAux (D / F) 1 0 F 0 1
-  ⟨o.shift, o.multiplicity, f, F, (C d.leadingCoeff⁻¹ * u) % F⟩
+  ⟨o.shift, o.multiplicity, f, F, inverseMod (D / F) F⟩
 
 def prepareGroup (D : Polynomial ℚ) (g : ShiftlessDecomposition.Group ℚ) : PreparedGroup :=
   ⟨g.base, (g.occurrences.toList.map (·.multiplicity)).foldl max 0,

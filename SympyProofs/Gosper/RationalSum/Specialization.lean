@@ -21,8 +21,8 @@ def Residual.map (f : R →ₐ[ℚ] S) (s : Residual R) : Residual S :=
   { base := s.base, numerators := s.numerators.map (Polynomial.map f.toRingHom) }
 
 def Result.map (f : R →ₐ[ℚ] S) (s : Result R) : Result S :=
-  { polynomialPart := s.polynomialPart.map f.toRingHom
-    certificate := s.certificate.map (ShiftSum.map f)
+  { polynomial := s.polynomial.map f.toRingHom
+    rational := s.rational.map (ShiftSum.map f)
     residual := s.residual.map (Residual.map f) }
 
 /-- Exactly the monicity conditions needed for specialization of division. -/

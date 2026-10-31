@@ -30,9 +30,29 @@ structure Residual (R : Type*) [Semiring R] where
   numerators : Array (Polynomial R)
 
 structure Result (R : Type*) [Semiring R] where
-  polynomialPart : Polynomial R
-  certificate : Array (ShiftSum R)
+  polynomial : Polynomial R
+  rational : Array (ShiftSum R)
   residual : Array (Residual R)
+
+/-- Invert a rational polynomial modulo a coprime polynomial. The Euclidean
+loop tracks only the coefficient of `a`; the other Bézout coefficient is unused.
+The final scaling makes the constant gcd equal to one. -/
+def inverseMod (a b : Polynomial ℚ) : Polynomial ℚ := Id.run do
+  let mut r := a
+  let mut previous := b
+  let mut u := (1 : Polynomial ℚ)
+  let mut previousU := (0 : Polynomial ℚ)
+  -- Every nonzero remainder step lowers the degree, so this bound suffices.
+  for _ in [:a.natDegree + 1] do
+    if r = 0 then break
+    let q := previous / r
+    let next := previous % r
+    let nextU := previousU - q * u
+    previous := r
+    r := next
+    previousU := u
+    u := nextU
+  return (C previous.leadingCoeff⁻¹ * previousU) % b
 
 variable {R : Type*} [CommRing R] [Algebra ℚ R]
 
@@ -46,8 +66,8 @@ def reduce (ops : ShiftlessDecomposition.Primitives ℚ)
   let P := C (algebraMap ℚ R D.leadingCoeff⁻¹) * P
   let Q := P /ₘ denominator
   let N := P %ₘ denominator
-  let polynomialPart := PolynomialSum.antidifference Q
-  let mut certificate : Array (ShiftSum R) := #[]
+  let polynomial := PolynomialSum.antidifference Q
+  let mut rational : Array (ShiftSum R) := #[]
   let mut residual : Array (Residual R) := #[]
   for group in groups do
     let mut maxMultiplicity : ULift ℕ := ⟨0⟩
@@ -58,8 +78,7 @@ def reduce (ops : ShiftlessDecomposition.Primitives ℚ)
       let factor := taylor (occurrence.shift : ℚ) group.base
       let power := factor ^ occurrence.multiplicity
       let complement := monicDenominator / power
-      let (g, u, _) := EuclideanDomain.xgcdAux complement 1 0 power 0 1
-      let inverse := (C g.leadingCoeff⁻¹ * u) % power
+      let inverse := inverseMod complement power
       let factorR := factor.map (algebraMap ℚ R)
       let powerR := power.map (algebraMap ℚ R)
       let inverseR := inverse.map (algebraMap ℚ R)
@@ -72,11 +91,11 @@ def reduce (ops : ShiftlessDecomposition.Primitives ℚ)
         let a := taylor ((-occurrence.shift : ℤ) : R) a
         numerators := numerators.modify (k - 1) (· + a)
         if 0 < occurrence.shift then
-          certificate := certificate.push
+          rational := rational.push
             { numerator := a
               denominator := group.base ^ k
               length := occurrence.shift.toNat }
     residual := residual.push { base := group.base, numerators := numerators }
-  return { polynomialPart := polynomialPart, certificate := certificate, residual := residual }
+  return { polynomial := polynomial, rational := rational, residual := residual }
 
 end Gosper.RationalSum

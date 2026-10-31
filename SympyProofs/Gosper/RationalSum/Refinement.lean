@@ -36,7 +36,7 @@ theorem reduce_eq_model (ops : ShiftlessDecomposition.Primitives ℚ)
     rename_i cs rs hi
     simp only [Std.Internal.ForIn.toList_array] at hi
     simp only [Model.result, prepare, Array.toList_map]
-    change Result.mk polynomialPart cs rs = Result.mk polynomialPart
+    change Result.mk polynomial cs rs = Result.mk polynomial
       ((groups.toList.map (Model.prepareGroup monicDenominator)).foldl
         (Model.group N) (#[], #[])).1
       ((groups.toList.map (Model.prepareGroup monicDenominator)).foldl

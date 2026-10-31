@@ -78,10 +78,7 @@ theorem powers_prod {D : Polynomial ℚ} {d : Array (ShiftlessDecomposition.Grou
 
 theorem prepare_flat_inverse (D : Polynomial ℚ) (d : Array (ShiftlessDecomposition.Group ℚ))
     (o : PreparedOccurrence) (ho : o ∈ (prepare D d).flat) :
-    o.inverse =
-      let (g, u, _) := EuclideanDomain.xgcdAux
-        ((C D.leadingCoeff⁻¹ * D) / o.power) 1 0 o.power 0 1
-      (C g.leadingCoeff⁻¹ * u) % o.power := by
+    o.inverse = inverseMod ((C D.leadingCoeff⁻¹ * D) / o.power) o.power := by
   simp only [PreparedDenominator.flat, prepare_eq_model, Array.toList_map,
     List.flatMap_map, List.mem_flatMap] at ho
   obtain ⟨g, hg, ho⟩ := ho
@@ -136,7 +133,7 @@ theorem prepared_partialFractions {D : Polynomial ℚ} {d : Array (ShiftlessDeco
     have hinv := prepare_flat_inverse D d l[i.val] (List.getElem_mem _)
     have hc' : IsCoprime (E i) (F i) :=
       IsCoprime.prod_left (fun j hj => hc (Finset.mem_erase.mp hj).1)
-    have h := xgcd_inverse (E i) (F i) hc'
+    have h := inverseMod_spec (E i) (F i) hc'
     change U i = _ at hinv
     have hden : C D.leadingCoeff⁻¹ * D = p.monicDenominator := by
       simp [p, prepare_eq_model]

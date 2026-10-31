@@ -75,12 +75,72 @@ theorem partialFractions_fraction (F U : ι → Polynomial K)
 
 end CRT
 
-/-- Normalizing the extended-gcd output and taking its remainder really gives
-an inverse modulo the coprime divisor. -/
-theorem xgcd_inverse (a b : Polynomial ℚ) (hab : IsCoprime a b) :
-    let (d, u, _) := EuclideanDomain.xgcdAux a 1 0 b 0 1
-    b ∣ a * ((C d.leadingCoeff⁻¹ * u) % b) - 1 := by
-  rw [EuclideanDomain.xgcdAux_val, EuclideanDomain.xgcd_val]
+open scoped Classical Std.WP
+
+private def halfEuclid (r previous u previousU : Polynomial ℚ) : Polynomial ℚ × Polynomial ℚ :=
+  if _hr : r = 0 then (previous, previousU) else
+    let q := previous / r
+    halfEuclid (previous % r) r (previousU - q * u) u
+termination_by r.degree
+decreasing_by exact degree_mod_lt _ _hr
+
+private theorem halfEuclid_eq_aux (r previous u previousU v previousV : Polynomial ℚ) :
+    halfEuclid r previous u previousU =
+      let z := EuclideanDomain.xgcdAux r u v previous previousU previousV
+      (z.1, z.2.1) := by
+  induction r, previous using EuclideanDomain.GCD.induction
+      generalizing u previousU v previousV with
+  | H0 previous => simp [halfEuclid, EuclideanDomain.xgcd_zero_left]
+  | H1 r previous hr ih =>
+    rw [halfEuclid, dite_eq_right hr, EuclideanDomain.xgcdAux_rec hr]
+    exact ih _ _ _ _
+
+set_option experimental.vcgen true in
+private theorem inverseMod_eq_halfEuclid (a b : Polynomial ℚ) :
+    inverseMod a b =
+      let z := halfEuclid a b 1 0
+      (C z.1.leadingCoeff⁻¹ * z.2) % b := by
+  dsimp only
+  generalize he : inverseMod a b = out
+  apply Std.WP.Id.of_run_eq_wp he
+  vcgen invariants
+  · fun pref _ (r, previous, u, previousU) =>
+      halfEuclid r previous u previousU = halfEuclid a b 1 0 ∧
+      (r ≠ 0 → r.natDegree + pref.length < a.natDegree + 1)
+  case vc1 => simp
+  case vc2 =>
+    rename_i r previous u previousU hi s1 s2
+    have hr : r = 0 := by
+      by_contra hr
+      have h := hi.2 hr
+      simp only [Std.Internal.ForIn.toList_range, Std.Legacy.Range.size, Nat.sub_zero,
+        Nat.add_sub_cancel, Nat.div_one, List.length_range'] at h
+      omega
+    have h := hi.1
+    rw [hr, halfEuclid] at h
+    simp only [↓reduceDIte] at h
+    rw [← h]
+  case vc3 =>
+    rename_i pref cur suff hs r previous u previousU hi s1 s2 hr
+    exact ⟨hi.1, fun h => (h hr).elim⟩
+  case vc4 =>
+    rename_i pref cur suff hs r previous u previousU hi s1 s2 hr
+    refine ⟨?_, ?_⟩
+    · have h := hi.1
+      rw [halfEuclid, dite_eq_right hr] at h
+      exact h
+    · intro hn
+      have hdeg : next.natDegree < r.natDegree :=
+        natDegree_lt_natDegree hn (degree_mod_lt _ hr)
+      have hbound := hi.2 hr
+      simp only [List.length_append, List.length_singleton]
+      omega
+
+/-- The half-Euclidean routine returns an inverse for every coprime input pair. -/
+theorem inverseMod_spec (a b : Polynomial ℚ) (hab : IsCoprime a b) :
+    b ∣ a * inverseMod a b - 1 := by
+  rw [inverseMod_eq_halfEuclid, halfEuclid_eq_aux a b 1 0 0 1,
+    EuclideanDomain.xgcdAux_val, EuclideanDomain.xgcd_val]
   dsimp only
   let d := EuclideanDomain.gcd a b
   let u := EuclideanDomain.gcdA a b

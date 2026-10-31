@@ -70,8 +70,8 @@ end Model
 
 theorem Result.difference_eq (r : Result K) :
     r.primitiveAt 1 - r.primitiveAt 0 =
-      ((taylor 1 r.polynomialPart - r.polynomialPart : Polynomial K) : RatFunc K) +
-        certificateDifference r.certificate := by
+      ((taylor 1 r.polynomial - r.polynomial : Polynomial K) : RatFunc K) +
+        certificateDifference r.rational := by
   have hs (l : List (ShiftSum K)) :
       (l.map fun s => s.expandAt 1 - s.expandAt 0).sum =
         (l.map fun s => s.expandAt 1).sum - (l.map fun s => s.expandAt 0).sum := by
