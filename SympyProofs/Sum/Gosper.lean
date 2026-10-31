@@ -24,7 +24,12 @@ membership. `Encodable.choose` recovers integer witnesses constructively; a rati
 instance decides membership by checking the reduced denominator. A `Backend`
 supplies factorization, resultant, zero matrices, entry updates, column reads, and RREF;
 shift resultants, natural integer roots, and linear solving
-are derived from them. The coefficient matrix is augmented by an identity matrix
+are derived from them. `Algorithm.gosperSolve backend A B C` starts directly
+from `A*x(X+1) - B*x = C`, where `B` is already shifted backward from the
+normal form. `A` and `B` determine a matrix over `K`; `C` may have coefficients
+in an extension field `L` with `Algebra K L`. RREF stays over `K`, and its entries
+are embedded into `L` when applied to the right-hand side.
+The coefficient matrix is augmented by an identity matrix
 to record reusable row operations. One matrix-vector product applies its right
 block to the right-hand side. The pivot rows give the coefficients, and the
 remaining transformed equations give the consistency conditions.

@@ -1,6 +1,7 @@
 module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Algorithm
+public import SympyProofs.Sum.Gosper.Algorithm.SolverCorrectness
 public import SympyProofs.Sum.Gosper.Algorithm.NormalizationCorrectness
 public import SympyProofs.Sum.Gosper.Backend.Vector
 public import SympyProofs.Sum.Gosper.Backend.Matrix
@@ -93,35 +94,10 @@ theorem gosperTerm_eq (hbackend : backend.Valid) (P Q : K[X]) :
         some { numerator := B * ofFn (d.toNat + 1) coeffs
                denominator := s.C
                residual := r.residualEntries (r.rightMatrix.mulVec b) } := by
-  let s := gosperNormal backend P Q
-  let B := taylor (-1) s.B
-  let d := degreeBound s.A B s.C
-  have hM := backend.fill_identity_augmented_eq hbackend
-    (coefficientSystem s.A B s.C d.toNat)
-  simp only [Id.run, bind, pure, coefficientSystem, forwardOperator_apply] at hM
-  dsimp only [s, B, d] at hM
-  have htransform {m n : ℕ} (r : RrefResult K m (n + m)) (values : Fin m → K) :=
-    r.transform_rhs_vector_eq values
-  simp only [Id.run, bind, pure] at htransform
-  have hextract {m n : ℕ} (M : Matrix (Fin m) (Fin (n + m)) K)
-      (values : Fin m → K) :=
-    RrefResult.extract_transformed_array_residual_eq (backend.rref M) (hbackend.rref_valid M) values
-  have hcoefficients {m n : ℕ} (M : Matrix (Fin m) (Fin (n + m)) K)
-      (values : Fin m → K) := congrArg Prod.fst (hextract M values)
-  have hresidual {m n : ℕ} (M : Matrix (Fin m) (Fin (n + m)) K)
-      (values : Fin m → K) := congrArg Prod.snd (hextract M values)
-  simp only [Id.run, bind, pure] at hcoefficients hresidual
-  have hsolution {m n : ℕ} (r : RrefResult K m (n + m)) (rhs : Fin m → K) :=
-    (r.inverse_mulVec rhs).symm
-  have hget {m : ℕ} (values : Fin m → K) (i : Fin m) :
-      (Vector.ofFn values)[i.val] = values i := by
-    simp
-  simp only [gosperTerm, Id.run, bind, pure, toFn]
-  simp only [htransform]
-  simp only [hcoefficients, hresidual]
-  simp only [hget]
-  rw [hM]
-  simp only [hsolution, inverseRref, Id.run, pure]
+  unfold gosperTerm
+  rw [gosperSolve_eq backend hbackend]
+  simp only [Algebra.algebraMap_self, Polynomial.map_id, RrefResult.map_id,
+    ← Polynomial.ofFn_eq_sum_monomial]
   rfl
 
 /-- A returned candidate with vanishing residual satisfies the original equation.

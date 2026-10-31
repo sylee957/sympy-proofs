@@ -35,7 +35,9 @@ noncomputable where Mathlib's polynomial operations are noncomputable.
 `Algorithm.Correctness` proves summation soundness when the returned residual
 vanishes. `Algorithm.Completeness` proves that for nonzero inputs an output with
 vanishing residual exists exactly when a hypergeometric antidifference exists,
-provided the backend contracts hold. Use `gosperTerm backend P Q`, or
+provided the backend contracts hold. `gosperSolve backend A B C` takes the
+normalized forward equation directly. Its matrix is over the field of `A` and
+`B`; `C` and the result may lie in an extension field. Use `gosperTerm backend P Q`, or
 `gosperTerm (referenceBackend rref) P Q` with reference polynomial operations.
 -/
 
@@ -55,48 +57,60 @@ structure Result (K : Type*) [Field K] where
   denominator : K[X]
   residual : Array K
 
-/-- Normalize, construct a candidate B*x/C, and retain its residual conditions.
+/-- Solve the normalized equation `A*x(X+1) - B*x = C`, retaining a candidate
+`B*x/C` and its residual conditions. Here `B` is already shifted backward from
+the `B` returned by `gosperNormal`. Matrix reduction takes place over `K`;
+the right-hand side and result lie in `L`, connected by `Algebra K L`.
+No decidable equality on `L` is required; residual conditions are returned
+without deciding whether they vanish.
+The matrix entries depend on `A` and `B`; its size also uses the degree of `C`.
 Only a negative degree bound returns `none`; a nonzero residual is returned for
-the caller to inspect. The candidate becomes a certificate when the residual vanishes.
+the caller to inspect. Interpreting the multiplier requires `C ≠ 0`.
 Backend validity and nonzero-input hypotheses appear only in the theorems. -/
-def gosperTerm (P Q : K[X]) : Option (Result K) := Id.run do
-  let normal := gosperNormal backend P Q
-  let B := taylor (-1) normal.B
-  let d := degreeBound normal.A B normal.C
+def gosperSolve {L : Type} [Field L] [Algebra K L]
+    (A B : K[X]) (C : L[X]) : Option (Result L) := Id.run do
+  let d := degreeBound A B C
   if d < 0 then return none
   let n := d.toNat + 1
-  let m := equationDegree normal.A B normal.C d.toNat + 1
+  let m := equationDegree A B C d.toNat + 1
   -- Augment the coefficient matrix by the identity, independently of the right-hand side.
   let mut M := backend.zeros m (n + m)
   for i in List.finRange m do
     for j in List.finRange n do
       let monomial : K[X] := X ^ (j : ℕ)
-      let coeff := (normal.A * taylor 1 monomial - B * monomial).coeff i
+      let coeff := (A * taylor 1 monomial - B * monomial).coeff i
       M := backend.setElement M i (j.castAdd m) coeff
     M := backend.setElement M i (Fin.natAdd n i) 1
   let r := backend.rref M
-  let mut transformed := Vector.replicate m (0 : K)
+  let mut transformed := Vector.replicate m (0 : L)
   for i in List.finRange m do
-    let mut value := (0 : K)
+    let mut value := (0 : L)
     for k in List.finRange m do
-      value := value + r.matrix i (Fin.natAdd n k) * normal.C.coeff k
+      value := value + algebraMap K L (r.matrix i (Fin.natAdd n k)) * C.coeff k
     transformed := transformed.set i.val value
   -- Read pivot coefficients; the remaining transformed equations must vanish.
-  let mut coefficients := Vector.replicate n (0 : K)
-  let mut residual : Array K := #[]
+  let mut coefficients := Vector.replicate n (0 : L)
+  let mut residual : Array L := #[]
   for ⟨(pivot, row), hp⟩ in r.pivots.zipIdx.attach do
     let row : Fin m := ⟨row, lt_of_lt_of_le (List.mem_zipIdx' hp).1 r.length_le⟩
     if h : pivot.val < n then
       let pivot : Fin n := ⟨pivot.val, h⟩
-      coefficients := coefficients.set pivot.val (transformed[row.val] / r.denominator)
+      coefficients := coefficients.set pivot.val
+        (transformed[row.val] / algebraMap K L r.denominator)
     else
       residual := residual.push transformed[row.val]
-  let x := Polynomial.ofFn n (fun j => coefficients[j.val])
-  let U := B * x
-  let V := normal.C
+  let x := ∑ j : Fin n, Polynomial.monomial j.val coefficients[j.val]
+  let U := B.map (algebraMap K L) * x
+  let V := C
   return some
     { numerator := U
       denominator := V
       residual := residual }
+
+/-- Normalize the forward ratio `P/Q`, then solve its polynomial equation.
+Use `gosperSolve` directly when `A`, `B`, and `C` are already available. -/
+def gosperTerm (P Q : K[X]) : Option (Result K) :=
+  let normal := gosperNormal backend P Q
+  gosperSolve backend normal.A (taylor (-1) normal.B) normal.C
 
 end Gosper.Algorithm
