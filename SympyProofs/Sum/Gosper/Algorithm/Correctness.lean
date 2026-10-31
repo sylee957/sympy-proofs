@@ -2,16 +2,18 @@ module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Algorithm
 public import SympyProofs.Sum.Gosper.Algorithm.NormalizationCorrectness
+public import SympyProofs.Sum.Gosper.Backend.Vector
 public import SympyProofs.Sum.Gosper.Backend.Matrix
+public import SympyProofs.Sum.Gosper.Backend.Residual
 public import SympyProofs.Sum.Gosper.Rational
 public import SympyProofs.Sum.Gosper.Hypergeometric
 
 /-!
 # Soundness over the coefficient field
 
-The algorithm works directly with Mathlib polynomials. Its normalization,
-polynomial solving, and reconstruction steps prove the returned certificate's
-identity without a runtime check. Evaluation at a particular index has explicit
+The algorithm works directly with Mathlib polynomials. Its normalization and
+reconstruction steps prove the returned candidate's identity when its residual
+vanishes. Evaluation at a particular index has explicit
 denominator conditions, separate from equality in the rational-function field.
 -/
 
@@ -75,7 +77,8 @@ theorem NormalForm.verify_solution_of_ratio (P Q : K[X]) (hQ : Q ≠ 0) (s : Nor
 variable [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
 
 omit [CharZero K] in
-/-- The matrix and reconstruction loops implement the coefficient-system specification. -/
+/-- The inline identity augmentation, coefficient vector, and residual array
+implement the coefficient-system specification. -/
 theorem gosperTerm_eq (hbackend : backend.Valid) (P Q : K[X]) :
     gosperTerm backend P Q =
       let s := gosperNormal backend P Q
@@ -84,65 +87,86 @@ theorem gosperTerm_eq (hbackend : backend.Valid) (P Q : K[X]) :
       if d < 0 then none else
         let M := coefficientSystem s.A B s.C d.toNat
         let b := toFn (equationDegree s.A B s.C d.toNat + 1) s.C
-        let r := backend.rref (augmented M b)
-        if Fin.last (d.toNat + 1) ∈ r.pivots then none else
-          some ⟨B * ofFn (d.toNat + 1) r.solution, s.C⟩ := by
+        let r := backend.rref (augmentedIdentity M)
+        let U := inverseRref backend.rref M
+        let coeffs := U.mulVec b
+        some { numerator := B * ofFn (d.toNat + 1) coeffs
+               denominator := s.C
+               residual := r.residualEntries (r.rightMatrix.mulVec b) } := by
   let s := gosperNormal backend P Q
   let B := taylor (-1) s.B
   let d := degreeBound s.A B s.C
-  have hM := backend.fill_augmented_eq hbackend (coefficientSystem s.A B s.C d.toNat)
-    (toFn (equationDegree s.A B s.C d.toNat + 1) s.C)
-  simp only [Id.run, bind, pure, coefficientSystem, forwardOperator_apply,
-    toFn, LinearMap.pi_apply, lcoeff_apply] at hM
+  have hM := backend.fill_identity_augmented_eq hbackend
+    (coefficientSystem s.A B s.C d.toNat)
+  simp only [Id.run, bind, pure, coefficientSystem, forwardOperator_apply] at hM
   dsimp only [s, B, d] at hM
-  have hrec (r : RrefResult K (equationDegree s.A B s.C d.toNat + 1) (d.toNat + 1 + 1))
-      (hp : Fin.last (d.toNat + 1) ∉ r.pivots) := backend.reconstruct_eq hbackend r hp
-  simp only [Id.run, bind, pure] at hrec
-  dsimp only [s, B, d] at hrec
+  have htransform {m n : ℕ} (r : RrefResult K m (n + m)) (values : Fin m → K) :=
+    r.transform_rhs_vector_eq values
+  simp only [Id.run, bind, pure] at htransform
+  have hextract {m n : ℕ} (M : Matrix (Fin m) (Fin (n + m)) K)
+      (values : Fin m → K) :=
+    RrefResult.extract_transformed_array_residual_eq (backend.rref M) (hbackend.rref_valid M) values
+  have hcoefficients {m n : ℕ} (M : Matrix (Fin m) (Fin (n + m)) K)
+      (values : Fin m → K) := congrArg Prod.fst (hextract M values)
+  have hresidual {m n : ℕ} (M : Matrix (Fin m) (Fin (n + m)) K)
+      (values : Fin m → K) := congrArg Prod.snd (hextract M values)
+  simp only [Id.run, bind, pure] at hcoefficients hresidual
+  have hsolution {m n : ℕ} (r : RrefResult K m (n + m)) (rhs : Fin m → K) :=
+    (r.inverse_mulVec rhs).symm
+  have hget {m : ℕ} (values : Fin m → K) (i : Fin m) :
+      (Vector.ofFn values)[i.val] = values i := by
+    simp
   simp only [gosperTerm, Id.run, bind, pure, toFn]
-  conv_rhs => simp only [← hM]
-  split_ifs with hd hp
-  · rfl
-  · rfl
-  · conv_lhs =>
-      pattern (forIn _ _ _)
-      tactic => exact hrec _ hp
+  simp only [htransform]
+  simp only [hcoefficients, hresidual]
+  simp only [hget]
+  rw [hM]
+  simp only [hsolution, inverseRref, Id.run, pure]
+  rfl
 
-/-- Every certificate constructed by `gosperTerm` satisfies the original equation.
+/-- A returned candidate with vanishing residual satisfies the original equation.
 This follows from the algorithm's steps, independently of running `verify`. -/
-theorem gosperTerm_verified (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm backend P Q = some c) : verify P Q c.numerator c.denominator = true := by
+theorem gosperTerm_verified (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) :
+    verify P Q c.numerator c.denominator = true := by
   rw [gosperTerm_eq backend hbackend] at h
   let s := gosperNormal backend P Q
   let B := taylor (-1) s.B
   let d := degreeBound s.A B s.C
   let M := coefficientSystem s.A B s.C d.toNat
   let b := toFn (equationDegree s.A B s.C d.toNat + 1) s.C
-  let r := backend.rref (augmented M b)
-  let x := ofFn (d.toNat + 1) r.solution
-  change (if d < 0 then none else if Fin.last (d.toNat + 1) ∈ r.pivots then none
-    else some (⟨B * x, s.C⟩ : Certificate K)) = some c at h
-  split_ifs at h with hd hp
+  let r := backend.rref (augmentedIdentity M)
+  let coeffs := (inverseRref backend.rref M).mulVec b
+  let x := ofFn (d.toNat + 1) coeffs
+  change (if d < 0 then none else some
+    ({ numerator := B * x
+       denominator := s.C
+       residual := r.residualEntries (r.rightMatrix.mulVec b) } : Result K)) = some c at h
+  split_ifs at h with hd
   cases Option.some.inj h
+  have hresidual : r.leftResidual (r.rightMatrix.mulVec b) = 0 :=
+    (r.residualEntries_zero_iff (hbackend.rref_valid _) b).mp hzero
+  have hcoeffs : M.mulVec coeffs = b :=
+    (RrefResult.leftResidual_eq_zero_iff M r (hbackend.rref_valid _) b).mp hresidual
   have hx : s.A * taylor 1 x - B * x = s.C :=
-    (coefficientSystem_correct _ _ _ _ _).mp
-      (RrefResult.solution_correct M b r (hbackend.rref_valid _) hp)
+    (coefficientSystem_correct _ _ _ _ _).mp hcoeffs
   obtain ⟨hs, hratio⟩ := gosperNormal_sound backend P Q hP hQ s rfl
   exact s.verify_solution_of_ratio P Q hQ hs.2.2 hratio x hx
 
-/-- Every successful execution supplies a rational Gosper multiplier. -/
-theorem gosperTerm_sound (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm backend P Q = some c) :
+/-- A returned candidate with vanishing residual supplies a rational Gosper multiplier. -/
+theorem gosperTerm_sound (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) :
     toRatFunc P Q * Gosper.rationalShift 1 (toRatFunc c.numerator c.denominator) -
       toRatFunc c.numerator c.denominator = 1 :=
-  verify_ratFunc P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h)
+  verify_ratFunc P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
 
 /-- The polynomial identity holds even at roots of its denominators; dividing
 after specialization instead requires the hypotheses of `verify_at`. -/
-theorem gosperTerm_identity (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm backend P Q = some c) :
-    Q ≠ 0 ∧ c.denominator ≠ 0 ∧ residual P Q c.numerator c.denominator = 0 :=
-  verify_sound P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h)
+theorem gosperTerm_identity (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) :
+    Q ≠ 0 ∧ c.denominator ≠ 0 ∧
+      residual P Q c.numerator c.denominator = 0 :=
+  verify_sound P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
 
 omit [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)] [DecidableEq K] in
 /-- Translate the forward multiplier equation to the paper's backward ratio.
@@ -174,28 +198,29 @@ theorem forward_iff_hypergeometric (ρ : RatFunc K) (hρ : ρ ≠ 0) :
   · exact forward_iff_backward ρ
   · exact fun h => hρ ((Gosper.rationalShift (-1)).injective (by simpa using h))
 
-/-- A returned certificate implies a hypergeometric antidifference for the
-paper's backward term ratio, provided the input numerator is nonzero. -/
-theorem gosperTerm_hypergeometric (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm backend P Q = some c) :
+/-- A returned candidate with vanishing residual implies a hypergeometric antidifference
+for the paper's backward term ratio, provided the input numerator is nonzero. -/
+theorem gosperTerm_hypergeometric (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) :
     Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) := by
   have hρ : toRatFunc P Q ≠ 0 := by
     unfold toRatFunc
     exact div_ne_zero (by simpa using hP) (by simpa using hQ)
-  exact (forward_iff_hypergeometric _ hρ).mp ⟨_, gosperTerm_sound backend hbackend P Q hP hQ c h⟩
+  exact (forward_iff_hypergeometric _ hρ).mp ⟨_, gosperTerm_sound backend hbackend P Q hP hQ c h hzero⟩
 
 /-- The forward antidifference reconstructed from the returned multiplier. -/
-def certificateValue (a : ℕ → K) (c : Certificate K) (n : ℕ) : K :=
+def certificateValue (a : ℕ → K) (c : Result K) (n : ℕ) : K :=
   a n * (c.numerator.eval (n : K) / c.denominator.eval (n : K))
 
-theorem gosperTerm_step (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm backend P Q = some c) (a : ℕ → K) (n : ℕ)
+theorem gosperTerm_step (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) (a : ℕ → K) (n : ℕ)
     (hQ : Q.eval (n : K) ≠ 0)
     (hV : c.denominator.eval (n : K) ≠ 0)
     (hVnext : c.denominator.eval ((n + 1 : ℕ) : K) ≠ 0)
     (hratio : a (n + 1) * Q.eval (n : K) = a n * P.eval (n : K)) :
     certificateValue a c (n + 1) - certificateValue a c n = a n := by
-  have he := verify_at P Q c.numerator c.denominator (gosperTerm_verified backend hbackend P Q hP0 hQ0 c h)
+  have he := verify_at P Q c.numerator c.denominator
+    (gosperTerm_verified backend hbackend P Q hP0 hQ0 c h hzero)
     (n : K) hQ hV (by simpa using hVnext)
   have ha := (eq_div_iff hQ).mpr hratio
   simp only [certificateValue, Nat.cast_add, Nat.cast_one]
@@ -204,8 +229,9 @@ theorem gosperTerm_step (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) 
 
 /-- A finite sum on [m,n), with denominator assumptions only on that interval
 and its endpoints. No nonvanishing assumption on the terms a(k) is needed. -/
-theorem gosperTerm_sum (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Certificate K)
-    (h : gosperTerm backend P Q = some c) (a : ℕ → K) (m n : ℕ) (hmn : m ≤ n)
+theorem gosperTerm_sum (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0)
+    (a : ℕ → K) (m n : ℕ) (hmn : m ≤ n)
     (hQ : ∀ k ∈ Finset.Ico m n, Q.eval (k : K) ≠ 0)
     (hV : ∀ k ∈ Finset.Icc m n, c.denominator.eval (k : K) ≠ 0)
     (hratio : ∀ k ∈ Finset.Ico m n,
@@ -216,7 +242,7 @@ theorem gosperTerm_sum (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (
       apply Finset.sum_congr rfl
       intro k hk
       have hk' := Finset.mem_Ico.mp hk
-      exact (gosperTerm_step backend hbackend P Q hP0 hQ0 c h a k (hQ k hk)
+      exact (gosperTerm_step backend hbackend P Q hP0 hQ0 c h hzero a k (hQ k hk)
         (hV k (Finset.mem_Icc.mpr ⟨hk'.1, by omega⟩))
         (hV (k + 1) (Finset.mem_Icc.mpr ⟨by omega, by omega⟩)) (hratio k hk)).symm
     _ = _ := Finset.sum_Ico_sub _ hmn

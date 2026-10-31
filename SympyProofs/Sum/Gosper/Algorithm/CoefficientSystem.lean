@@ -29,7 +29,7 @@ def equationDegree (A B C : K[X]) (d : ℕ) : ℕ :=
 
 /-- Unknowns are the coefficients of x in ascending powers of X, exactly for
 the equation A*x(X+1) - B*x(X) = C. The right-hand side is `toFn _ C`.
-This is the proof specification for the augmented rows constructed inline in `gosperTerm`.
+This is the proof specification for the coefficient rows constructed inline in `gosperTerm`.
 Unlike SymPy's `H.coeffs()`, the row range includes zero coefficient equations. -/
 def coefficientSystem (A B C : K[X]) (d : ℕ) :
     Matrix (Fin (equationDegree A B C d + 1)) (Fin (d + 1)) K :=
