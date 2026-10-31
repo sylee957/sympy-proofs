@@ -11,14 +11,27 @@ open Polynomial
 variable {K : Type*} [Field K] [Algebra ℚ K]
 
 def certificateDifference (c : Array (ShiftSum K)) : RatFunc K :=
-  (c.map fun s => s.expandAt 1 - s.expandAt 0).sum
+  (c.map fun s =>
+    (∑ t ∈ Finset.range s.length,
+      (taylor (1 + (t : K)) s.numerator : RatFunc K) /
+        (taylor (1 + (t : K)) (s.denominator.map (algebraMap ℚ K)) : RatFunc K)) -
+      (∑ t ∈ Finset.range s.length,
+        (taylor (0 + (t : K)) s.numerator : RatFunc K) /
+          (taylor (0 + (t : K)) (s.denominator.map (algebraMap ℚ K)) : RatFunc K))).sum
 
 theorem certificateDifference_push (c : Array (ShiftSum K)) (s : ShiftSum K) :
     certificateDifference (c.push s) = certificateDifference c +
-      (s.fractionAt (s.length : K) - s.fractionAt 0) := by
+      ((taylor (s.length : K) s.numerator : RatFunc K) /
+          (taylor (s.length : K) (s.denominator.map (algebraMap ℚ K)) : RatFunc K) -
+        (s.numerator : RatFunc K) / (s.denominator.map (algebraMap ℚ K) : RatFunc K)) := by
   simp only [certificateDifference, Array.map_push, Array.sum_push]
   congr 1
-  simpa using s.expandAt_step 0
+  rw [← Finset.sum_sub_distrib]
+  simpa only [Nat.cast_add, Nat.cast_one, Nat.cast_zero, zero_add, add_zero, add_comm,
+    taylor_zero] using
+    (Finset.sum_range_sub (fun t : ℕ =>
+      (taylor (t : K) s.numerator : RatFunc K) /
+        (taylor (t : K) (s.denominator.map (algebraMap ℚ K)) : RatFunc K)) s.length)
 
 theorem Residual.expand_modify (b : Polynomial ℚ) (ns : Array (Polynomial K))
     (a : Polynomial K) (j : ℕ) (hj : j < ns.size) :
@@ -74,17 +87,6 @@ theorem fraction_division_step (f A : Polynomial K) (hf : f ≠ 0) (n : ℕ) :
   field_simp
   exact he
 
-theorem shifted_digit_fraction (b : Polynomial ℚ) (a : Polynomial K) (h : ℤ) (k : ℕ) :
-    (ShiftSum.mk (taylor ((-h : ℤ) : K) a) (b ^ k) h.toNat).fractionAt (h : K) =
-      (a : RatFunc K) / ((taylor (h : K) (b.map (algebraMap ℚ K)) : Polynomial K) : RatFunc K) ^ k := by
-  simp [ShiftSum.fractionAt, taylor_taylor, Polynomial.map_pow, map_pow]
-
-theorem shifted_digit_zero (b : Polynomial ℚ) (a : Polynomial K) (h : ℤ) (k : ℕ) :
-    (ShiftSum.mk (taylor ((-h : ℤ) : K) a) (b ^ k) h.toNat).fractionAt 0 =
-      ((taylor ((-h : ℤ) : K) a : Polynomial K) : RatFunc K) /
-        (b.map (algebraMap ℚ K) : RatFunc K) ^ k := by
-  simp [ShiftSum.fractionAt, Polynomial.map_pow, map_pow]
-
 namespace Model
 
 /-- One digit moves its translated fraction into the certificate and the residual. -/
@@ -110,10 +112,12 @@ theorem digit_value (g : PreparedGroup) (o : PreparedOccurrence)
   · rw [certificateDifference_push, Residual.expand_modify _ _ _ _ hsize, hk]
     have hc : (o.shift.toNat : K) = (o.shift : K) := by
       simpa only [Int.cast_natCast] using congrArg (fun z : ℤ => (z : K)) (Int.toNat_of_nonneg hh)
-    rw [hc, shifted_digit_fraction, shifted_digit_zero]
+    simp only [hc, taylor_taylor, Int.cast_neg, add_neg_cancel,
+      taylor_zero, Polynomial.map_pow, taylor_pow, RatFunc.coePolynomial, map_pow]
     have ht : taylor (o.shift : K) (g.base.map (algebraMap ℚ K)) =
         o.factor.map (algebraMap ℚ K) := by simp [ho, map_taylor]
     rw [ht]
+    simp only [RatFunc.coePolynomial] at he
     linear_combination he
   · have hz : o.shift = 0 := by omega
     rw [Residual.expand_modify _ _ _ _ hsize, hk]

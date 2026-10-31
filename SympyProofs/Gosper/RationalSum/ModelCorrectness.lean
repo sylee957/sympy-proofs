@@ -60,26 +60,12 @@ theorem Result.residualPart_eq_zero {r : Result K} (h : r.residualVanishes) :
   have ha := h g (by simpa using hg) g.numerators[i.val] (Array.getElem_mem _)
   simp [ha]
 
-theorem ShiftSum.fractionAt_shift (s : ShiftSum K) (a h : K) :
-    Gosper.rationalShift a (s.fractionAt h) = s.fractionAt (h + a) := by
-  simp only [ShiftSum.fractionAt, RatFunc.coePolynomial, map_div₀,
-    Gosper.rationalShift_polynomial, taylor_taylor, add_comm a h]
-
-theorem ShiftSum.expandAt_shift (s : ShiftSum K) (a h : K) :
-    Gosper.rationalShift a (s.expandAt h) = s.expandAt (h + a) := by
-  simp only [ShiftSum.expandAt, map_sum, ShiftSum.fractionAt_shift]
-  simp only [add_assoc, add_comm]
-
 theorem Result.primitiveAt_shift (r : Result K) (a h : K) :
     Gosper.rationalShift a (r.primitiveAt h) = r.primitiveAt (h + a) := by
   simp only [Result.primitiveAt, map_add, RatFunc.coePolynomial,
     Gosper.rationalShift_polynomial, taylor_taylor, add_comm a h,
-    ← Array.sum_toList, Array.toList_map, map_list_sum, List.map_map]
-  congr 1
-  congr 1
-  apply List.map_congr_left
-  intro s hs
-  exact s.expandAt_shift a h
+    map_sum, map_div₀]
+  simp only [add_assoc, add_comm]
 
 /-- Vanishing residual coefficients give an actual rational antidifference. -/
 theorem model_summable_of_residualVanishes

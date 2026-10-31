@@ -72,14 +72,12 @@ theorem Result.difference_eq (r : Result K) :
     r.primitiveAt 1 - r.primitiveAt 0 =
       ((taylor 1 r.polynomial - r.polynomial : Polynomial K) : RatFunc K) +
         certificateDifference r.rational := by
-  have hs (l : List (ShiftSum K)) :
-      (l.map fun s => s.expandAt 1 - s.expandAt 0).sum =
-        (l.map fun s => s.expandAt 1).sum - (l.map fun s => s.expandAt 0).sum := by
-    induction l with
-    | nil => simp
-    | cons a as ih => simp only [List.map_cons, List.sum_cons, ih]; ring
+  have hlist : r.rational.toList =
+      List.ofFn (fun i : Fin r.rational.size => r.rational[i.val]) := by
+    apply List.ext_getElem <;> simp
   simp only [Result.primitiveAt, certificateDifference, taylor_zero,
-    ← Array.sum_toList, Array.toList_map, hs]
+    ← Array.sum_toList, Array.toList_map, hlist, List.map_ofFn, List.sum_ofFn,
+    Function.comp_apply, Finset.sum_sub_distrib]
   simp only [RatFunc.coePolynomial, map_sub]
   ring
 
@@ -106,6 +104,7 @@ theorem model_reconstruct  (p : PreparedDenominator)
   rw [hpoly]
   change _ + _ + _ = _
   rw [add_assoc]
-  exact congrArg (_ + ·) h
+  apply congrArg (_ + ·)
+  simpa only [certificateDifference, zero_add] using h
 
 end Gosper.RationalSum

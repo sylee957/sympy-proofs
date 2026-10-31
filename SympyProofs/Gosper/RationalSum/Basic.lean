@@ -13,24 +13,6 @@ open Polynomial
 
 variable {K : Type*} [Field K] [Algebra ℚ K]
 
-/-- Translate the numerator and denominator by the same amount. -/
-def ShiftSum.fractionAt (s : ShiftSum K) (h : K) : RatFunc K :=
-  (taylor h s.numerator : RatFunc K) /
-    (taylor h (s.denominator.map (algebraMap ℚ K)) : RatFunc K)
-
-/-- Expansion of a compact certificate term, with an optional outer shift. -/
-def ShiftSum.expandAt (s : ShiftSum K) (h : K) : RatFunc K :=
-  ∑ t ∈ Finset.range s.length, s.fractionAt (h + (t : K))
-
-/-- The compact representation telescopes without expanding its shift interval. -/
-theorem ShiftSum.expandAt_step (s : ShiftSum K) (h : K) :
-    s.expandAt (h + 1) - s.expandAt h =
-      s.fractionAt (h + (s.length : K)) - s.fractionAt h := by
-  simp only [ShiftSum.expandAt, ← Finset.sum_sub_distrib]
-  simpa only [Nat.cast_add, Nat.cast_one, Nat.cast_zero, add_zero,
-    add_assoc, add_left_comm, add_comm] using
-    (Finset.sum_range_sub (fun t : ℕ => s.fractionAt (h + (t : K))) s.length)
-
 /-- Residual fractions at orders `1, …, numerators.size`. -/
 def Residual.expand (r : Residual K) : RatFunc K :=
   ∑ k : Fin r.numerators.size,
@@ -40,7 +22,11 @@ def Residual.expand (r : Residual K) : RatFunc K :=
 /-- The rational certificate `G(X+h)`. -/
 def Result.primitiveAt (r : Result K) (h : K) : RatFunc K :=
   (taylor h r.polynomial : RatFunc K) +
-    (r.rational.map fun s => s.expandAt h).sum
+    ∑ i : Fin r.rational.size,
+      let s := r.rational[i.val]
+      ∑ t ∈ Finset.range s.length,
+        (taylor (h + (t : K)) s.numerator : RatFunc K) /
+          (taylor (h + (t : K)) (s.denominator.map (algebraMap ℚ K)) : RatFunc K)
 
 def Result.residualPart (r : Result K) : RatFunc K :=
   (r.residual.map Residual.expand).sum
