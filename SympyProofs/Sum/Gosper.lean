@@ -26,9 +26,16 @@ supplies factorization, resultant, zero matrices, entry updates, column reads, a
 shift resultants, natural integer roots, and linear solving
 are derived from them. `Algorithm.gosperSolve backend A B C` starts directly
 from `A*x(X+1) - B*x = C`, where `B` is already shifted backward from the
-normal form. `A` and `B` determine a matrix over `K`; `C` may have coefficients
-in an extension field `L` with `Algebra K L`. RREF stays over `K`, and its entries
-are embedded into `L` when applied to the right-hand side.
+normal form. `A` and `B` determine matrix entries over `K`; `C` may have
+coefficients in a commutative `K`-algebra. RREF and all inversions stay over `K`.
+An optional final bound `N` fixes the matrix dimensions; omitting it uses
+`C.natDegree`. With the same `N` on both sides, `Algorithm.gosperSolve_map`
+proves that the actual solver commutes with parameter specialization, including
+noninjective evaluation maps and drops in degree.
+For a returned result, `Algorithm.gosperSolve_specialize_complete` characterizes
+the solvable specialized polynomial equations by the evaluated residual conditions,
+including a zero specialized right-hand side. `Algorithm.gosperSolve_specialize_ratFunc` gives
+the corresponding rational multiplier identity directly from normalized inputs.
 The coefficient matrix is augmented by an identity matrix
 to record reusable row operations. One matrix-vector product applies its right
 block to the right-hand side. The pivot rows give the coefficients, and the

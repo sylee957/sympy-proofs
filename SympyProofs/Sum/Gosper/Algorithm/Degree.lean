@@ -17,16 +17,31 @@ variable {K : Type*} [Field K] [CharZero K] [DecidableEq K] [DecidablePred (IsIn
 /-- Bound for A(X)x(X+1) - B(X)x(X) = C(X). Testing coefficients at the
 maximum degree combines SymPy's unequal-degree / unequal-leading-term cases.
 The exceptional integer root is retained even when negative. -/
-def degreeBound {L : Type*} [Semiring L] (A B : K[X]) (C : L[X]) : ℤ := Id.run do
+def degreeBound {L : Type*} [Semiring L] (A B : K[X]) (C : L[X])
+    (N : ℕ := C.natDegree) : ℤ := Id.run do
   let l := max A.natDegree B.natDegree
-  if A.coeff l ≠ B.coeff l then return (C.natDegree : ℤ) - l
-  if l = 0 then return (C.natDegree : ℤ) + 1
-  let ordinary := (C.natDegree : ℤ) - l + 1
+  if A.coeff l ≠ B.coeff l then return (N : ℤ) - l
+  if l = 0 then return (N : ℤ) + 1
+  let ordinary := (N : ℤ) - l + 1
   let exceptional := (B.coeff (l - 1) - A.coeff (l - 1)) / B.coeff l
   if h : IsInteger ℤ exceptional then
     let k : ℤ := Encodable.choose h
     return max k ordinary
   return ordinary
+
+omit [CharZero K] in
+/-- A fixed right-hand-side degree bound gives the same signed solution bound
+independently of the right-hand-side coefficients and their coefficient ring. -/
+theorem degreeBound_rhs_eq {R S : Type*} [Semiring R] [Semiring S]
+    (A B : K[X]) (C : R[X]) (D : S[X]) (N : ℕ) :
+    degreeBound A B C N = degreeBound A B D N := rfl
+
+omit [CharZero K] in
+/-- Increasing the prescribed right-hand-side degree cannot decrease the solution bound. -/
+theorem degreeBound_mono {R : Type*} [Semiring R] (A B : K[X]) (C : R[X])
+    {N M : ℕ} (hNM : N ≤ M) : degreeBound A B C N ≤ degreeBound A B C M := by
+  simp only [degreeBound, Id.run, pure]
+  split_ifs <;> omega
 
 theorem degreeBound_eq_paper (A B C : K[X]) :
     degreeBound A B C = Gosper.paperDegreeBound C A B := by
@@ -58,9 +73,9 @@ variable {L : Type*} [Field L] [CharZero L] [Algebra K L]
 
 /-- Extending the coefficient field does not change the degree bound: its only
 dependence on the right-hand side is its degree. -/
-theorem degreeBound_map (A B : K[X]) (C : L[X]) :
-    degreeBound (A.map (algebraMap K L)) (B.map (algebraMap K L)) C =
-      degreeBound A B C := by
+theorem degreeBound_map (A B : K[X]) (C : L[X]) (N : ℕ := C.natDegree) :
+    degreeBound (A.map (algebraMap K L)) (B.map (algebraMap K L)) C N =
+      degreeBound A B C N := by
   have hint (x : K) : IsInteger ℤ (algebraMap K L x) ↔ IsInteger ℤ x := by
     constructor
     · rintro ⟨z, hz⟩
@@ -98,6 +113,15 @@ theorem solution_degree_le_extension (A B : K[X]) (C x : L[X])
   apply solution_degree_le _ _ _ _ _ _ hx he
   · simpa using hA
   · simpa using hB
+
+omit [CharZero L] [DecidableEq L] [DecidablePred (IsInteger ℤ : L → Prop)] in
+/-- A prescribed upper bound on the right-hand-side degree remains valid when its
+coefficients vanish after evaluation. -/
+theorem solution_degree_le_extension_bounded (A B : K[X]) (C x : L[X]) (N : ℕ)
+    (hC : C.natDegree ≤ N) (hA : A ≠ 0) (hB : B ≠ 0) (hx : x ≠ 0)
+    (he : A.map (algebraMap K L) * taylor 1 x - B.map (algebraMap K L) * x = C) :
+    (x.natDegree : ℤ) ≤ degreeBound A B C N :=
+  (solution_degree_le_extension A B C x hA hB hx he).trans (degreeBound_mono A B C hC)
 
 end Extension
 

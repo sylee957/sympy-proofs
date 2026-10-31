@@ -11,15 +11,15 @@ namespace Gosper.Algorithm
 variable {K : Type*} [Field K] {m n : ℕ}
 
 /-- Append the transformed values at right-block pivots, without testing their values. -/
-def RrefResult.residualEntries (r : RrefResult K m (n + m)) (values : Fin m → K) :
-    Array K :=
+def RrefResult.residualEntries {α : Type*} (r : RrefResult K m (n + m))
+    (values : Fin m → α) : Array α :=
   (r.pivots.zipIdx.attach.filterMap fun ⟨(pivot, row), hp⟩ =>
     if pivot.val < n then none else
       some (values ⟨row, lt_of_lt_of_le (List.mem_zipIdx' hp).1 r.length_le⟩)).toArray
 
 omit [Field K] in
-theorem RrefResult.mem_residualEntries (r : RrefResult K m (n + m))
-    (values : Fin m → K) (value : K) :
+theorem RrefResult.mem_residualEntries {α : Type*} (r : RrefResult K m (n + m))
+    (values : Fin m → α) (value : α) :
     value ∈ r.residualEntries values ↔
       ∃ (i : Fin m) (p : Fin (n + m)),
         r.pivots[i.val]? = some p ∧ n ≤ p.val ∧ values i = value := by
@@ -35,6 +35,19 @@ theorem RrefResult.mem_residualEntries (r : RrefResult K m (n + m))
   · rintro ⟨i, p, hp, hright, hv⟩
     refine ⟨⟨(p, i.val), List.mk_mem_zipIdx_iff_getElem?.mpr hp⟩, ?_⟩
     simpa [not_lt.mpr hright] using congrArg some hv
+
+omit [Field K] in
+/-- Mapping values commutes with retaining the right-pivot residual entries. -/
+theorem RrefResult.residualEntries_map {α β : Type*} (r : RrefResult K m (n + m))
+    (values : Fin m → α) (f : α → β) :
+    (r.residualEntries values).map f = r.residualEntries (f ∘ values) := by
+  apply Array.toList_inj.mp
+  simp only [residualEntries, Array.toList_map, List.toList_toArray, List.map_filterMap]
+  congr 1
+  funext p
+  rcases p with ⟨⟨pivot, row⟩, hp⟩
+  dsimp only
+  split_ifs <;> rfl
 
 /-- Missing pivot rows are zero rows, so omitting them preserves the consistency
 criterion for a transformed right-hand side. -/

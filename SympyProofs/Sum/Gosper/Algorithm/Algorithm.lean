@@ -37,7 +37,9 @@ vanishes. `Algorithm.Completeness` proves that for nonzero inputs an output with
 vanishing residual exists exactly when a hypergeometric antidifference exists,
 provided the backend contracts hold. `gosperSolve backend A B C` takes the
 normalized forward equation directly. Its matrix is over the field of `A` and
-`B`; `C` and the result may lie in an extension field. Use `gosperTerm backend P Q`, or
+`B`; `C` and the result may lie in a commutative `K`-algebra. Supply the same
+degree bound `N` before and after specializing parameters to keep the matrix
+dimensions fixed. Use `gosperTerm backend P Q`, or
 `gosperTerm (referenceBackend rref) P Q` with reference polynomial operations.
 -/
 
@@ -52,7 +54,7 @@ variable {K : Type} [Field K] [CharZero K] [DecidableEq K] [DecidablePred (IsInt
 variable (backend : Backend K)
 
 /-- A candidate multiplier together with the remaining linear compatibility conditions. -/
-structure Result (K : Type*) [Field K] where
+structure Result (K : Type*) [CommRing K] where
   numerator : K[X]
   denominator : K[X]
   residual : Array K
@@ -60,19 +62,22 @@ structure Result (K : Type*) [Field K] where
 /-- Solve the normalized equation `A*x(X+1) - B*x = C`, retaining a candidate
 `B*x/C` and its residual conditions. Here `B` is already shifted backward from
 the `B` returned by `gosperNormal`. Matrix reduction takes place over `K`;
-the right-hand side and result lie in `L`, connected by `Algebra K L`.
+the right-hand side and result lie in a commutative `K`-algebra `L`.
 No decidable equality on `L` is required; residual conditions are returned
 without deciding whether they vanish.
-The matrix entries depend on `A` and `B`; its size also uses the degree of `C`.
+The matrix entries depend on `A` and `B`; its size uses the supplied degree
+bound `N`. Omission of `N` uses `C.natDegree`. Correctness with an explicit
+bound assumes `C.natDegree ≤ N`, only in the theorems.
 Only a negative degree bound returns `none`; a nonzero residual is returned for
-the caller to inspect. Interpreting the multiplier requires `C ≠ 0`.
+the caller to inspect. The field-valued rational multiplier interpretation
+requires `C ≠ 0` after specialization.
 Backend validity and nonzero-input hypotheses appear only in the theorems. -/
-def gosperSolve {L : Type} [Field L] [Algebra K L]
-    (A B : K[X]) (C : L[X]) : Option (Result L) := Id.run do
-  let d := degreeBound A B C
+def gosperSolve {L : Type} [CommRing L] [Algebra K L]
+    (A B : K[X]) (C : L[X]) (N : ℕ := C.natDegree) : Option (Result L) := Id.run do
+  let d := degreeBound A B C N
   if d < 0 then return none
   let n := d.toNat + 1
-  let m := equationDegree A B C d.toNat + 1
+  let m := equationDegree A B C d.toNat N + 1
   -- Augment the coefficient matrix by the identity, independently of the right-hand side.
   let mut M := backend.zeros m (n + m)
   for i in List.finRange m do
@@ -96,7 +101,7 @@ def gosperSolve {L : Type} [Field L] [Algebra K L]
     if h : pivot.val < n then
       let pivot : Fin n := ⟨pivot.val, h⟩
       coefficients := coefficients.set pivot.val
-        (transformed[row.val] / algebraMap K L r.denominator)
+        (transformed[row.val] * algebraMap K L r.denominator⁻¹)
     else
       residual := residual.push transformed[row.val]
   let x := ∑ j : Fin n, Polynomial.monomial j.val coefficients[j.val]

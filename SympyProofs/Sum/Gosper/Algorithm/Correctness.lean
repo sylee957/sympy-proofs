@@ -96,7 +96,7 @@ theorem gosperTerm_eq (hbackend : backend.Valid) (P Q : K[X]) :
                residual := r.residualEntries (r.rightMatrix.mulVec b) } := by
   unfold gosperTerm
   rw [gosperSolve_eq backend hbackend]
-  simp only [Algebra.algebraMap_self, Polynomial.map_id, RrefResult.map_id,
+  simp only [Algebra.algebraMap_self, Polynomial.map_id,
     ← Polynomial.ofFn_eq_sum_monomial]
   rfl
 
