@@ -5,13 +5,14 @@ public import SympyProofs.Gosper.ShiftlessDecomposition.Primitives
 /-!
 # Total shiftless decomposition
 
-This module defines the result types `Occurrence`, `Group`, and `Decomposition`,
+This module defines the result types `Occurrence` and `Group`,
 the shift-enumeration interface, and the imperative decomposition algorithm.
 
-`decompose ops D` returns a `Decomposition K` directly. The definition takes no
+`decompose ops D` returns an `Array (Group K)` directly. The definition takes no
 proof arguments; the primitive contracts and nonzero-input assumption appear
-only in its correctness theorems. Zero input produces coefficient zero and no
-groups.
+only in its correctness theorems. The result stores the monic factor groups;
+the input's leading coefficient supplies the scalar in reconstruction.
+Constant inputs, including zero, produce no groups.
 
 The construction extracts square-free layers, takes the first layer as their support,
 and splits that support by every shifted layer. Successive gcd partitions replace
@@ -43,14 +44,10 @@ structure Group (K : Type*) [Semiring K] where
   base : Polynomial K
   occurrences : Array Occurrence
 
-structure Decomposition (K : Type*) [Semiring K] where
-  coefficient : K
-  groups : Array (Group K)
-
 /-- Construct a shiftless decomposition. Correctness assumes characteristic zero,
 `ops.Valid`, and nonzero input; these conditions appear only in the theorems. -/
-def decompose (ops : Primitives K) (D : Polynomial K) : Decomposition K := Id.run do
-  if D.natDegree = 0 then return { coefficient := D.leadingCoeff, groups := #[] }
+def decompose (ops : Primitives K) (D : Polynomial K) : Array (Group K) := Id.run do
+  if D.natDegree = 0 then return #[]
   let mut remaining := C D.leadingCoeff⁻¹ * D
   let S := remaining / ops.gcd remaining (ops.derivative remaining)
   let mut layers := #[S]
@@ -92,6 +89,6 @@ def decompose (ops : Primitives K) (D : Polynomial K) : Decomposition K := Id.ru
         occurrences :=
           { down := occurrences.down.push { shift := h, multiplicity := multiplicity.down } }
       groups := groups.push { base := b, occurrences := occurrences.down }
-  return { coefficient := D.leadingCoeff, groups := groups }
+  return groups
 
 end Gosper.ShiftlessDecomposition

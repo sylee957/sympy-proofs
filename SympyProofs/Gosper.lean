@@ -9,6 +9,7 @@ public import SympyProofs.Gosper.Algorithm
 public import SympyProofs.Gosper.PolynomialSum
 public import SympyProofs.Gosper.ShiftlessDecomposition
 public import SympyProofs.Gosper.ModularShifts
+public import SympyProofs.Gosper.RationalSum
 
 /-!
 # Gosper's indefinite hypergeometric summation theorem
@@ -41,15 +42,16 @@ denominator conditions on the summation interval. Mathlib's noncomputable
 operations keep this a mathematical algorithm model.
 
 `PolynomialSum.antidifference` handles polynomial summands directly over any
-commutative rational algebra, including polynomial parameter rings. It constructs
-a normalized primitive using Bernoulli polynomials and proves the difference
-identity, a degree bound, finite sums, and compatibility with every parameter
-specialization. `PolynomialSum.antidifferenceCoefficients` implements the same
-construction by generating and accumulating one monomial primitive row at a time;
-`PolynomialSum.antidifferenceOfFn_sound` proves that the executable output has
+commutative rational algebra, including polynomial parameter rings. It generates
+and accumulates one monomial primitive row at a time using the rational coefficient
+recurrence. Bernoulli polynomials occur only in the proof specification.
+The proofs establish the difference identity, a degree bound, finite sums, and
+compatibility with every parameter specialization. `PolynomialSum.antidifference_sound`
+proves that the computed output has
 the required difference and vanishes at zero. The implementation and proofs live
 in `PolynomialSum.Algorithm` and `PolynomialSum.Correctness`. The algorithm uses
-no candidate search, parameter zero tests, or parameter-dependent division.
+no candidate search or parameter-dependent division. The coefficient recurrence
+uses no parameter zero tests; the polynomial interface obtains its input degree.
 
 `ShiftlessDecomposition.decompose` constructs shiftless decompositions
 over any characteristic-zero field with decidable equality, using supplied gcd,

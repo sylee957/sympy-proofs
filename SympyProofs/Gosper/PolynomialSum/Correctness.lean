@@ -8,9 +8,9 @@ public import Std.WP
 /-!
 # Soundness of polynomial antidifference
 
-For `p = Polynomial.ofFn N a` and the computed `q = antidifferenceOfFn a`,
-`antidifferenceOfFn_sound` proves `q.comp (1 + X) - q = p` and `q.eval 0 = 0`.
-Thus `q(x + 1) - q(x) = p(x)`, and `sum_range_ofFn` gives
+For a polynomial `p` and the computed `q = antidifference p`,
+`antidifference_sound` proves `q.comp (1 + X) - q = p` and `q.eval 0 = 0`.
+Thus `q(x + 1) - q(x) = p(x)`, and `sum_range` gives
 `∑ k ∈ Finset.range n, p.eval k = q.eval n`.
 
 `sum_range_antidifferenceCoefficients` connects the actual output vector directly
@@ -23,8 +23,8 @@ requires decidable equality on the coefficient rings.
 The proof identifies the imperative loop's coefficients with normalized
 Bernoulli polynomial primitives (`antidifferenceCoefficients_get`), then proves
 that the computed polynomial equals their linear combination
-(`antidifferenceOfFn_eq`). Bernoulli numbers are used only in this specification
-and its proofs.
+(`antidifference_eq_linear`). Bernoulli numbers are used
+only in the linear specification and its proofs.
 
 All results hold over a commutative rational algebra, including polynomial
 parameter rings. Specialization commutes with the construction even when the
@@ -282,27 +282,28 @@ theorem antidifferenceCoefficients_get {N : ℕ} (a : Fin N → R) (k : ℕ) (hk
             (n + 2 - (j + 1) ≤ t.val ∧ t.val ≤ n + 1) := by omega
         simp only [hiff]
 
-/-- An explicit linear polynomial summation algorithm. -/
-def antidifference : R[X] →ₗ[R] R[X] :=
+/-- Proof-only linear specification in terms of Bernoulli polynomial primitives.
+The executable `antidifference` is proved equal to this map below. -/
+def antidifferenceLinear : R[X] →ₗ[R] R[X] :=
   Polynomial.lsum fun n =>
     (LinearMap.id : R →ₗ[R] R).smulRight ((monomialPrimitive n).map (algebraMap ℚ R))
 
-theorem antidifference_apply (p : R[X]) :
-    antidifference p =
+theorem antidifferenceLinear_apply (p : R[X]) :
+    antidifferenceLinear p =
       ∑ n ∈ p.support, p.coeff n • (monomialPrimitive n).map (algebraMap ℚ R) := rfl
 
-@[simp] theorem antidifference_monomial (n : ℕ) (a : R) :
-    antidifference (monomial n a) = a • (monomialPrimitive n).map (algebraMap ℚ R) := by
-  simp [antidifference, Polynomial.lsum, LinearMap.smulRight_apply]
+@[simp] theorem antidifferenceLinear_monomial (n : ℕ) (a : R) :
+    antidifferenceLinear (monomial n a) = a • (monomialPrimitive n).map (algebraMap ℚ R) := by
+  simp [antidifferenceLinear, Polynomial.lsum, LinearMap.smulRight_apply]
 
-@[simp] theorem antidifference_C (a : R) : antidifference (C a) = C a * X := by
-  change antidifference (monomial 0 a) = C a * X
-  rw [antidifference_monomial, monomialPrimitive_zero, Polynomial.map_X, smul_eq_C_mul]
+@[simp] theorem antidifferenceLinear_C (a : R) : antidifferenceLinear (C a) = C a * X := by
+  change antidifferenceLinear (monomial 0 a) = C a * X
+  rw [antidifferenceLinear_monomial, monomialPrimitive_zero, Polynomial.map_X, smul_eq_C_mul]
 
-/-- The output is an antidifference as a polynomial identity. -/
-theorem antidifference_step (p : R[X]) :
-    (antidifference p).comp (1 + X) - antidifference p = p := by
-  rw [antidifference_apply, sum_comp, ← Finset.sum_sub_distrib]
+/-- The output is an antidifferenceLinear as a polynomial identity. -/
+theorem antidifferenceLinear_step (p : R[X]) :
+    (antidifferenceLinear p).comp (1 + X) - antidifferenceLinear p = p := by
+  rw [antidifferenceLinear_apply, sum_comp, ← Finset.sum_sub_distrib]
   simp_rw [smul_comp, ← smul_sub]
   have hb (n : ℕ) :
       ((monomialPrimitive n).map (algebraMap ℚ R)).comp (1 + X) -
@@ -312,17 +313,17 @@ theorem antidifference_step (p : R[X]) :
   simp_rw [hb, smul_eq_C_mul]
   exact p.sum_C_mul_X_pow_eq
 
-@[simp] theorem antidifference_eval_zero (p : R[X]) :
-    (antidifference p).eval 0 = 0 := by
+@[simp] theorem antidifferenceLinear_eval_zero (p : R[X]) :
+    (antidifferenceLinear p).eval 0 = 0 := by
   have hb (n : ℕ) : ((monomialPrimitive n).map (algebraMap ℚ R)).eval 0 = 0 := by
     simpa only [map_zero, monomialPrimitive_eval_zero] using
       (eval_map_apply (p := monomialPrimitive n) (algebraMap ℚ R) 0)
-  simp [antidifference_apply, eval_finsetSum, hb]
+  simp [antidifferenceLinear_apply, eval_finsetSum, hb]
 
 /-- Degree is bounded directly by the input degree; no search bound is supplied. -/
-theorem antidifference_natDegree_le (p : R[X]) :
-    (antidifference p).natDegree ≤ p.natDegree + 1 := by
-  rw [antidifference_apply]
+theorem antidifferenceLinear_natDegree_le (p : R[X]) :
+    (antidifferenceLinear p).natDegree ≤ p.natDegree + 1 := by
+  rw [antidifferenceLinear_apply]
   apply natDegree_sum_le_of_forall_le
   intro n hn
   exact (natDegree_smul_le _ _).trans (natDegree_map_le.trans
@@ -330,104 +331,158 @@ theorem antidifference_natDegree_le (p : R[X]) :
       (Nat.add_le_add_right (le_natDegree_of_mem_supp n hn) 1)))
 
 /-- Parameter specialization commutes with summation, including degree-dropping cases. -/
-theorem antidifference_map (f : R →ₐ[ℚ] S) (p : R[X]) :
-    (antidifference p).map f.toRingHom = antidifference (p.map f.toRingHom) := by
+theorem antidifferenceLinear_map (f : R →ₐ[ℚ] S) (p : R[X]) :
+    (antidifferenceLinear p).map f.toRingHom = antidifferenceLinear (p.map f.toRingHom) := by
   induction p using Polynomial.induction_on' with
   | add p q hp hq =>
     simp only [map_add, Polynomial.map_add, hp, hq]
   | monomial n a =>
-    simp only [antidifference_monomial, Polynomial.map_monomial, Polynomial.map_smul,
-      antidifference_monomial, Polynomial.map_map]
+    simp only [antidifferenceLinear_monomial, Polynomial.map_monomial, Polynomial.map_smul,
+      antidifferenceLinear_monomial, Polynomial.map_map]
     congr 1
     exact congrArg (Polynomial.map · (monomialPrimitive n)) f.comp_algebraMap
 
 /-- The pointwise forward-difference equation. -/
-theorem antidifference_eval_step (p : R[X]) (x : R) :
-    (antidifference p).eval (x + 1) - (antidifference p).eval x = p.eval x := by
-  simpa [eval_comp, add_comm] using congrArg (Polynomial.eval x) (antidifference_step p)
+theorem antidifferenceLinear_eval_step (p : R[X]) (x : R) :
+    (antidifferenceLinear p).eval (x + 1) - (antidifferenceLinear p).eval x = p.eval x := by
+  simpa [eval_comp, add_comm] using congrArg (Polynomial.eval x) (antidifferenceLinear_step p)
 
 /-- The sum on `0 ≤ k < n` is the constructed polynomial evaluated at `n`. -/
-theorem sum_range (p : R[X]) (n : ℕ) :
-    ∑ k ∈ Finset.range n, p.eval (k : R) = (antidifference p).eval (n : R) := by
+theorem sum_range_linear (p : R[X]) (n : ℕ) :
+    ∑ k ∈ Finset.range n, p.eval (k : R) = (antidifferenceLinear p).eval (n : R) := by
   induction n with
   | zero => simp
   | succ n ih =>
     rw [Finset.sum_range_succ, ih]
-    have h := antidifference_eval_step p (n : R)
+    have h := antidifferenceLinear_eval_step p (n : R)
     push_cast
     linear_combination -h
 
 /-- An arbitrary natural interval is handled by subtracting endpoint values. -/
-theorem sum_Ico (p : R[X]) (m n : ℕ) (hmn : m ≤ n) :
+theorem sum_Ico_linear (p : R[X]) (m n : ℕ) (hmn : m ≤ n) :
     ∑ k ∈ Finset.Ico m n, p.eval (k : R) =
-      (antidifference p).eval (n : R) - (antidifference p).eval (m : R) := by
-  rw [Finset.sum_Ico_eq_sub _ hmn, sum_range, sum_range]
+      (antidifferenceLinear p).eval (n : R) - (antidifferenceLinear p).eval (m : R) := by
+  rw [Finset.sum_Ico_eq_sub _ hmn, sum_range_linear, sum_range_linear]
 
 /-- Sum after specializing parameters, using the already constructed symbolic output. -/
-theorem sum_range_map (f : R →ₐ[ℚ] S) (p : R[X]) (n : ℕ) :
+theorem sum_range_map_linear (f : R →ₐ[ℚ] S) (p : R[X]) (n : ℕ) :
     ∑ k ∈ Finset.range n, p.eval₂ f.toRingHom (k : S) =
-      (antidifference p).eval₂ f.toRingHom (n : S) := by
-  simpa only [← antidifference_map, eval_map] using sum_range (p.map f.toRingHom) n
+      (antidifferenceLinear p).eval₂ f.toRingHom (n : S) := by
+  simpa only [← antidifferenceLinear_map, eval_map] using sum_range_linear (p.map f.toRingHom) n
 
 /-- Polynomial parameter expressions can be evaluated at arbitrary values,
 without nonvanishing assumptions or degree-preservation hypotheses. -/
-theorem sum_range_parameters {ι : Type*} (p : (MvPolynomial ι ℚ)[X])
+theorem sum_range_parameters_linear {ι : Type*} (p : (MvPolynomial ι ℚ)[X])
     (σ : ι → S) (n : ℕ) :
     ∑ k ∈ Finset.range n, p.eval₂ (MvPolynomial.aeval σ).toRingHom (k : S) =
-      (antidifference p).eval₂ (MvPolynomial.aeval σ).toRingHom (n : S) :=
-  sum_range_map (MvPolynomial.aeval σ) p n
+      (antidifferenceLinear p).eval₂ (MvPolynomial.aeval σ).toRingHom (n : S) :=
+  sum_range_map_linear (MvPolynomial.aeval σ) p n
 
 /-- Every output coefficient of the abstract construction is the explicit matrix product. -/
-theorem coeff_antidifference_ofFn [DecidableEq R] {N : ℕ} (a : Fin N → R) (k : ℕ) :
-    (antidifference (Polynomial.ofFn N a)).coeff k =
+theorem coeff_antidifferenceLinear_ofFn [DecidableEq R] {N : ℕ} (a : Fin N → R) (k : ℕ) :
+    (antidifferenceLinear (Polynomial.ofFn N a)).coeff k =
       ∑ n : Fin N, a n * algebraMap ℚ R (primitiveCoeff n k) := by
   rw [ofFn_eq_sum_monomial, map_sum, finsetSum_coeff]
   simp [coeff_monomialPrimitive]
 
 /-- Correctness of the executable coefficient-vector algorithm. -/
-theorem antidifferenceOfFn_eq [DecidableEq R] {N : ℕ} (a : Fin N → R) :
-    antidifferenceOfFn a = antidifference (Polynomial.ofFn N a) := by
+theorem ofFn_antidifferenceCoefficients [DecidableEq R] {N : ℕ} (a : Fin N → R) :
+    Polynomial.ofFn (N + 1) (fun k => (antidifferenceCoefficients a)[k.val]) =
+      antidifferenceLinear (Polynomial.ofFn N a) := by
   ext k
-  rw [coeff_antidifference_ofFn]
+  rw [coeff_antidifferenceLinear_ofFn]
   by_cases hk : k < N + 1
-  · simp [antidifferenceOfFn, ofFn_coeff_eq_val_of_lt _ hk, antidifferenceCoefficients_get]
-  · rw [antidifferenceOfFn, ofFn_coeff_eq_zero_of_ge _ (Nat.le_of_not_lt hk)]
+  · simp [ofFn_coeff_eq_val_of_lt _ hk, antidifferenceCoefficients_get]
+  · rw [ofFn_coeff_eq_zero_of_ge _ (Nat.le_of_not_lt hk)]
     symm
     apply Finset.sum_eq_zero
     intro n _
     rw [primitiveCoeff_eq_zero n k (by omega), map_zero, mul_zero]
 
-/-- Soundness of the executable algorithm: the output is an antidifference of
-its input polynomial, normalized to vanish at zero. -/
-theorem antidifferenceOfFn_sound [DecidableEq R] {N : ℕ} (a : Fin N → R) :
-    (antidifferenceOfFn a).comp (1 + X) - antidifferenceOfFn a = Polynomial.ofFn N a ∧
-      (antidifferenceOfFn a).eval 0 = 0 := by
-  rw [antidifferenceOfFn_eq]
-  exact ⟨antidifference_step _, antidifference_eval_zero _⟩
+/-- The polynomial-input algorithm agrees with the linear specification,
+independently of any degree drops under later specialization. -/
+theorem antidifference_eq_linear [DecidableEq R] (p : R[X]) :
+    antidifference p = antidifferenceLinear p := by
+  rw [antidifference, ofFn_antidifferenceCoefficients]
+  congr 1
+  exact ofFn_comp_toFn_eq_id_of_natDegree_lt (Nat.lt_succ_self _)
 
-/-- The executable output satisfies the polynomial difference identity. -/
-theorem antidifferenceOfFn_step [DecidableEq R] {N : ℕ} (a : Fin N → R) :
-    (antidifferenceOfFn a).comp (1 + X) - antidifferenceOfFn a = Polynomial.ofFn N a :=
-  (antidifferenceOfFn_sound a).1
+/-- The computed polynomial has the required difference and vanishes at zero. -/
+theorem antidifference_sound [DecidableEq R] (p : R[X]) :
+    (antidifference p).comp (1 + X) - antidifference p = p ∧
+      (antidifference p).eval 0 = 0 := by
+  rw [antidifference_eq_linear]
+  exact ⟨antidifferenceLinear_step p, antidifferenceLinear_eval_zero p⟩
 
-@[simp] theorem antidifferenceOfFn_eval_zero [DecidableEq R] {N : ℕ} (a : Fin N → R) :
-    (antidifferenceOfFn a).eval 0 = 0 :=
-  (antidifferenceOfFn_sound a).2
+theorem antidifference_step [DecidableEq R] (p : R[X]) :
+    (antidifference p).comp (1 + X) - antidifference p = p :=
+  (antidifference_sound p).1
 
-/-- The executable output evaluates to the requested finite sum. -/
-theorem sum_range_ofFn [DecidableEq R] {N : ℕ} (a : Fin N → R) (n : ℕ) :
-    ∑ k ∈ Finset.range n, (Polynomial.ofFn N a).eval (k : R) =
-      (antidifferenceOfFn a).eval (n : R) := by
-  rw [antidifferenceOfFn_eq]
-  exact sum_range _ _
+@[simp] theorem antidifference_eval_zero [DecidableEq R] (p : R[X]) :
+    (antidifference p).eval 0 = 0 := (antidifference_sound p).2
 
-/-- Specialize the input and the already computed output, then evaluate the sum. -/
-theorem sum_range_ofFn_map [DecidableEq R] (f : R →ₐ[ℚ] S) {N : ℕ}
-    (a : Fin N → R) (n : ℕ) :
-    ∑ k ∈ Finset.range n, (Polynomial.ofFn N a).eval₂ f.toRingHom (k : S) =
-      (antidifferenceOfFn a).eval₂ f.toRingHom (n : S) := by
-  rw [antidifferenceOfFn_eq]
-  exact sum_range_map f _ n
+theorem antidifference_natDegree_le [DecidableEq R] (p : R[X]) :
+    (antidifference p).natDegree ≤ p.natDegree + 1 := by
+  rw [antidifference_eq_linear]
+  exact antidifferenceLinear_natDegree_le p
+
+theorem antidifference_apply [DecidableEq R] (p : R[X]) :
+    antidifference p =
+      ∑ n ∈ p.support, p.coeff n • (monomialPrimitive n).map (algebraMap ℚ R) := by
+  rw [antidifference_eq_linear, antidifferenceLinear_apply]
+
+@[simp] theorem antidifference_monomial [DecidableEq R] (n : ℕ) (a : R) :
+    antidifference (monomial n a) = a • (monomialPrimitive n).map (algebraMap ℚ R) := by
+  rw [antidifference_eq_linear, antidifferenceLinear_monomial]
+
+@[simp] theorem antidifference_C [DecidableEq R] (a : R) :
+    antidifference (C a) = C a * X := by
+  rw [antidifference_eq_linear, antidifferenceLinear_C]
+
+/-- Specialization commutes with the computed polynomial, including when its
+input degree drops. The algebra homomorphism need not be injective. -/
+theorem antidifference_map [DecidableEq R] [DecidableEq S] (f : R →ₐ[ℚ] S) (p : R[X]) :
+    (antidifference p).map f.toRingHom = antidifference (p.map f.toRingHom) := by
+  simp only [antidifference_eq_linear, antidifferenceLinear_map]
+
+theorem antidifference_eval_step [DecidableEq R] (p : R[X]) (x : R) :
+    (antidifference p).eval (x + 1) - (antidifference p).eval x = p.eval x := by
+  rw [antidifference_eq_linear]
+  exact antidifferenceLinear_eval_step p x
+
+/-- Evaluate the computed polynomial to obtain a finite sum. -/
+theorem sum_range [DecidableEq R] (p : R[X]) (n : ℕ) :
+    ∑ k ∈ Finset.range n, p.eval (k : R) = (antidifference p).eval (n : R) := by
+  rw [antidifference_eq_linear]
+  exact sum_range_linear p n
+
+theorem sum_Ico [DecidableEq R] (p : R[X]) (m n : ℕ) (hmn : m ≤ n) :
+    ∑ k ∈ Finset.Ico m n, p.eval (k : R) =
+      (antidifference p).eval (n : R) - (antidifference p).eval (m : R) := by
+  rw [antidifference_eq_linear]
+  exact sum_Ico_linear p m n hmn
+
+/-- Finite sums after any parameter specialization of the computed polynomial. -/
+theorem sum_range_map [DecidableEq R] (f : R →ₐ[ℚ] S) (p : R[X]) (n : ℕ) :
+    ∑ k ∈ Finset.range n, p.eval₂ f.toRingHom (k : S) =
+      (antidifference p).eval₂ f.toRingHom (n : S) := by
+  rw [antidifference_eq_linear]
+  exact sum_range_map_linear f p n
+
+theorem sum_range_parameters {ι : Type*} [DecidableEq ι]
+    (p : (MvPolynomial ι ℚ)[X]) (σ : ι → S) (n : ℕ) :
+    ∑ k ∈ Finset.range n, p.eval₂ (MvPolynomial.aeval σ).toRingHom (k : S) =
+      (antidifference p).eval₂ (MvPolynomial.aeval σ).toRingHom (n : S) :=
+  sum_range_map (MvPolynomial.aeval σ) p n
+
+/-- Parameter coefficients may be arbitrary functions; only their values enter
+the specialized finite sum. -/
+theorem sum_range_apply {Θ : Type*} [DecidableEq (Θ → R)]
+    (p : Polynomial (Θ → R)) (θ : Θ) (n : ℕ) :
+    ∑ k ∈ Finset.range n,
+        p.eval₂ (Pi.evalRingHom (fun _ : Θ => R) θ) (k : R) =
+      (antidifference p).eval₂ (Pi.evalRingHom (fun _ : Θ => R) θ) (n : R) :=
+  sum_range_map (Pi.evalAlgHom ℚ (fun _ : Θ => R) θ) p n
 
 /-- End-to-end finite-sum correctness of the executable coefficient algorithm
 under any rational-algebra specialization. The output is computed in `R` before
@@ -437,8 +492,10 @@ theorem sum_range_antidifferenceCoefficients (f : R →ₐ[ℚ] S) {N : ℕ}
     ∑ k ∈ Finset.range n, ∑ i : Fin N, f (a i) * (k : S) ^ i.val =
       ∑ j : Fin (N + 1), f ((antidifferenceCoefficients a)[j.val]) * (n : S) ^ j.val := by
   classical
-  simpa only [antidifferenceOfFn, ofFn_eq_sum_monomial, eval₂_finsetSum,
-    eval₂_monomial, AlgHom.toRingHom_eq_coe, AlgHom.coe_toRingHom] using sum_range_ofFn_map f a n
+  have h := sum_range_map_linear f (Polynomial.ofFn N a) n
+  rw [← ofFn_antidifferenceCoefficients] at h
+  simpa only [ofFn_eq_sum_monomial, eval₂_finsetSum, eval₂_monomial,
+    AlgHom.toRingHom_eq_coe, AlgHom.coe_toRingHom] using h
 
 /-- Coefficients may be arbitrary functions of parameters. Evaluating the
 computed coefficient functions at a parameter value gives the requested sum. -/

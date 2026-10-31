@@ -16,10 +16,11 @@ Shifts are still integers, cast into `K`.
 
 `ShiftlessDecomposition.decompose ops D` builds a decomposition directly
 from square-free layers, gcd refinement by shifted layers, and translation
-grouping. It returns a `Decomposition` without proof arguments, failure branches,
+grouping. It returns an `Array (Group K)` without proof arguments, failure branches,
 or a final validity check. The assumptions `hops : ops.Valid` and `hD : D ≠ 0`
-appear only in the correctness theorems. Zero input returns coefficient zero
-and an empty array of groups.
+appear only in the correctness theorems. The result stores only the monic factor
+groups; reconstruction uses `D.leadingCoeff` from the input. Constant inputs,
+including zero, return an empty array of groups.
 The primitive contract supplies gcd, derivative, and complete integer-shift
 enumeration without duplicates for monic square-free inputs over `K`.
 The decomposition proves these preconditions at every shift call.
@@ -27,7 +28,8 @@ Division and remainder use the polynomial
 operators. The reference backend uses a resultant; the optional `ModularShifts`
 backend over ℚ uses supplied finite-field factorization and Hensel lifting.
 
-`Decomposition.Valid` specifies exact reconstruction, positive multiplicities,
+`ShiftlessDecomposition.Valid` specifies exact reconstruction using the input's leading
+coefficient, positive multiplicities,
 square-free shift-free bases, and separation of different bases at every integer
 shift. `decompose_sound` proves this full specification. `decompose_complete`
 states successful construction for every nonzero input; `exists_valid_iff`

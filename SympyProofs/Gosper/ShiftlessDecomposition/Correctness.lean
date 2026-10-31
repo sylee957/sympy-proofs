@@ -35,7 +35,7 @@ private theorem valid_of_partition [CharZero K] (ops : Primitives K) (hops : ops
     (hS : SupportInvariant layers S)
     (hpart : Partition S (shiftTests ops S layers) blocks)
     (hg : groups.toList.Perm (groupBlocks ops S (exponent layers) blocks.toFinset)) :
-    (Decomposition.mk D.leadingCoeff groups).Valid D := by
+    Valid D groups := by
   obtain ⟨hSm, hSs, hlS, hSprod, hSl⟩ := hS
   have hblocks := hpart.blockSystem hops hSm hSs hlS hSl
   let ν := exponent layers
@@ -45,9 +45,8 @@ private theorem valid_of_partition [CharZero K] (ops : Primitives K) (hops : ops
       C D.leadingCoeff⁻¹ * D := by
     rw [groupBlocks_reconstruct hops hblocks ν,
       ← hpart.reconstruct_powers hops hSm hSs hlS (fun a ha => (hl a ha).1), hlprod]
-  refine ⟨rfl, leadingCoeff_ne_zero.mpr hD, ?_, ?_, ?_⟩
-  · change C D.leadingCoeff * (groups.map Group.expand).prod = D
-    rw [← Array.prod_toList, Array.toList_map, (hg.map Group.expand).prod_eq, he,
+  refine ⟨hD, ?_, ?_, ?_⟩
+  · rw [← Array.prod_toList, Array.toList_map, (hg.map Group.expand).prod_eq, he,
       ← mul_assoc, ← C_mul]
     simp [leadingCoeff_ne_zero.mpr hD]
   · intro g hgm
@@ -55,7 +54,7 @@ private theorem valid_of_partition [CharZero K] (ops : Primitives K) (hops : ops
   · exact (hg.pairwise_iff (fun h => h.symm)).mpr (groupBlocks_separated hops hblocks ν)
 
 theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
-    (D : Polynomial K) (hD : D ≠ 0) : (decompose ops D).Valid D := by
+    (D : Polynomial K) (hD : D ≠ 0) : Valid D (decompose ops D) := by
   let F := C D.leadingCoeff⁻¹ * D
   have hF : F.Monic := by
     simpa [F, mul_comm] using monic_mul_leadingCoeff_inv hD
@@ -102,8 +101,8 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
       exact fun pref _ current => current.toList = old.toList ++ pref.map (fun a => taylor (h : K) a)
   case vc1 =>
     rename_i hdeg
-    refine ⟨rfl, leadingCoeff_ne_zero.mpr hD, ?_, ?_, ?_⟩
-    · simpa [Decomposition.expand, leadingCoeff, hdeg] using
+    refine ⟨hD, ?_, ?_, ?_⟩
+    · simpa [leadingCoeff, hdeg] using
         (eq_C_of_natDegree_eq_zero hdeg).symm
     · simp
     · simp
@@ -217,38 +216,38 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
 /-- Construction always returns a valid result when its preconditions hold. -/
 theorem decompose_complete [CharZero K] (ops : Primitives K) (hops : ops.Valid)
     (D : Polynomial K) (hD : D ≠ 0) :
-    ∃ d, decompose ops D = d ∧ d.Valid D :=
+    ∃ groups, decompose ops D = groups ∧ Valid D groups :=
   ⟨decompose ops D, rfl, decompose_sound ops hops D hD⟩
 
 /-- A nonzero polynomial is exactly the precondition for a shiftless decomposition. -/
 theorem exists_valid_iff [CharZero K] (ops : Primitives K) (hops : ops.Valid) (D : Polynomial K) :
-    (∃ d : Decomposition K, d.Valid D) ↔ D ≠ 0 := by
+    (∃ groups : Array (Group K), Valid D groups) ↔ D ≠ 0 := by
   constructor
   · rintro ⟨d, hd⟩
-    apply leadingCoeff_ne_zero.mp
-    rw [← hd.coefficient_eq]
-    exact hd.coefficient_ne_zero
+    exact hd.nonzero
   · intro hD
     exact ⟨decompose ops D, decompose_sound ops hops D hD⟩
 
 theorem decompose_reconstruct [CharZero K] (ops : Primitives K) (hops : ops.Valid)
-    (D : Polynomial K) (hD : D ≠ 0) : (decompose ops D).expand = D :=
+    (D : Polynomial K) (hD : D ≠ 0) :
+    C D.leadingCoeff * ((decompose ops D).map Group.expand).prod = D :=
   (decompose_sound ops hops D hD).reconstruct
 
 /-- Evaluation preserves the exact reconstruction identity. -/
 theorem decompose_eval [CharZero K] (ops : Primitives K) (hops : ops.Valid)
     (D : Polynomial K) (hD : D ≠ 0) (x : K) :
-    D.eval x = (decompose ops D).coefficient *
-      ((decompose ops D).groups.map fun g =>
+    D.eval x = D.leadingCoeff *
+      ((decompose ops D).map fun g =>
         (g.occurrences.map fun o =>
           g.base.eval (x + (o.shift : K)) ^ o.multiplicity).prod).prod :=
   (decompose_sound ops hops D hD).eval x
 
 @[simp] theorem decompose_constant (ops : Primitives K) (c : K) :
-    decompose ops (C c) = ⟨c, #[]⟩ := by
+    decompose ops (C c) = #[] := by
   simp [decompose]
 
-@[simp] theorem decompose_zero (ops : Primitives K) : decompose ops 0 = ⟨0, #[]⟩ := by
+@[simp] theorem decompose_zero (ops : Primitives K) :
+    decompose ops 0 = #[] := by
   simpa using decompose_constant ops 0
 
 end Gosper.ShiftlessDecomposition

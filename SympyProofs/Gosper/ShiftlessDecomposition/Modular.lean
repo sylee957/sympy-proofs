@@ -23,10 +23,10 @@ theorem modularPrimitives_valid (ops : ModularShifts.Backend) (hops : ops.Valid)
 monicity and square-freeness at every shift call. -/
 theorem decompose_modular_sound (ops : ModularShifts.Backend) (hops : ops.Valid)
     (D : Polynomial ℚ) (hD : D ≠ 0) :
-    (decompose
+    Valid D (decompose
       { gcd := GCDMonoid.gcd
         derivative := Polynomial.derivative
-        shifts := ModularShifts.shifts ops } D).Valid D :=
+        shifts := ModularShifts.shifts ops } D) :=
   decompose_sound _ (modularPrimitives_valid ops hops) D hD
 
 end Gosper.ShiftlessDecomposition

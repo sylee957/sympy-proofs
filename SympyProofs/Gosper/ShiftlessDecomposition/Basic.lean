@@ -22,9 +22,6 @@ variable {K : Type*} [Field K]
 def Group.expand (g : Group K) : Polynomial K :=
   (g.occurrences.map fun o => taylor (o.shift : K) g.base ^ o.multiplicity).prod
 
-def Decomposition.expand (d : Decomposition K) : Polynomial K :=
-  C d.coefficient * (d.groups.map Group.expand).prod
-
 /-- This concerns nonzero integer shifts; a nonconstant polynomial always
 overlaps its own shift by zero. -/
 def ShiftFree (p : Polynomial K) : Prop :=
@@ -43,19 +40,19 @@ structure Group.Valid (g : Group K) : Prop where
   increasing : g.occurrences.toList.Pairwise (fun a b => a.shift < b.shift)
   positive : ∀ o ∈ g.occurrences, 0 ≤ o.shift ∧ 0 < o.multiplicity
 
-structure Decomposition.Valid (D : Polynomial K) (d : Decomposition K) : Prop where
-  coefficient_eq : d.coefficient = D.leadingCoeff
-  coefficient_ne_zero : d.coefficient ≠ 0
-  reconstruct : d.expand = D
-  groups_valid : ∀ g ∈ d.groups, g.Valid
-  separated : d.groups.toList.Pairwise (fun a b => ShiftCoprime a.base b.base)
+/-- Correctness of an array of shiftless groups for the original input. -/
+structure Valid (D : Polynomial K) (groups : Array (Group K)) : Prop where
+  nonzero : D ≠ 0
+  reconstruct : C D.leadingCoeff * (groups.map Group.expand).prod = D
+  groups_valid : ∀ g ∈ groups, g.Valid
+  separated : groups.toList.Pairwise (fun a b => ShiftCoprime a.base b.base)
 
-theorem Decomposition.Valid.eval {D : Polynomial K} {d : Decomposition K} (h : d.Valid D)
+theorem Valid.eval {D : Polynomial K} {groups : Array (Group K)} (h : Valid D groups)
     (x : K) :
-    D.eval x = d.coefficient * (d.groups.map fun g =>
+    D.eval x = D.leadingCoeff * (groups.map fun g =>
       (g.occurrences.map fun o => g.base.eval (x + (o.shift : K)) ^ o.multiplicity).prod).prod := by
-  rw [← h.reconstruct]
-  simp [Decomposition.expand, Group.expand, ← Array.prod_toList, Array.toList_map,
+  conv_lhs => rw [← h.reconstruct]
+  simp [Group.expand, ← Array.prod_toList, Array.toList_map,
     eval_list_prod, List.map_map,
     Function.comp_def, taylor_eval]
 

@@ -6,20 +6,22 @@ public import Mathlib.Algebra.Polynomial.OfFn
 /-!
 # Executable polynomial antidifference
 
-`antidifferenceCoefficients` takes coefficients in increasing degree order and
-returns the coefficients of an antidifference with constant coefficient zero.
-`antidifferenceOfFn` packages that vector as a polynomial.
+`antidifference` takes a polynomial and returns its antidifference with constant
+coefficient zero. Internally, `antidifferenceCoefficients` processes coefficients
+in increasing degree order, and the output vector is packaged as a polynomial.
+The coefficient interface also accepts explicit size bounds.
 
 Each monomial primitive is generated in place from the preceding row by rational
 scaling. The initial primitive is `X`; subsequent rows have their linear
 coefficient chosen to make their value at one zero. Contributions to the output
-are accumulated in the same loop. The algorithm uses no Bernoulli or binomial
-calls, coefficient zero tests, or parameter-dependent division.
+are accumulated in the same loop. The recurrence uses no Bernoulli or binomial
+calls, coefficient zero tests, or parameter-dependent division. The polynomial
+interface obtains its size bound from the input's `natDegree`.
 
 For an input of length `N`, it takes `O(N²)` arithmetic operations and `O(N)`
 storage, counting coefficient accesses as constant time and excluding the bit
 complexity of arithmetic. Correctness is proved in `PolynomialSum.Correctness`,
-with `antidifferenceOfFn_sound` stating the difference identity and normalization.
+with `antidifference_sound` stating the difference identity and normalization.
 -/
 
 @[expose] public section
@@ -55,9 +57,10 @@ def antidifferenceCoefficients {N : ℕ} (a : Fin N → R) : Vector R (N + 1) :=
     q := q.set 1 (q[1] + coefficient * algebraMap ℚ R c) (by omega)
   return q
 
-/-- The executable polynomial constructor for a supplied coefficient vector. -/
-def antidifferenceOfFn [DecidableEq R] {N : ℕ} (a : Fin N → R) : R[X] :=
-  let q := antidifferenceCoefficients a
-  Polynomial.ofFn (N + 1) (fun k => q[k.val])
+/-- Compute the normalized antidifference directly from a polynomial.
+The degree bound and coefficient extraction are handled internally. -/
+def antidifference [DecidableEq R] (p : R[X]) : R[X] :=
+  let q := antidifferenceCoefficients (N := p.natDegree + 1) (fun n => p.coeff n.val)
+  Polynomial.ofFn (p.natDegree + 2) (fun k => q[k.val])
 
 end Gosper.PolynomialSum
