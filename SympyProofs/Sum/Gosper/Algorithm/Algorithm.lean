@@ -6,40 +6,11 @@ public import SympyProofs.Sum.Gosper.Backend.Resultant
 public import SympyProofs.Sum.Gosper.Normalization
 
 /-!
-# Gosper's algorithm over a characteristic-zero coefficient field
+# Gosper's algorithm
 
-The input is P Q : K[X], the polynomial pair obtained from the forward term
-ratio a(n+1)/a(n). This is the boundary after SymPy's
-`parallel_poly_from_expr((p, q), n, field=True, extension=True)`.
-
-Control flow is explicit. Arithmetic uses Mathlib polynomials for gcd, quotient,
-and translation. `Backend` supplies factorization, resultant, zero matrices,
-entry updates, column reads, and RREF.
-Natural roots are extracted from linear factors, the shift resultant is formed
-by translating a bivariate input. RREF of the coefficient matrix augmented by an
-identity matrix records reusable row operations. Vector accumulation loops apply
-its right block to the coefficients and give the consistency conditions.
-The result retains the remaining conditions in an array for the caller to check.
-Correctness of these interpretations is proved from the primitive contracts.
-
-`referenceBackend rref` pairs Mathlib's polynomial operations and functional
-matrix updates with a supplied RREF operation. Alternative implementations need
-only satisfy `Backend.Valid`;
-the normalization and Gosper proofs do not depend on their internal algorithms.
-
-`DecidablePred (IsLocalization.IsInteger ℤ : K → Prop)` supplies an integer
-test, and `Encodable.choose` recovers the integer witness constructively. For ℚ,
-membership is decided by checking the reduced denominator. The model remains
-noncomputable where Mathlib's polynomial operations are noncomputable.
-`Algorithm.Correctness` proves summation soundness when the returned residual
-vanishes. `Algorithm.Completeness` proves that for nonzero inputs an output with
-vanishing residual exists exactly when a hypergeometric antidifference exists,
-provided the backend contracts hold. `gosperSolve backend A B C` takes the
-normalized forward equation directly. Its matrix is over the field of `A` and
-`B`; `C` and the result may lie in a commutative `K`-algebra. The degree of `C`
-determines the matrix dimensions. The retained output specializes correctly
-even when evaluation lowers that degree. Use `gosperTerm backend P Q`, or
-`gosperTerm (referenceBackend rref) P Q` with reference polynomial operations.
+Normalization, coefficient descent, and polynomial solving for a rational shift
+quotient `P/Q`. Results retain a candidate multiplier and residual conditions.
+Soundness and completeness are proved in the accompanying modules.
 -/
 
 @[expose] public section
@@ -49,14 +20,11 @@ namespace Gosper.Algorithm
 
 open Polynomial IsLocalization
 
-section DegreeBounds
-
-variable {K : Type*} [Field K] [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
-
-/-- Bound for A(X)x(X+1) - B(X)x(X) = C(X). Testing coefficients at the
-maximum degree combines SymPy's unequal-degree / unequal-leading-term cases.
-The exceptional integer root is retained even when negative. -/
-def degreeBound {L : Type*} [Semiring L] (A B : K[X]) (C : L[X]) : ℤ := Id.run do
+/-- Degree bound for `A(X)x(X+1) - B(X)x(X) = C(X)`, including the exceptional
+integer degree from leading-term cancellation. -/
+def degreeBound {K : Type*} [Field K] [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)] {L : Type*} [Semiring L]
+    (A B : K[X]) (C : L[X]) : ℤ := Id.run do
   let l := max A.natDegree B.natDegree
   if A.coeff l ≠ B.coeff l then return (C.natDegree : ℤ) - l
   if l = 0 then return (C.natDegree : ℤ) + 1
@@ -67,20 +35,22 @@ def degreeBound {L : Type*} [Semiring L] (A B : K[X]) (C : L[X]) : ℤ := Id.run
     return max k ordinary
   return ordinary
 
-end DegreeBounds
+/-- Convert the finitely many nonzero coefficients to a chosen smaller field.
+`descendCoeff` supplies the coefficient membership test and conversion; its
+correctness contract appears only in the theorems. -/
+def descendPolynomial {K L : Type} [Field K] [Field L]
+    (descendCoeff : L → Option K) (p : L[X]) : Option K[X] := do
+  let mut q := 0
+  for n in p.support.toList do
+    let a ← descendCoeff (p.coeff n)
+    q := q + Polynomial.monomial n a
+  return q
 
-variable {K : Type} [Field K] [CharZero K] [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
-variable (backend : Backend K)
-
-structure NormalForm (K : Type*) [Field K] where
-  A : K[X]
-  B : K[X]
-  C : K[X]
-
-/-- SymPy's forward convention: P/Q = A(X) C(X+1) / (B(X) C(X)).
-The loop uses Mathlib gcd, quotient, and Taylor translation. Shift zero also
-removes any common factor already present in the input pair. -/
-def gosperNormal (P Q : K[X]) : NormalForm K := Id.run do
+/-- Return `(A, B, C)` with `P/Q = A(X) C(X+1) / (B(X) C(X))`.
+Shift zero also removes common factors of the input pair. -/
+def gosperNormal {K : Type} [Field K] [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    (backend : Backend K) (P Q : K[X]) : K[X] × K[X] × K[X] := Id.run do
   let z := P.leadingCoeff / Q.leadingCoeff
   let a := monic P
   let b := monic Q
@@ -96,14 +66,16 @@ def gosperNormal (P Q : K[X]) : NormalForm K := Id.run do
         let n : ℤ := Encodable.choose h
         if 0 ≤ n then
           shifts := insert n.toNat shifts
-  let mut s : NormalForm K := ⟨a, b, 1⟩
+  let mut s := (a, b, (1 : K[X]))
   for j in shifts.sort (· ≤ ·) do
-    let d := gcd s.A (taylor (j : K) s.B)
-    let a := s.A / d
-    let b := taylor (-(j : K)) (taylor (j : K) s.B / d)
-    let c := s.C * taylor (-1) (Gosper.shiftProduct d j)
-    s := ⟨a, b, c⟩
-  return ⟨Polynomial.C z * s.A, s.B, s.C⟩
+    let (a, b, c) := s
+    let d := gcd a (taylor (j : K) b)
+    let a := a / d
+    let b := taylor (-(j : K)) (taylor (j : K) b / d)
+    let c := c * taylor (-1) (Gosper.shiftProduct d j)
+    s := (a, b, c)
+  let (a, b, c) := s
+  return (Polynomial.C z * a, b, c)
 
 /-- A candidate multiplier together with the remaining linear compatibility conditions. -/
 structure Result (K : Type*) [CommRing K] where
@@ -123,7 +95,9 @@ Only a negative degree bound returns `none`; a nonzero residual is returned for
 the caller to inspect. The field-valued rational multiplier interpretation
 requires `C ≠ 0` after specialization.
 Backend validity and nonzero-input hypotheses appear only in the theorems. -/
-def gosperSolve {L : Type} [CommRing L] [Algebra K L]
+def gosperSolve {K : Type} [Field K] [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)] (backend : Backend K)
+    {L : Type} [CommRing L] [Algebra K L]
     (A B : K[X]) (C : L[X]) : Option (Result L) := Id.run do
   let d := degreeBound A B C
   if d < 0 then return none
@@ -163,10 +137,30 @@ def gosperSolve {L : Type} [CommRing L] [Algebra K L]
       denominator := V
       residual := residual }
 
-/-- Normalize the forward ratio `P/Q`, then solve its polynomial equation.
-Use `gosperSolve` directly when `A`, `B`, and `C` are already available. -/
-def gosperTerm (P Q : K[X]) : Option (Result K) :=
-  let normal := gosperNormal backend P Q
-  gosperSolve backend normal.A (taylor (-1) normal.B) normal.C
+/-- The normalized polynomial that could not be represented in the chosen field. -/
+inductive DescentFailure where
+  | A
+  | B
+  deriving DecidableEq, Repr
+
+/-- Normalize over `L`, then convert `A` and `B` to `K` and solve over `K`.
+The right-hand side `C`, candidate, and residual remain over `L`.
+An error identifies a failed coefficient conversion. An `ok none` instead
+records the solver's negative degree bound; `ok (some r)` retains its residual.
+No search for a smallest field is performed: the caller chooses `K` and supplies
+`descendCoeff`. For the same field, use `gosperTerm backend backend some P Q`.
+Use `gosperSolve` directly when the normalized equation is already available.
+Correctness of this conversion is required only by the proofs. -/
+def gosperTerm {K : Type} [Field K] [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    {L : Type} [Field L] [CharZero L] [DecidableEq L]
+    [DecidablePred (IsInteger ℤ : L → Prop)] [Algebra K L]
+    (backendL : Backend L) (backendK : Backend K) (descendCoeff : L → Option K)
+    (P Q : L[X]) : Except DescentFailure (Option (Result L)) := OptionT.run do
+  let (A, B, C) := gosperNormal backendL P Q
+  let some A := descendPolynomial descendCoeff A | throwThe DescentFailure .A
+  let some B := descendPolynomial descendCoeff B | throwThe DescentFailure .B
+  let some result := gosperSolve backendK A (taylor (-1) B) C | failure
+  return result
 
 end Gosper.Algorithm

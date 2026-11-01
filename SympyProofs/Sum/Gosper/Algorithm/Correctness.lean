@@ -1,6 +1,7 @@
 module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Algorithm
+public import SympyProofs.Sum.Gosper.Algorithm.Descent
 public import SympyProofs.Sum.Gosper.Algorithm.SolverCorrectness
 public import SympyProofs.Sum.Gosper.Algorithm.NormalizationCorrectness
 public import SympyProofs.Sum.Gosper.Backend.Vector
@@ -66,35 +67,34 @@ theorem verify_ratFunc (P Q U V : K[X]) (h : verify P Q U V = true) :
 
 /-- The normalized equation and ratio identity imply the certificate identity;
 shift-coprimality is not needed for this direction. -/
-theorem NormalForm.verify_solution_of_ratio (P Q : K[X]) (hQ : Q ≠ 0) (s : NormalForm K)
-    (hC : s.C ≠ 0) (hratio : P * (s.B * s.C) = Q * (s.A * taylor 1 s.C))
-    (x : K[X]) (hx : s.A * taylor 1 x - taylor (-1) s.B * x = s.C) :
-    verify P Q (taylor (-1) s.B * x) s.C = true := by
+theorem normalForm_verify_solution_of_ratio (P Q : K[X]) (hQ : Q ≠ 0) (s : K[X] × K[X] × K[X])
+    (hC : s.2.2 ≠ 0) (hratio : P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2))
+    (x : K[X]) (hx : s.1 * taylor 1 x - taylor (-1) s.2.1 * x = s.2.2) :
+    verify P Q (taylor (-1) s.2.1 * x) s.2.2 = true := by
   rw [verify_iff]
   refine ⟨hQ, hC, ?_⟩
   simp only [residual, taylor_mul, taylor_taylor, add_neg_cancel, taylor_zero]
-  linear_combination taylor 1 x * hratio + (Q * taylor 1 s.C) * hx
+  linear_combination taylor 1 x * hratio + (Q * taylor 1 s.2.2) * hx
 
 variable [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
 
-omit [CharZero K] in
 /-- The inline identity augmentation, coefficient vector, and residual array
 implement the coefficient-system specification. -/
-theorem gosperTerm_eq (hbackend : backend.Valid) (P Q : K[X]) :
-    gosperTerm backend P Q =
+theorem gosperTerm_eq_self (hbackend : backend.Valid) (P Q : K[X]) :
+    gosperTerm backend backend some P Q = .ok (
       let s := gosperNormal backend P Q
-      let B := taylor (-1) s.B
-      let d := degreeBound s.A B s.C
+      let B := taylor (-1) s.2.1
+      let d := degreeBound s.1 B s.2.2
       if d < 0 then none else
-        let M := coefficientSystem s.A B s.C d.toNat
-        let b := toFn (max s.C.natDegree (max s.A.natDegree B.natDegree + d.toNat) + 1) s.C
+        let M := coefficientSystem s.1 B s.2.2 d.toNat
+        let b := toFn (max s.2.2.natDegree (max s.1.natDegree B.natDegree + d.toNat) + 1) s.2.2
         let r := backend.rref (augmentedIdentity M)
         let U := inverseRref backend.rref M
         let coeffs := U.mulVec b
         some { numerator := B * ofFn (d.toNat + 1) coeffs
-               denominator := s.C
-               residual := r.residualEntries (r.rightMatrix.mulVec b) } := by
-  unfold gosperTerm
+               denominator := s.2.2
+               residual := r.residualEntries (r.rightMatrix.mulVec b) }) := by
+  rw [gosperTerm_self]
   rw [gosperSolve_eq backend hbackend]
   simp only [Algebra.algebraMap_self, Polynomial.map_id,
     ← Polynomial.ofFn_eq_sum_monomial]
@@ -102,21 +102,22 @@ theorem gosperTerm_eq (hbackend : backend.Valid) (P Q : K[X]) :
 
 /-- A returned candidate with vanishing residual satisfies the original equation.
 This follows from the algorithm's steps, independently of running `verify`. -/
-theorem gosperTerm_verified (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
-    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) :
+theorem gosperTerm_verified_self (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend backend some P Q = .ok (some c)) (hzero : ∀ value ∈ c.residual, value = 0) :
     verify P Q c.numerator c.denominator = true := by
-  rw [gosperTerm_eq backend hbackend] at h
+  rw [gosperTerm_eq_self backend hbackend] at h
+  have h := Except.ok.inj h
   let s := gosperNormal backend P Q
-  let B := taylor (-1) s.B
-  let d := degreeBound s.A B s.C
-  let M := coefficientSystem s.A B s.C d.toNat
-  let b := toFn (max s.C.natDegree (max s.A.natDegree B.natDegree + d.toNat) + 1) s.C
+  let B := taylor (-1) s.2.1
+  let d := degreeBound s.1 B s.2.2
+  let M := coefficientSystem s.1 B s.2.2 d.toNat
+  let b := toFn (max s.2.2.natDegree (max s.1.natDegree B.natDegree + d.toNat) + 1) s.2.2
   let r := backend.rref (augmentedIdentity M)
   let coeffs := (inverseRref backend.rref M).mulVec b
   let x := ofFn (d.toNat + 1) coeffs
   change (if d < 0 then none else some
     ({ numerator := B * x
-       denominator := s.C
+       denominator := s.2.2
        residual := r.residualEntries (r.rightMatrix.mulVec b) } : Result K)) = some c at h
   split_ifs at h with hd
   cases Option.some.inj h
@@ -124,25 +125,25 @@ theorem gosperTerm_verified (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 
     (r.residualEntries_zero_iff (hbackend.rref_valid _) b).mp hzero
   have hcoeffs : M.mulVec coeffs = b :=
     (RrefResult.leftResidual_eq_zero_iff M r (hbackend.rref_valid _) b).mp hresidual
-  have hx : s.A * taylor 1 x - B * x = s.C :=
+  have hx : s.1 * taylor 1 x - B * x = s.2.2 :=
     (coefficientSystem_correct _ _ _ _ _).mp hcoeffs
   obtain ⟨hs, hratio⟩ := gosperNormal_sound backend P Q hP hQ s rfl
-  exact s.verify_solution_of_ratio P Q hQ hs.2.2 hratio x hx
+  exact normalForm_verify_solution_of_ratio P Q hQ s hs.2.2 hratio x hx
 
 /-- A returned candidate with vanishing residual supplies a rational Gosper multiplier. -/
-theorem gosperTerm_sound (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
-    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) :
+theorem gosperTerm_sound_self (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend backend some P Q = .ok (some c)) (hzero : ∀ value ∈ c.residual, value = 0) :
     toRatFunc P Q * Gosper.rationalShift 1 (toRatFunc c.numerator c.denominator) -
       toRatFunc c.numerator c.denominator = 1 :=
-  verify_ratFunc P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
+  verify_ratFunc P Q _ _ (gosperTerm_verified_self backend hbackend P Q hP hQ c h hzero)
 
 /-- The polynomial identity holds even at roots of its denominators; dividing
 after specialization instead requires the hypotheses of `verify_at`. -/
-theorem gosperTerm_identity (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
-    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) :
+theorem gosperTerm_identity_self (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend backend some P Q = .ok (some c)) (hzero : ∀ value ∈ c.residual, value = 0) :
     Q ≠ 0 ∧ c.denominator ≠ 0 ∧
       residual P Q c.numerator c.denominator = 0 :=
-  verify_sound P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
+  verify_sound P Q _ _ (gosperTerm_verified_self backend hbackend P Q hP hQ c h hzero)
 
 omit [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)] [DecidableEq K] in
 /-- Translate the forward multiplier equation to the paper's backward ratio.
@@ -176,27 +177,27 @@ theorem forward_iff_hypergeometric (ρ : RatFunc K) (hρ : ρ ≠ 0) :
 
 /-- A returned candidate with vanishing residual implies a hypergeometric antidifference
 for the paper's backward term ratio, provided the input numerator is nonzero. -/
-theorem gosperTerm_hypergeometric (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
-    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) :
+theorem gosperTerm_hypergeometric_self (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend backend some P Q = .ok (some c)) (hzero : ∀ value ∈ c.residual, value = 0) :
     Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) := by
   have hρ : toRatFunc P Q ≠ 0 := by
     unfold toRatFunc
     exact div_ne_zero (by simpa using hP) (by simpa using hQ)
-  exact (forward_iff_hypergeometric _ hρ).mp ⟨_, gosperTerm_sound backend hbackend P Q hP hQ c h hzero⟩
+  exact (forward_iff_hypergeometric _ hρ).mp ⟨_, gosperTerm_sound_self backend hbackend P Q hP hQ c h hzero⟩
 
 /-- The forward antidifference reconstructed from the returned multiplier. -/
 def certificateValue (a : ℕ → K) (c : Result K) (n : ℕ) : K :=
   a n * (c.numerator.eval (n : K) / c.denominator.eval (n : K))
 
-theorem gosperTerm_step (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result K)
-    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0) (a : ℕ → K) (n : ℕ)
+theorem gosperTerm_step_self (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend backend some P Q = .ok (some c)) (hzero : ∀ value ∈ c.residual, value = 0) (a : ℕ → K) (n : ℕ)
     (hQ : Q.eval (n : K) ≠ 0)
     (hV : c.denominator.eval (n : K) ≠ 0)
     (hVnext : c.denominator.eval ((n + 1 : ℕ) : K) ≠ 0)
     (hratio : a (n + 1) * Q.eval (n : K) = a n * P.eval (n : K)) :
     certificateValue a c (n + 1) - certificateValue a c n = a n := by
   have he := verify_at P Q c.numerator c.denominator
-    (gosperTerm_verified backend hbackend P Q hP0 hQ0 c h hzero)
+    (gosperTerm_verified_self backend hbackend P Q hP0 hQ0 c h hzero)
     (n : K) hQ hV (by simpa using hVnext)
   have ha := (eq_div_iff hQ).mpr hratio
   simp only [certificateValue, Nat.cast_add, Nat.cast_one]
@@ -205,8 +206,8 @@ theorem gosperTerm_step (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) 
 
 /-- A finite sum on [m,n), with denominator assumptions only on that interval
 and its endpoints. No nonvanishing assumption on the terms a(k) is needed. -/
-theorem gosperTerm_sum (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result K)
-    (h : gosperTerm backend P Q = some c) (hzero : ∀ value ∈ c.residual, value = 0)
+theorem gosperTerm_sum_self (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result K)
+    (h : gosperTerm backend backend some P Q = .ok (some c)) (hzero : ∀ value ∈ c.residual, value = 0)
     (a : ℕ → K) (m n : ℕ) (hmn : m ≤ n)
     (hQ : ∀ k ∈ Finset.Ico m n, Q.eval (k : K) ≠ 0)
     (hV : ∀ k ∈ Finset.Icc m n, c.denominator.eval (k : K) ≠ 0)
@@ -218,7 +219,7 @@ theorem gosperTerm_sum (hbackend : backend.Valid) (P Q : K[X]) (hP0 : P ≠ 0) (
       apply Finset.sum_congr rfl
       intro k hk
       have hk' := Finset.mem_Ico.mp hk
-      exact (gosperTerm_step backend hbackend P Q hP0 hQ0 c h hzero a k (hQ k hk)
+      exact (gosperTerm_step_self backend hbackend P Q hP0 hQ0 c h hzero a k (hQ k hk)
         (hV k (Finset.mem_Icc.mpr ⟨hk'.1, by omega⟩))
         (hV (k + 1) (Finset.mem_Icc.mpr ⟨by omega, by omega⟩)) (hratio k hk)).symm
     _ = _ := Finset.sum_Ico_sub _ hmn
