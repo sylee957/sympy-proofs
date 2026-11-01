@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.Sum.Gosper.Algorithm.Normalization
+public import SympyProofs.Sum.Gosper.Algorithm.Algorithm
 public import SympyProofs.Sum.Gosper.Normalization
 
 @[expose] public section

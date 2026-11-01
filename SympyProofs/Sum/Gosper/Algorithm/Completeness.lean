@@ -76,7 +76,7 @@ theorem gosperTerm_of_solution (hbackend : backend.Valid) (P Q : K[X]) (hQ : Q �
   let B := taylor (-1) s.B
   let d := degreeBound s.A B s.C
   let M := coefficientSystem s.A B s.C d.toNat
-  let b := toFn (equationDegree s.A B s.C d.toNat + 1) s.C
+  let b := toFn (max s.C.natDegree (max s.A.natDegree B.natDegree + d.toNat) + 1) s.C
   let coeffs := (inverseRref backend.rref M).mulVec b
   have hx0 : x ≠ 0 := by intro hz; simp [hz] at hx; exact hs.1.2.2 hx.symm
   have hB : B ≠ 0 := (taylor_eq_zero _ _).not.mpr hs.1.2.1

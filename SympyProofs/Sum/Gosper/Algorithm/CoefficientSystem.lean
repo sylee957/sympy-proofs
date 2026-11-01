@@ -1,5 +1,6 @@
 module
 
+public import SympyProofs.Sum.Gosper.Algorithm.Algorithm
 public import SympyProofs.Sum.Gosper.LinearSystem
 
 /-! The forward Gosper equation as a matrix over its coefficient field. -/
@@ -24,22 +25,13 @@ omit [DecidableEq K] in
 @[simp] theorem forwardOperator_apply (A B x : K[X]) :
     forwardOperator A B x = A * taylor 1 x - B * x := rfl
 
-def equationDegree {L : Type*} [Semiring L] (A B : K[X]) (C : L[X]) (d : ℕ)
-    (N : ℕ := C.natDegree) : ℕ :=
-  max N (max A.natDegree B.natDegree + d)
-
-omit [DecidableEq K] in
-theorem equationDegree_rhs_eq {R S : Type*} [Semiring R] [Semiring S]
-    (A B : K[X]) (C : R[X]) (D : S[X]) (d N : ℕ) :
-    equationDegree A B C d N = equationDegree A B D d N := rfl
-
 /-- Unknowns are the coefficients of x in ascending powers of X, exactly for
 the equation A*x(X+1) - B*x(X) = C. The right-hand side is `toFn _ C`.
-This is the proof specification for the coefficient rows constructed inline in `gosperTerm`.
+This is the proof specification for the coefficient rows constructed inline in `gosperSolve`.
 Unlike SymPy's `H.coeffs()`, the row range includes zero coefficient equations. -/
 def coefficientSystem {L : Type*} [Semiring L] (A B : K[X]) (C : L[X]) (d : ℕ)
     (N : ℕ := C.natDegree) :
-    Matrix (Fin (equationDegree A B C d N + 1)) (Fin (d + 1)) K :=
+    Matrix (Fin (max N (max A.natDegree B.natDegree + d) + 1)) (Fin (d + 1)) K :=
   fun i j => (forwardOperator A B (X ^ (j : ℕ))).coeff i
 
 omit [DecidableEq K] in
@@ -50,7 +42,7 @@ theorem coefficientSystem_rhs_eq {R S : Type*} [Semiring R] [Semiring S]
 
 theorem coefficientSystem_mulVec_bounded {L : Type*} [Semiring L]
     (A B : K[X]) (C : L[X]) (d N : ℕ) (c : Fin (d + 1) → K)
-    (i : Fin (equationDegree A B C d N + 1)) :
+    (i : Fin (max N (max A.natDegree B.natDegree + d) + 1)) :
     (coefficientSystem A B C d N).mulVec c i =
       (forwardOperator A B (ofFn (d + 1) c)).coeff i := by
   rw [ofFn_eq_sum_monomial, map_sum]
@@ -62,7 +54,7 @@ theorem coefficientSystem_mulVec_bounded {L : Type*} [Semiring L]
 
 theorem coefficientSystem_mulVec {L : Type*} [Semiring L]
     (A B : K[X]) (C : L[X]) (d : ℕ) (c : Fin (d + 1) → K)
-    (i : Fin (equationDegree A B C d + 1)) :
+    (i : Fin (max C.natDegree (max A.natDegree B.natDegree + d) + 1)) :
     (coefficientSystem A B C d).mulVec c i =
       (forwardOperator A B (ofFn (d + 1) c)).coeff i :=
   coefficientSystem_mulVec_bounded A B C d C.natDegree c i
@@ -77,11 +69,13 @@ theorem forwardOperator_degree_le (A B x : K[X]) (d : ℕ) (hx : x.natDegree ≤
 
 /-- The finite matrix equation is equivalent to the full polynomial identity. -/
 theorem coefficientSystem_correct (A B C : K[X]) (d : ℕ) (c : Fin (d + 1) → K) :
-    (coefficientSystem A B C d).mulVec c = toFn (equationDegree A B C d + 1) C ↔
+    (coefficientSystem A B C d).mulVec c =
+        toFn (max C.natDegree (max A.natDegree B.natDegree + d) + 1) C ↔
       forwardOperator A B (ofFn (d + 1) c) = C := by
   have hx : (ofFn (d + 1) c).natDegree ≤ d :=
     Nat.le_of_lt_succ (ofFn_natDegree_lt (by omega) c)
-  have ho : (forwardOperator A B (ofFn (d + 1) c)).natDegree ≤ equationDegree A B C d :=
+  have ho : (forwardOperator A B (ofFn (d + 1) c)).natDegree ≤
+      max C.natDegree (max A.natDegree B.natDegree + d) :=
     (forwardOperator_degree_le A B _ d hx).trans (le_max_right _ _)
   rw [ext_iff_natDegree_le ho (le_max_left _ _)]
   constructor
@@ -100,7 +94,8 @@ variable {L : Type*} [Field L] [Algebra K L] [DecidableEq L]
 omit [DecidableEq K] in
 /-- The coefficient rows stay over `K` when the unknown coefficients lie in `L`. -/
 theorem coefficientSystem_mulVec_extension_bounded (A B : K[X]) (C : L[X])
-    (d N : ℕ) (c : Fin (d + 1) → L) (i : Fin (equationDegree A B C d N + 1)) :
+    (d N : ℕ) (c : Fin (d + 1) → L)
+    (i : Fin (max N (max A.natDegree B.natDegree + d) + 1)) :
     ((coefficientSystem A B C d N).map (algebraMap K L)).mulVec c i =
       (forwardOperator (A.map (algebraMap K L)) (B.map (algebraMap K L))
         (ofFn (d + 1) c)).coeff i := by
@@ -120,7 +115,8 @@ theorem coefficientSystem_mulVec_extension_bounded (A B : K[X]) (C : L[X])
 
 omit [DecidableEq K] in
 theorem coefficientSystem_mulVec_extension (A B : K[X]) (C : L[X])
-    (d : ℕ) (c : Fin (d + 1) → L) (i : Fin (equationDegree A B C d + 1)) :
+    (d : ℕ) (c : Fin (d + 1) → L)
+    (i : Fin (max C.natDegree (max A.natDegree B.natDegree + d) + 1)) :
     ((coefficientSystem A B C d).map (algebraMap K L)).mulVec c i =
       (forwardOperator (A.map (algebraMap K L)) (B.map (algebraMap K L))
         (ofFn (d + 1) c)).coeff i :=
@@ -131,17 +127,17 @@ omit [DecidableEq K] in
 theorem coefficientSystem_correct_extension_bounded (A B : K[X]) (C : L[X])
     (d N : ℕ) (hC : C.natDegree ≤ N) (c : Fin (d + 1) → L) :
     ((coefficientSystem A B C d N).map (algebraMap K L)).mulVec c =
-        toFn (equationDegree A B C d N + 1) C ↔
+        toFn (max N (max A.natDegree B.natDegree + d) + 1) C ↔
       forwardOperator (A.map (algebraMap K L)) (B.map (algebraMap K L))
         (ofFn (d + 1) c) = C := by
   have hx : (ofFn (d + 1) c).natDegree ≤ d :=
     Nat.le_of_lt_succ (ofFn_natDegree_lt (by omega) c)
   have ho :
       (forwardOperator (A.map (algebraMap K L)) (B.map (algebraMap K L))
-        (ofFn (d + 1) c)).natDegree ≤ equationDegree A B C d N := by
+        (ofFn (d + 1) c)).natDegree ≤ max N (max A.natDegree B.natDegree + d) := by
     apply (forwardOperator_degree_le _ _ _ d hx).trans
-    simpa only [Polynomial.natDegree_map_eq_of_injective (algebraMap K L).injective,
-      equationDegree] using le_max_right N (max A.natDegree B.natDegree + d)
+    simpa only [Polynomial.natDegree_map_eq_of_injective (algebraMap K L).injective]
+      using le_max_right N (max A.natDegree B.natDegree + d)
   rw [ext_iff_natDegree_le ho (hC.trans (le_max_left _ _))]
   constructor
   · intro h i hi
@@ -157,7 +153,7 @@ omit [DecidableEq K] in
 theorem coefficientSystem_correct_extension (A B : K[X]) (C : L[X])
     (d : ℕ) (c : Fin (d + 1) → L) :
     ((coefficientSystem A B C d).map (algebraMap K L)).mulVec c =
-        toFn (equationDegree A B C d + 1) C ↔
+        toFn (max C.natDegree (max A.natDegree B.natDegree + d) + 1) C ↔
       forwardOperator (A.map (algebraMap K L)) (B.map (algebraMap K L))
         (ofFn (d + 1) c) = C :=
   coefficientSystem_correct_extension_bounded A B C d C.natDegree le_rfl c

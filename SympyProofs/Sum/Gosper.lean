@@ -28,10 +28,10 @@ are derived from them. `Algorithm.gosperSolve backend A B C` starts directly
 from `A*x(X+1) - B*x = C`, where `B` is already shifted backward from the
 normal form. `A` and `B` determine matrix entries over `K`; `C` may have
 coefficients in a commutative `K`-algebra. RREF and all inversions stay over `K`.
-An optional final bound `N` fixes the matrix dimensions; omitting it uses
-`C.natDegree`. With the same `N` on both sides, `Algorithm.gosperSolve_map`
-proves that the actual solver commutes with parameter specialization, including
-noninjective evaluation maps and drops in degree.
+The degree of `C` determines the matrix dimensions. `Algorithm.gosperSolve_map`
+proves that rerunning the solver commutes with degree-preserving specialization.
+The retained candidate and residual also specialize correctly under noninjective
+evaluation maps that lower the degree, without rerunning the solver.
 For a returned result, `Algorithm.gosperSolve_specialize_complete` characterizes
 the solvable specialized polynomial equations by the evaluated residual conditions,
 including a zero specialized right-hand side. `Algorithm.gosperSolve_specialize_ratFunc` gives

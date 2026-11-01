@@ -87,7 +87,7 @@ theorem gosperTerm_eq (hbackend : backend.Valid) (P Q : K[X]) :
       let d := degreeBound s.A B s.C
       if d < 0 then none else
         let M := coefficientSystem s.A B s.C d.toNat
-        let b := toFn (equationDegree s.A B s.C d.toNat + 1) s.C
+        let b := toFn (max s.C.natDegree (max s.A.natDegree B.natDegree + d.toNat) + 1) s.C
         let r := backend.rref (augmentedIdentity M)
         let U := inverseRref backend.rref M
         let coeffs := U.mulVec b
@@ -110,7 +110,7 @@ theorem gosperTerm_verified (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 
   let B := taylor (-1) s.B
   let d := degreeBound s.A B s.C
   let M := coefficientSystem s.A B s.C d.toNat
-  let b := toFn (equationDegree s.A B s.C d.toNat + 1) s.C
+  let b := toFn (max s.C.natDegree (max s.A.natDegree B.natDegree + d.toNat) + 1) s.C
   let r := backend.rref (augmentedIdentity M)
   let coeffs := (inverseRref backend.rref M).mulVec b
   let x := ofFn (d.toNat + 1) coeffs
