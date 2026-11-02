@@ -93,10 +93,6 @@ theorem forward_iff_hypergeometric (ρ : RatFunc K) (hρ : ρ ≠ 0) :
   · exact forward_iff_backward ρ
   · exact fun h => hρ ((Gosper.rationalShift (-1)).injective (by simpa using h))
 
-/-- The forward antidifference reconstructed from the returned multiplier. -/
-def certificateValue (a : ℕ → K) (c : Result K) (n : ℕ) : K :=
-  a n * (c.numerator.eval (n : K) / c.denominator.eval (n : K))
-
 variable [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
 variable {L : Type} [Field L] [CharZero L] [DecidableEq L]
   [DecidablePred (IsInteger ℤ : L → Prop)] [Algebra K L]
@@ -238,12 +234,14 @@ theorem gosperTerm_step (hbackend : backend.Valid)
     (hV : c.denominator.eval (n : L) ≠ 0)
     (hVnext : c.denominator.eval ((n + 1 : ℕ) : L) ≠ 0)
     (hratio : a (n + 1) * Q.eval (n : L) = a n * P.eval (n : L)) :
-    certificateValue a c (n + 1) - certificateValue a c n = a n := by
+    a (n + 1) * (c.numerator.eval ((n + 1 : ℕ) : L) /
+        c.denominator.eval ((n + 1 : ℕ) : L)) -
+      a n * (c.numerator.eval (n : L) / c.denominator.eval (n : L)) = a n := by
   have he := verify_at P Q c.numerator c.denominator
     (gosperTerm_verified backend hbackend P Q hP0 hQ0 c h hzero)
     (n : L) hQ hV (by simpa using hVnext)
   have ha := (eq_div_iff hQ).mpr hratio
-  simp only [certificateValue, Nat.cast_add, Nat.cast_one]
+  simp only [Nat.cast_add, Nat.cast_one]
   rw [ha]
   linear_combination a n * he
 
@@ -257,9 +255,14 @@ theorem gosperTerm_sum (hbackend : backend.Valid)
     (hV : ∀ k ∈ Finset.Icc m n, c.denominator.eval (k : L) ≠ 0)
     (hratio : ∀ k ∈ Finset.Ico m n,
       a (k + 1) * Q.eval (k : L) = a k * P.eval (k : L)) :
-    ∑ k ∈ Finset.Ico m n, a k = certificateValue a c n - certificateValue a c m := by
+    ∑ k ∈ Finset.Ico m n, a k =
+      a n * (c.numerator.eval (n : L) / c.denominator.eval (n : L)) -
+        a m * (c.numerator.eval (m : L) / c.denominator.eval (m : L)) := by
   calc
-    _ = ∑ k ∈ Finset.Ico m n, (certificateValue a c (k + 1) - certificateValue a c k) := by
+    _ = ∑ k ∈ Finset.Ico m n,
+        (a (k + 1) * (c.numerator.eval ((k + 1 : ℕ) : L) /
+            c.denominator.eval ((k + 1 : ℕ) : L)) -
+          a k * (c.numerator.eval (k : L) / c.denominator.eval (k : L))) := by
       apply Finset.sum_congr rfl
       intro k hk
       have hk' := Finset.mem_Ico.mp hk
@@ -267,6 +270,7 @@ theorem gosperTerm_sum (hbackend : backend.Valid)
         P Q hP0 hQ0 c h hzero a k (hQ k hk)
         (hV k (Finset.mem_Icc.mpr ⟨hk'.1, by omega⟩))
         (hV (k + 1) (Finset.mem_Icc.mpr ⟨by omega, by omega⟩)) (hratio k hk)).symm
-    _ = _ := Finset.sum_Ico_sub _ hmn
+    _ = _ := Finset.sum_Ico_sub
+      (fun k => a k * (c.numerator.eval (k : L) / c.denominator.eval (k : L))) hmn
 
 end Gosper.Algorithm
