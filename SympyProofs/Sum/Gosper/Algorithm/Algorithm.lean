@@ -2,6 +2,7 @@ module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Certificate
 public import SympyProofs.Sum.Gosper.Backend.Inverse
+public import SympyProofs.Sum.Gosper.Backend.Descent
 public import SympyProofs.Sum.Gosper.Backend.Resultant
 public import SympyProofs.Sum.Gosper.Normalization
 
@@ -148,19 +149,18 @@ The right-hand side `C`, candidate, and residual remain over `L`.
 An error identifies a failed coefficient conversion. An `ok none` instead
 records the solver's negative degree bound; `ok (some r)` retains its residual.
 No search for a smallest field is performed: the caller chooses `K` and supplies
-`descendCoeff`. For the same field, use `gosperTerm backend backend some P Q`.
+`backend.descend`. For the same field, use `gosperTerm (TermBackend.self backend) P Q`.
 Use `gosperSolve` directly when the normalized equation is already available.
 Correctness of this conversion is required only by the proofs. -/
 def gosperTerm {K : Type} [Field K] [DecidableEq K]
     [DecidablePred (IsInteger ℤ : K → Prop)]
     {L : Type} [Field L] [CharZero L] [DecidableEq L]
     [DecidablePred (IsInteger ℤ : L → Prop)] [Algebra K L]
-    (backendL : Backend L) (backendK : Backend K) (descendCoeff : L → Option K)
-    (P Q : L[X]) : Except DescentFailure (Option (Result L)) := OptionT.run do
-  let (A, B, C) := gosperNormal backendL P Q
-  let some A := descendPolynomial descendCoeff A | throwThe DescentFailure .A
-  let some B := descendPolynomial descendCoeff B | throwThe DescentFailure .B
-  let some result := gosperSolve backendK A (taylor (-1) B) C | failure
+    (backend : TermBackend K L) (P Q : L[X]) : Except DescentFailure (Option (Result L)) := OptionT.run do
+  let (A, B, C) := gosperNormal backend.normalization P Q
+  let some A := descendPolynomial backend.descend A | throwThe DescentFailure .A
+  let some B := descendPolynomial backend.descend B | throwThe DescentFailure .B
+  let some result := gosperSolve backend.solver A (taylor (-1) B) C | failure
   return result
 
 end Gosper.Algorithm

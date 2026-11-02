@@ -13,16 +13,6 @@ open Polynomial
 
 variable {K L : Type} [Field K] [Field L]
 
-/-- The coefficient test returns exactly the preimage under the field embedding. -/
-def CoefficientDescentValid [Algebra K L] (descendCoeff : L → Option K) : Prop :=
-  ∀ c a, descendCoeff c = some a ↔ algebraMap K L a = c
-
-/-- Identity conversion satisfies the descent contract over the same field. -/
-@[simp] theorem coefficientDescentValid_self :
-    CoefficientDescentValid (some : K → Option K) := by
-  intro c a
-  simp [Algebra.algebraMap_self, eq_comm]
-
 private theorem descendPolynomial_eq_foldlM (descendCoeff : L → Option K) (p : L[X]) :
     descendPolynomial descendCoeff p =
       p.support.toList.foldlM
@@ -110,10 +100,10 @@ theorem descendPolynomial_eq_none_iff [Algebra K L] (descendCoeff : L → Option
 theorem gosperTerm_self [CharZero K] [DecidableEq K]
     [DecidablePred (IsLocalization.IsInteger ℤ : K → Prop)]
     (backend : Backend K) (P Q : K[X]) :
-    gosperTerm backend backend some P Q = .ok
+    gosperTerm (TermBackend.self backend) P Q = .ok
       (let normal := gosperNormal backend P Q
        gosperSolve backend normal.1 (taylor (-1) normal.2.1) normal.2.2) := by
-  simp only [gosperTerm, descendPolynomial_self]
+  simp only [gosperTerm, TermBackend.self, descendPolynomial_self]
   cases gosperSolve backend (gosperNormal backend P Q).1
     (taylor (-1) (gosperNormal backend P Q).2.1) (gosperNormal backend P Q).2.2 <;> rfl
 

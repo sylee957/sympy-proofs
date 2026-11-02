@@ -100,144 +100,139 @@ def certificateValue (a : ℕ → K) (c : Result K) (n : ℕ) : K :=
 variable [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
 variable {L : Type} [Field L] [CharZero L] [DecidableEq L]
   [DecidablePred (IsInteger ℤ : L → Prop)] [Algebra K L]
-variable (backendL : Backend L) (backendK : Backend K) (descendCoeff : L → Option K)
+variable (backend : TermBackend K L)
 
 private theorem gosperTerm_eq (P Q : L[X]) :
-    gosperTerm backendL backendK descendCoeff P Q =
-      match descendPolynomial descendCoeff (gosperNormal backendL P Q).1 with
+    gosperTerm backend P Q =
+      match descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 with
       | none => .error .A
-      | some A => match descendPolynomial descendCoeff (gosperNormal backendL P Q).2.1 with
+      | some A => match descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 with
         | none => .error .B
-        | some B => .ok (gosperSolve backendK A (taylor (-1) B) (gosperNormal backendL P Q).2.2) := by
-  cases hA : descendPolynomial descendCoeff (gosperNormal backendL P Q).1 with
+        | some B => .ok (gosperSolve backend.solver A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2) := by
+  cases hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 with
   | none => simp only [gosperTerm, hA]; rfl
   | some A =>
-    cases hB : descendPolynomial descendCoeff (gosperNormal backendL P Q).2.1 with
+    cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 with
     | none => simp only [gosperTerm, hA, hB]; rfl
     | some B =>
-      cases hsolve : gosperSolve backendK A (taylor (-1) B) (gosperNormal backendL P Q).2.2 <;>
+      cases hsolve : gosperSolve backend.solver A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2 <;>
         simp only [gosperTerm, hA, hB, hsolve] <;> rfl
 
 /-- Successful descent leaves exactly the normalized solver call over `K`. -/
 theorem gosperTerm_eq_of_descent (P Q : L[X]) (A B : K[X])
-    (hA : descendPolynomial descendCoeff (gosperNormal backendL P Q).1 = some A)
-    (hB : descendPolynomial descendCoeff (gosperNormal backendL P Q).2.1 = some B) :
-    gosperTerm backendL backendK descendCoeff P Q =
-      .ok (gosperSolve backendK A (taylor (-1) B) (gosperNormal backendL P Q).2.2) := by
+    (hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 = some A)
+    (hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 = some B) :
+    gosperTerm backend P Q =
+      .ok (gosperSolve backend.solver A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2) := by
   simp [gosperTerm_eq, hA, hB]
 
 /-- An `ok` result records successful descent of both normalized polynomials. -/
 theorem gosperTerm_eq_ok_iff (P Q : L[X]) (c : Option (Result L)) :
-    gosperTerm backendL backendK descendCoeff P Q = .ok c ↔
+    gosperTerm backend P Q = .ok c ↔
       ∃ A B : K[X],
-        descendPolynomial descendCoeff (gosperNormal backendL P Q).1 = some A ∧
-        descendPolynomial descendCoeff (gosperNormal backendL P Q).2.1 = some B ∧
-        gosperSolve backendK A (taylor (-1) B) (gosperNormal backendL P Q).2.2 = c := by
-  cases hA : descendPolynomial descendCoeff (gosperNormal backendL P Q).1 <;>
-    cases hB : descendPolynomial descendCoeff (gosperNormal backendL P Q).2.1 <;>
+        descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 = some A ∧
+        descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 = some B ∧
+        gosperSolve backend.solver A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2 = c := by
+  cases hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 <;>
+    cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 <;>
     simp [gosperTerm_eq, hA, hB]
 
 /-- After successful descent, `none` is exactly the negative-degree branch. -/
-theorem gosperTerm_none_iff_degreeBound_neg (hbackendK : backendK.Valid)
+theorem gosperTerm_none_iff_degreeBound_neg (hsolver : backend.solver.Valid)
     (P Q : L[X]) :
-    gosperTerm backendL backendK descendCoeff P Q = .ok none ↔
+    gosperTerm backend P Q = .ok none ↔
       ∃ A B : K[X],
-        descendPolynomial descendCoeff (gosperNormal backendL P Q).1 = some A ∧
-        descendPolynomial descendCoeff (gosperNormal backendL P Q).2.1 = some B ∧
-        degreeBound A (taylor (-1) B) (gosperNormal backendL P Q).2.2 < 0 := by
-  rw [gosperTerm_eq_ok_iff backendL backendK descendCoeff P Q none]
+        descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 = some A ∧
+        descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 = some B ∧
+        degreeBound A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2 < 0 := by
+  rw [gosperTerm_eq_ok_iff backend P Q none]
   apply exists_congr
   intro A
   apply exists_congr
   intro B
-  rw [gosperSolve_eq backendK hbackendK]
+  rw [gosperSolve_eq backend.solver hsolver]
   dsimp only
   split_ifs <;> simp_all
 
 /-- The first descent error means that the normalized `A` is not defined over `K`. -/
-theorem gosperTerm_error_A_iff (hdesc : CoefficientDescentValid descendCoeff)
+theorem gosperTerm_error_A_iff (hdesc : CoefficientDescentValid backend.descend)
     (P Q : L[X]) :
-    gosperTerm backendL backendK descendCoeff P Q = .error .A ↔
-      ¬∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backendL P Q).1 := by
-  rw [← descendPolynomial_eq_none_iff descendCoeff hdesc]
-  cases hA : descendPolynomial descendCoeff (gosperNormal backendL P Q).1 <;>
-    cases hB : descendPolynomial descendCoeff (gosperNormal backendL P Q).2.1 <;>
+    gosperTerm backend P Q = .error .A ↔
+      ¬∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend.normalization P Q).1 := by
+  rw [← descendPolynomial_eq_none_iff backend.descend hdesc]
+  cases hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 <;>
+    cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 <;>
     simp [gosperTerm_eq, hA, hB]
 
 /-- A `B` descent error occurs only after `A` has descended successfully. -/
-theorem gosperTerm_error_B_iff (hdesc : CoefficientDescentValid descendCoeff)
+theorem gosperTerm_error_B_iff (hdesc : CoefficientDescentValid backend.descend)
     (P Q : L[X]) :
-    gosperTerm backendL backendK descendCoeff P Q = .error .B ↔
-      (∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backendL P Q).1) ∧
-      ¬∃ B : K[X], B.map (algebraMap K L) = (gosperNormal backendL P Q).2.1 := by
-  have hA : (∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backendL P Q).1) ↔
-      ∃ A, descendPolynomial descendCoeff (gosperNormal backendL P Q).1 = some A := by
-    simp only [descendPolynomial_eq_some_iff descendCoeff hdesc]
-  rw [hA, ← descendPolynomial_eq_none_iff descendCoeff hdesc]
-  cases hA : descendPolynomial descendCoeff (gosperNormal backendL P Q).1 <;>
-    cases hB : descendPolynomial descendCoeff (gosperNormal backendL P Q).2.1 <;>
+    gosperTerm backend P Q = .error .B ↔
+      (∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend.normalization P Q).1) ∧
+      ¬∃ B : K[X], B.map (algebraMap K L) = (gosperNormal backend.normalization P Q).2.1 := by
+  have hA : (∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend.normalization P Q).1) ↔
+      ∃ A, descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 = some A := by
+    simp only [descendPolynomial_eq_some_iff backend.descend hdesc]
+  rw [hA, ← descendPolynomial_eq_none_iff backend.descend hdesc]
+  cases hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 <;>
+    cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 <;>
     simp [gosperTerm_eq, hA, hB]
 
 /-- A vanishing residual certifies the input ratio after exact coefficient descent. -/
-theorem gosperTerm_verified (hbackendK : backendK.Valid)
-    (hdesc : CoefficientDescentValid descendCoeff)
+theorem gosperTerm_verified (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
-    (h : gosperTerm backendL backendK descendCoeff P Q = .ok (some c))
+    (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
     verify P Q c.numerator c.denominator = true := by
   obtain ⟨A, B, hA, hB, hsolve⟩ :=
-    (gosperTerm_eq_ok_iff backendL backendK descendCoeff P Q (some c)).mp h
-  have hmapA := (descendPolynomial_eq_some_iff descendCoeff hdesc _ A).mp hA
-  have hmapB := (descendPolynomial_eq_some_iff descendCoeff hdesc _ B).mp hB
+    (gosperTerm_eq_ok_iff backend P Q (some c)).mp h
+  have hmapA := (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ A).mp hA
+  have hmapB := (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ B).mp hB
   have hmapB' : (taylor (-1) B).map (algebraMap K L) =
-      taylor (-1) (gosperNormal backendL P Q).2.1 := by simp [hmapB]
+      taylor (-1) (gosperNormal backend.normalization P Q).2.1 := by simp [hmapB]
   obtain ⟨x, hnum, hden, hx⟩ :=
-    gosperSolve_sound backendK hbackendK A (taylor (-1) B) _ c hsolve hzero
+    gosperSolve_sound backend.solver hbackend.solver A (taylor (-1) B) _ c hsolve hzero
   rw [hmapA, hmapB'] at hx
   rw [hmapB'] at hnum
-  obtain ⟨hs, hratio⟩ := gosperNormal_sound backendL P Q hP hQ _ rfl
+  obtain ⟨hs, hratio⟩ := gosperNormal_sound backend.normalization P Q hP hQ _ rfl
   rw [hnum, hden]
   exact normalForm_verify_solution_of_ratio P Q hQ _ hs.2.2 hratio x hx
 
 /-- Successful descent and a vanishing residual yield a rational Gosper multiplier. -/
-theorem gosperTerm_sound (hbackendK : backendK.Valid)
-    (hdesc : CoefficientDescentValid descendCoeff)
+theorem gosperTerm_sound (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
-    (h : gosperTerm backendL backendK descendCoeff P Q = .ok (some c))
+    (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
     toRatFunc P Q * Gosper.rationalShift 1 (toRatFunc c.numerator c.denominator) -
       toRatFunc c.numerator c.denominator = 1 :=
   verify_ratFunc P Q _ _
-    (gosperTerm_verified backendL backendK descendCoeff hbackendK hdesc P Q hP hQ c h hzero)
+    (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
 
 /-- The returned multiplier satisfies its polynomial identity, including at denominator roots. -/
-theorem gosperTerm_identity (hbackendK : backendK.Valid)
-    (hdesc : CoefficientDescentValid descendCoeff)
+theorem gosperTerm_identity (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
-    (h : gosperTerm backendL backendK descendCoeff P Q = .ok (some c))
+    (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
     Q ≠ 0 ∧ c.denominator ≠ 0 ∧ residual P Q c.numerator c.denominator = 0 :=
   verify_sound P Q _ _
-    (gosperTerm_verified backendL backendK descendCoeff hbackendK hdesc P Q hP hQ c h hzero)
+    (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
 
 /-- A returned multiplier with vanishing residual gives a hypergeometric antidifference. -/
-theorem gosperTerm_hypergeometric (hbackendK : backendK.Valid)
-    (hdesc : CoefficientDescentValid descendCoeff)
+theorem gosperTerm_hypergeometric (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
-    (h : gosperTerm backendL backendK descendCoeff P Q = .ok (some c))
+    (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
     Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) := by
   have hρ : toRatFunc P Q ≠ 0 := by
     unfold toRatFunc
     exact div_ne_zero (by simpa using hP) (by simpa using hQ)
   exact (forward_iff_hypergeometric _ hρ).mp
-    ⟨_, gosperTerm_sound backendL backendK descendCoeff hbackendK hdesc P Q hP hQ c h hzero⟩
+    ⟨_, gosperTerm_sound backend hbackend P Q hP hQ c h hzero⟩
 
 /-- The reconstructed forward antidifference advances by the input term. -/
-theorem gosperTerm_step (hbackendK : backendK.Valid)
-    (hdesc : CoefficientDescentValid descendCoeff)
+theorem gosperTerm_step (hbackend : backend.Valid)
     (P Q : L[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result L)
-    (h : gosperTerm backendL backendK descendCoeff P Q = .ok (some c))
+    (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) (a : ℕ → L) (n : ℕ)
     (hQ : Q.eval (n : L) ≠ 0)
     (hV : c.denominator.eval (n : L) ≠ 0)
@@ -245,7 +240,7 @@ theorem gosperTerm_step (hbackendK : backendK.Valid)
     (hratio : a (n + 1) * Q.eval (n : L) = a n * P.eval (n : L)) :
     certificateValue a c (n + 1) - certificateValue a c n = a n := by
   have he := verify_at P Q c.numerator c.denominator
-    (gosperTerm_verified backendL backendK descendCoeff hbackendK hdesc P Q hP0 hQ0 c h hzero)
+    (gosperTerm_verified backend hbackend P Q hP0 hQ0 c h hzero)
     (n : L) hQ hV (by simpa using hVnext)
   have ha := (eq_div_iff hQ).mpr hratio
   simp only [certificateValue, Nat.cast_add, Nat.cast_one]
@@ -253,10 +248,9 @@ theorem gosperTerm_step (hbackendK : backendK.Valid)
   linear_combination a n * he
 
 /-- The returned multiplier telescopes a finite sum under the stated denominator conditions. -/
-theorem gosperTerm_sum (hbackendK : backendK.Valid)
-    (hdesc : CoefficientDescentValid descendCoeff)
+theorem gosperTerm_sum (hbackend : backend.Valid)
     (P Q : L[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result L)
-    (h : gosperTerm backendL backendK descendCoeff P Q = .ok (some c))
+    (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0)
     (a : ℕ → L) (m n : ℕ) (hmn : m ≤ n)
     (hQ : ∀ k ∈ Finset.Ico m n, Q.eval (k : L) ≠ 0)
@@ -269,7 +263,7 @@ theorem gosperTerm_sum (hbackendK : backendK.Valid)
       apply Finset.sum_congr rfl
       intro k hk
       have hk' := Finset.mem_Ico.mp hk
-      exact (gosperTerm_step backendL backendK descendCoeff hbackendK hdesc
+      exact (gosperTerm_step backend hbackend
         P Q hP0 hQ0 c h hzero a k (hQ k hk)
         (hV k (Finset.mem_Icc.mpr ⟨hk'.1, by omega⟩))
         (hV (k + 1) (Finset.mem_Icc.mpr ⟨by omega, by omega⟩)) (hratio k hk)).symm

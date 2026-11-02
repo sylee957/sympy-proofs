@@ -36,18 +36,19 @@ For a returned result, `Algorithm.gosperSolve_specialize_complete` characterizes
 the solvable specialized polynomial equations by the evaluated residual conditions,
 including a zero specialized right-hand side. `Algorithm.gosperSolve_specialize_ratFunc` gives
 the corresponding rational multiplier identity directly from normalized inputs.
-`Algorithm.gosperTerm backendL backendK descendCoeff P Q` first normalizes
-over `L`, then converts the coefficients of `A` and `B` into a chosen smaller
-field `K`. `C` and the output remain over `L`; matrix reduction uses `backendK`.
-The supplied converter `descendCoeff : L → Option K` tests membership and converts
-coefficients. `Algorithm.CoefficientDescentValid` requires
-`descendCoeff c = some a ↔ algebraMap K L a = c`.
+`Algorithm.gosperTerm backend P Q` takes a `TermBackend K L` bundling
+`normalization : Backend L`, `solver : Backend K`, and `descend : L → Option K`.
+It normalizes over `L`, converts the coefficients of `A` and `B` to `K`, then
+reduces the matrix over `K`. `C` and the output remain over `L`.
+`Algorithm.TermBackend.Valid` bundles the two primitive-operation contracts with
+`CoefficientDescentValid backend.descend`, which requires
+`backend.descend c = some a ↔ algebraMap K L a = c`.
 Successful conversion therefore supplies exact reconstruction of `A` and `B`;
 callers need no separate membership hypotheses.
 `Algorithm.Correctness` proves soundness and finite-sum identities for this entry
 point. `Algorithm.Completeness` proves completeness whenever the call returns
-`.ok result`, under valid primitive operations and the converter contract.
-For the same field, use `Algorithm.gosperTerm backend backend some P Q`.
+`.ok result`, under the bundled backend contract.
+For the same field, use `Algorithm.gosperTerm (TermBackend.self backend) P Q`.
 `Algorithm.gosperTerm_self` proves that identity conversion cannot return an error.
 The same soundness and completeness theorems apply to this case.
 The coefficient matrix is augmented by an identity matrix

@@ -3,6 +3,7 @@ module
 public import SympyProofs.Sum.Gosper.Backend.Factorization
 public import SympyProofs.Sum.Gosper.Backend.Rref
 public import SympyProofs.Sum.Gosper.Backend.Basic
+public import SympyProofs.Sum.Gosper.Backend.Descent
 public import SympyProofs.Sum.Gosper.Backend.Matrix
 public import SympyProofs.Sum.Gosper.Backend.Residual
 public import SympyProofs.Sum.Gosper.Backend.Vector
