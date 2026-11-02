@@ -1,10 +1,13 @@
 module
 
-public import SympyProofs.Sum.Gosper.Algorithm.SolverCorrectness
-public import SympyProofs.Sum.Gosper.Rational
+public import SympyProofs.Sum.Gosper.Algorithm.SolverSpecialization
+public import SympyProofs.Sum.Gosper.Algorithm.Completeness
+public import SympyProofs.Sum.Gosper.Algorithm.NormalizationSpecialization
 
-/-! Parameter specialization of the retained normalized-solver output.
-The source matrix remains valid when evaluation lowers the right-hand-side degree. -/
+/-! Specialize a retained `gosperTerm` output through a coefficient ring.
+The embedding records the computation field; evaluation may lower degrees or
+annihilate residuals. The specialized input and certificate denominators must
+remain nonzero. No normalization or coefficient descent is rerun. -/
 
 @[expose] public section
 noncomputable section
@@ -13,231 +16,149 @@ namespace Gosper.Algorithm
 
 open Polynomial IsLocalization
 
-/-- Apply a coefficient homomorphism to the candidate and its retained conditions. -/
-def Result.map {R S : Type*} [CommRing R] [CommRing S]
-    (f : R →+* S) (r : Result R) : Result S where
-  numerator := r.numerator.map f
-  denominator := r.denominator.map f
-  residual := r.residual.map f
-
-variable {K : Type} [Field K]
+variable {K : Type} [Field K] [DecidableEq K]
+  [DecidablePred (IsInteger ℤ : K → Prop)]
+variable {L : Type} [Field L] [CharZero L] [DecidableEq L]
+  [DecidablePred (IsInteger ℤ : L → Prop)] [Algebra K L]
 variable {R : Type} [CommRing R] [Algebra K R]
-variable {S : Type} [CommRing S] [Algebra K S]
-variable {L : Type} [Field L] [Algebra K L]
+variable {E : Type} [Field E] [Algebra K E]
+variable (backend : TermBackend K L)
 
-private theorem matrix_mulVec_map {m n : ℕ} (f : R →ₐ[K] S)
-    (M : Matrix (Fin m) (Fin n) K) (b : Fin n → R) :
-    f ∘ (M.map (algebraMap K R)).mulVec b =
-      (M.map (algebraMap K S)).mulVec (f ∘ b) := by
-  ext i
-  simp [Matrix.mulVec, dotProduct, map_sum, map_mul]
+/-- Recover the fixed-field solver and its specialized normal form from the full run. -/
+private theorem gosperTerm_specialize_data (hbackend : backend.Valid)
+    (i : R →ₐ[K] L) (hi : Function.Injective i) (f : R →ₐ[K] E)
+    (P Q : R[X]) (r : Result R)
+    (hrun : gosperTerm backend (P.map i.toRingHom) (Q.map i.toRingHom) =
+      .ok (some (r.map i.toRingHom)))
+    (hP : P.map f.toRingHom ≠ 0) (hQ : Q.map f.toRingHom ≠ 0)
+    (hV : r.denominator.map f.toRingHom ≠ 0) :
+    ∃ A B : K[X],
+      gosperSolve backend.solver A (taylor (-1) B) r.denominator = some r ∧
+      normalFormValid (P.map f.toRingHom) (Q.map f.toRingHom)
+        (A.map (algebraMap K E), B.map (algebraMap K E), r.denominator.map f.toRingHom) := by
+  have hP0 : P ≠ 0 := fun hz => hP (by simp [hz])
+  have hQ0 : Q ≠ 0 := fun hz => hQ (by simp [hz])
+  have hPL : P.map i.toRingHom ≠ 0 := (Polynomial.map_eq_zero_iff hi).not.mpr hP0
+  have hQL : Q.map i.toRingHom ≠ 0 := (Polynomial.map_eq_zero_iff hi).not.mpr hQ0
+  obtain ⟨A, B, hA, hB, hsolve⟩ :=
+    (gosperTerm_eq_ok_iff backend _ _ _).mp hrun
+  have hmapA := (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ A).mp hA
+  have hmapB := (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ B).mp hB
+  have hden := gosperSolve_denominator backend.solver hbackend.solver A (taylor (-1) B)
+    _ _ hsolve
+  change r.denominator.map i.toRingHom = _ at hden
+  have hsolveR : gosperSolve backend.solver A (taylor (-1) B) r.denominator = some r := by
+    apply gosperSolve_of_map backend.solver hbackend.solver A (taylor (-1) B)
+      r.denominator i hi r
+    rwa [hden]
+  have hvalid : normalFormValid (P.map i.toRingHom) (Q.map i.toRingHom)
+      (A.map (algebraMap K L), B.map (algebraMap K L), r.denominator.map i.toRingHom) := by
+    rw [hmapA, hmapB, hden]
+    exact gosperNormal_spec backend.normalization hbackend.normalization _ _ hPL hQL _ rfl
+  refine ⟨A, B, hsolveR, ?_⟩
+  exact normalFormValid_specialize i hi f A B r.denominator P Q hvalid hV
 
-/-- Describe the mapped output using the original coefficient matrix, without rerunning the solver. -/
-private theorem gosperSolve_output_map [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)]
-    (backend : Backend K) (hbackend : backend.Valid)
-    (A B : K[X]) (C : R[X]) (f : R →ₐ[K] S) (r : Result R)
-    (hrun : gosperSolve backend A B C = some r) :
-    let d := degreeBound A B C
-    let M := coefficientSystem A B C d.toNat
-    let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
-      (C.map f.toRingHom)
-    let q := backend.rref (augmentedIdentity M)
-    0 ≤ d ∧ r.map f.toRingHom =
-      { numerator := B.map (algebraMap K S) *
-          ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val
-            ((q.inverse.map (algebraMap K S)).mulVec b j)
-        denominator := C.map f.toRingHom
-        residual := q.residualEntries ((q.rightMatrix.map (algebraMap K S)).mulVec b) } := by
-  have hvec {m n : ℕ} (M : Matrix (Fin m) (Fin n) K) :
-      f ∘ (M.map (algebraMap K R)).mulVec (toFn n C) =
-        (M.map (algebraMap K S)).mulVec (toFn n (C.map f.toRingHom)) := by
-    have hcoeff : toFn n (C.map f.toRingHom) = f ∘ toFn n C := by
-      ext i
-      simp [toFn]
-    rw [hcoeff]
-    exact matrix_mulVec_map f M _
-  rw [gosperSolve_eq backend hbackend] at hrun
-  dsimp only at hrun ⊢
-  split_ifs at hrun with hd
-  cases Option.some.inj hrun
-  refine ⟨not_lt.mp hd, ?_⟩
-  simp [Result.map, Polynomial.map_sum, Polynomial.map_map,
-    RrefResult.residualEntries_map, Function.comp_def]
-  let q := backend.rref (augmentedIdentity
-    (coefficientSystem A B C (degreeBound A B C).toNat))
-  constructor
-  · apply congrArg (fun p : S[X] => B.map (algebraMap K S) * p)
-    apply Finset.sum_congr rfl
-    intro j _
-    exact congrArg (Polynomial.monomial j.val) (congrFun (hvec q.inverse) j)
-  · exact congrArg (fun v => q.residualEntries v) (hvec q.rightMatrix)
-
-set_option backward.isDefEq.respectTransparency false in
-/-- Rerunning the solver commutes with evaluation when the right-hand-side degree is
-preserved. The direct output-specialization theorems below also cover degree drops. -/
-theorem gosperSolve_map [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)]
-    (backend : Backend K) (hbackend : backend.Valid)
-    (A B : K[X]) (C : R[X]) (f : R →ₐ[K] S)
-    (hdegree : (C.map f.toRingHom).natDegree = C.natDegree) :
-    gosperSolve backend A B (C.map f.toRingHom) =
-      (gosperSolve backend A B C).map (Result.map f.toRingHom) := by
-  have hvec {m n : ℕ} (M : Matrix (Fin m) (Fin n) K) :
-      f ∘ (M.map (algebraMap K R)).mulVec (toFn n C) =
-        (M.map (algebraMap K S)).mulVec (toFn n (C.map f.toRingHom)) := by
-    have hcoeff : toFn n (C.map f.toRingHom) = f ∘ toFn n C := by
-      ext i
-      simp [toFn]
-    rw [hcoeff]
-    exact matrix_mulVec_map f M _
-  simp only [gosperSolve_eq backend hbackend A B (C.map f.toRingHom),
-    gosperSolve_eq backend hbackend A B C]
-  rw [degreeBound_rhs_eq A B (C.map f.toRingHom) C hdegree]
-  delta coefficientSystem
-  rw [hdegree]
-  split_ifs
-  · rfl
-  · simp [Result.map, Polynomial.map_sum, Polynomial.map_map,
-      RrefResult.residualEntries_map, Function.comp_def]
-    let q := backend.rref (augmentedIdentity
-      (fun (i : Fin (max C.natDegree
-          (max A.natDegree B.natDegree + (degreeBound A B C).toNat) + 1))
-        (j : Fin ((degreeBound A B C).toNat + 1)) =>
-        (A * (X + 1) ^ j.val).coeff i.val - (B * X ^ j.val).coeff i.val))
-    constructor
-    · apply congrArg (fun p : S[X] => B.map (algebraMap K S) * p)
-      apply Finset.sum_congr rfl
-      intro j _
-      exact congrArg (Polynomial.monomial j.val) (congrFun (hvec q.inverse) j).symm
-    · exact congrArg (fun v => q.residualEntries v) (hvec q.rightMatrix).symm
-
-/-- Vanishing evaluated conditions certify the specialized normalized equation.
-No injectivity or preservation of the right-hand-side degree is required. -/
-theorem gosperSolve_specialize_sound [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)]
-    (backend : Backend K) (hbackend : backend.Valid)
-    (A B : K[X]) (C : R[X]) (f : R →ₐ[K] L) (r : Result R)
-    (hrun : gosperSolve backend A B C = some r)
+/-- Evaluating the retained conditions verifies the specialized input, even when
+the generic residual is nonzero or evaluation lowers the numerator degree. -/
+theorem gosperTerm_specialize_verified [DecidableEq E] (hbackend : backend.Valid)
+    (i : R →ₐ[K] L) (hi : Function.Injective i) (f : R →ₐ[K] E)
+    (P Q : R[X]) (r : Result R)
+    (hrun : gosperTerm backend (P.map i.toRingHom) (Q.map i.toRingHom) =
+      .ok (some (r.map i.toRingHom)))
+    (hP : P.map f.toRingHom ≠ 0) (hQ : Q.map f.toRingHom ≠ 0)
+    (hV : r.denominator.map f.toRingHom ≠ 0)
     (hzero : ∀ value ∈ r.residual, f value = 0) :
-    ∃ x : L[X], r.numerator.map f.toRingHom = B.map (algebraMap K L) * x ∧
-      r.denominator.map f.toRingHom = C.map f.toRingHom ∧
-      A.map (algebraMap K L) * taylor 1 x - B.map (algebraMap K L) * x =
-        C.map f.toRingHom := by
-  classical
-  obtain ⟨hd, he⟩ := gosperSolve_output_map backend hbackend A B C f r hrun
-  let d := degreeBound A B C
-  let M := coefficientSystem A B C d.toNat
-  let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
-    (C.map f.toRingHom)
-  let q := (backend.rref (augmentedIdentity M)).map (algebraMap K L)
-  have hq : q.Valid (augmentedIdentity (M.map (algebraMap K L))) :=
-    (backend.rref (augmentedIdentity M)).map_valid_augmentedIdentity M
-      (hbackend.rref_valid _) (algebraMap K L)
-  have hz : ∀ value ∈ (r.map f.toRingHom).residual, value = 0 := by
-    simpa [Result.map, Array.mem_map] using hzero
-  rw [he] at hz
-  have hres : q.leftResidual (q.rightMatrix.mulVec b) = 0 := by
-    apply (q.residualEntries_zero_iff hq b).mp
-    simpa only [q, RrefResult.map_residualEntries, RrefResult.map_rightMatrix] using hz
-  have hcoeffs : (M.map (algebraMap K L)).mulVec (q.inverse.mulVec b) = b :=
-    (q.leftResidual_eq_zero_iff (M.map (algebraMap K L)) hq b).mp hres
-  refine ⟨ofFn (d.toNat + 1) (q.inverse.mulVec b), ?_, ?_, ?_⟩
-  · have hu := congrArg Result.numerator he
-    simpa only [Result.map, q, RrefResult.map_inverse, ofFn_eq_sum_monomial] using hu
-  · exact congrArg Result.denominator he
-  · exact (coefficientSystem_correct_extension_bounded A B (C.map f.toRingHom)
-      d.toNat C.natDegree Polynomial.natDegree_map_le (q.inverse.mulVec b)).mp hcoeffs
+    verify (P.map f.toRingHom) (Q.map f.toRingHom)
+      (r.numerator.map f.toRingHom) (r.denominator.map f.toRingHom) = true := by
+  obtain ⟨A, B, hsolve, hvalid⟩ :=
+    gosperTerm_specialize_data backend hbackend i hi f P Q r hrun hP hQ hV
+  obtain ⟨x, hu, _, hx⟩ := gosperSolve_specialize_sound backend.solver hbackend.solver
+    A (taylor (-1) B) r.denominator f r hsolve hzero
+  simp only [Polynomial.map_taylor, map_neg, map_one] at hu hx
+  rw [hu]
+  exact normalForm_verify_solution _ _ hQ _ hvalid x hx
 
-/-- The retained output's evaluated residual detects solvability, including degree
-drops and specializations that make the entire right-hand side zero. -/
-theorem gosperSolve_specialize_complete [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)] [CharZero K]
-    (backend : Backend K) (hbackend : backend.Valid)
-    (A B : K[X]) (C : R[X]) (f : R →ₐ[K] L) (r : Result R)
-    (hrun : gosperSolve backend A B C = some r) (hA : A ≠ 0) (hB : B ≠ 0) :
+/-- The specialized candidate is a multiplier for the original specialized ratio. -/
+theorem gosperTerm_specialize_sound (hbackend : backend.Valid)
+    (i : R →ₐ[K] L) (hi : Function.Injective i) (f : R →ₐ[K] E)
+    (P Q : R[X]) (r : Result R)
+    (hrun : gosperTerm backend (P.map i.toRingHom) (Q.map i.toRingHom) =
+      .ok (some (r.map i.toRingHom)))
+    (hP : P.map f.toRingHom ≠ 0) (hQ : Q.map f.toRingHom ≠ 0)
+    (hV : r.denominator.map f.toRingHom ≠ 0)
+    (hzero : ∀ value ∈ r.residual, f value = 0) :
+    toRatFunc (P.map f.toRingHom) (Q.map f.toRingHom) *
+        Gosper.rationalShift 1
+          (toRatFunc (r.numerator.map f.toRingHom) (r.denominator.map f.toRingHom)) -
+      toRatFunc (r.numerator.map f.toRingHom) (r.denominator.map f.toRingHom) = 1 := by
+  classical
+  exact verify_ratFunc _ _ _ _
+    (gosperTerm_specialize_verified backend hbackend i hi f P Q r hrun hP hQ hV hzero)
+
+/-- The evaluated residual characterizes summability of the specialized input.
+The successful run supplies coefficient descent; callers need no normal-form hypotheses. -/
+theorem gosperTerm_specialize_complete [CharZero K] [CharZero E]
+    (hbackend : backend.Valid)
+    (i : R →ₐ[K] L) (hi : Function.Injective i) (f : R →ₐ[K] E)
+    (P Q : R[X]) (r : Result R)
+    (hrun : gosperTerm backend (P.map i.toRingHom) (Q.map i.toRingHom) =
+      .ok (some (r.map i.toRingHom)))
+    (hP : P.map f.toRingHom ≠ 0) (hQ : Q.map f.toRingHom ≠ 0)
+    (hV : r.denominator.map f.toRingHom ≠ 0) :
     (∀ value ∈ r.residual, f value = 0) ↔
-      ∃ x : L[X], A.map (algebraMap K L) * taylor 1 x -
-        B.map (algebraMap K L) * x = C.map f.toRingHom := by
-  classical
-  constructor
-  · intro hzero
-    obtain ⟨x, _, _, hx⟩ :=
-      gosperSolve_specialize_sound backend hbackend A B C f r hrun hzero
-    exact ⟨x, hx⟩
-  · rintro ⟨x, hx⟩
-    obtain ⟨hd, he⟩ := gosperSolve_output_map backend hbackend A B C f r hrun
-    let d := degreeBound A B C
-    let M := coefficientSystem A B C d.toNat
-    let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
-      (C.map f.toRingHom)
-    let q := (backend.rref (augmentedIdentity M)).map (algebraMap K L)
-    have hq : q.Valid (augmentedIdentity (M.map (algebraMap K L))) :=
-      (backend.rref (augmentedIdentity M)).map_valid_augmentedIdentity M
-        (hbackend.rref_valid _) (algebraMap K L)
-    have hdn : x.natDegree ≤ d.toNat := by
-      by_cases hx0 : x = 0
-      · simp [hx0]
-      · have hdeg := solution_degree_le_extension_bounded A B C (C.map f.toRingHom) x
-          Polynomial.natDegree_map_le hA hB hx0 hx
-        omega
-    have hm : ∃ c, (M.map (algebraMap K L)).mulVec c = b := by
-      refine ⟨toFn (d.toNat + 1) x,
-        (coefficientSystem_correct_extension_bounded A B (C.map f.toRingHom)
-          d.toNat C.natDegree Polynomial.natDegree_map_le _).mpr ?_⟩
-      rw [ofFn_comp_toFn_eq_id_of_natDegree_lt (by omega)]
-      exact hx
-    have hcoeffs : (M.map (algebraMap K L)).mulVec (q.inverse.mulVec b) = b :=
-      (q.inverse_solve_iff (M.map (algebraMap K L)) hq b).mpr hm
-    have hres := (q.leftResidual_eq_zero_iff (M.map (algebraMap K L)) hq b).mpr hcoeffs
-    have hzq := (q.residualEntries_zero_iff hq b).mpr hres
-    have hz : ∀ value ∈ (r.map f.toRingHom).residual, value = 0 := by
-      rw [he]
-      simpa only [q, RrefResult.map_residualEntries, RrefResult.map_rightMatrix] using hzq
-    simpa [Result.map, Array.mem_map] using hz
+      Gosper.HasHypergeometricAntidifference
+        (toRatFunc (P.map f.toRingHom) (Q.map f.toRingHom)) := by
+  obtain ⟨A, B, hsolve, hvalid⟩ :=
+    gosperTerm_specialize_data backend hbackend i hi f P Q r hrun hP hQ hV
+  have hA : A ≠ 0 := by simpa using hvalid.1.1
+  have hB : taylor (-1 : K) B ≠ 0 := by simpa using hvalid.1.2.1
+  rw [gosperSolve_specialize_complete backend.solver hbackend.solver
+    A (taylor (-1) B) r.denominator f r hsolve hA hB]
+  simpa using (normalForm_hypergeometric_iff_polynomial
+    (P.map f.toRingHom) (Q.map f.toRingHom) hP hQ _ hvalid).symm
 
-/-- The evaluated output is a rational Gosper multiplier for the specialized normal form. -/
-theorem gosperSolve_specialize_ratFunc [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)]
-    (backend : Backend K) (hbackend : backend.Valid)
-    (A B : K[X]) (C : R[X]) (f : R →ₐ[K] L) (r : Result R)
-    (hrun : gosperSolve backend A B C = some r)
+/-- Interpret a specialized output as the two endpoints of a finite sum. -/
+theorem gosperTerm_specialize_sum (hbackend : backend.Valid)
+    (i : R →ₐ[K] L) (hi : Function.Injective i) (f : R →ₐ[K] E)
+    (P Q : R[X]) (r : Result R)
+    (hrun : gosperTerm backend (P.map i.toRingHom) (Q.map i.toRingHom) =
+      .ok (some (r.map i.toRingHom)))
+    (hP0 : P.map f.toRingHom ≠ 0) (hQ0 : Q.map f.toRingHom ≠ 0)
+    (hV0 : r.denominator.map f.toRingHom ≠ 0)
     (hzero : ∀ value ∈ r.residual, f value = 0)
-    (hB : B ≠ 0) (hCeval : C.map f.toRingHom ≠ 0) :
-    let a := A.map (algebraMap K L)
-    let b := B.map (algebraMap K L)
-    let c := C.map f.toRingHom
-    let ι := algebraMap L[X] (RatFunc L)
-    let multiplier := ι (r.numerator.map f.toRingHom) / ι (r.denominator.map f.toRingHom)
-    (ι (a * taylor 1 c) / ι (taylor 1 b * c)) *
-        Gosper.rationalShift 1 multiplier - multiplier = 1 := by
-  obtain ⟨x, hu, hd, hx⟩ :=
-    gosperSolve_specialize_sound backend hbackend A B C f r hrun hzero
-  let ι := algebraMap L[X] (RatFunc L)
-  let b := B.map (algebraMap K L)
-  let c := C.map f.toRingHom
-  have hb : b ≠ 0 := by simpa [b] using hB
-  have map_ne (p : L[X]) (hp : p ≠ 0) : ι p ≠ 0 := by
-    intro hz
-    exact hp ((IsFractionRing.injective L[X] (RatFunc L)) (by simpa [ι] using hz))
-  have hbnext := map_ne (taylor 1 b) ((taylor_eq_zero _ _).not.mpr hb)
-  have hcbase := map_ne c hCeval
-  have hcnext := map_ne (taylor 1 c) ((taylor_eq_zero _ _).not.mpr hCeval)
-  have he : A.map (algebraMap K L) * taylor 1 (r.numerator.map f.toRingHom) -
-      taylor 1 b * r.numerator.map f.toRingHom = taylor 1 b * c := by
-    rw [hu, taylor_mul]
-    dsimp only [b, c]
-    linear_combination taylor 1 (B.map (algebraMap K L)) * hx
-  have hm := congrArg ι he
-  simp only [map_sub, map_mul] at hm
-  dsimp only
-  rw [hd]
-  simp only [map_div₀, Gosper.rationalShift_polynomial, map_mul]
-  change (ι (A.map (algebraMap K L)) * ι (taylor 1 c) /
-      (ι (taylor 1 b) * ι c)) *
-      (ι (taylor 1 (r.numerator.map f.toRingHom)) / ι (taylor 1 c)) -
-      ι (r.numerator.map f.toRingHom) / ι c = 1
-  field_simp [hbnext, hcbase, hcnext]
-  linear_combination hm
+    (a : ℕ → E) (m n : ℕ) (hmn : m ≤ n)
+    (hQ : ∀ k ∈ Finset.Ico m n, (Q.map f.toRingHom).eval (k : E) ≠ 0)
+    (hV : ∀ k ∈ Finset.Icc m n, (r.denominator.map f.toRingHom).eval (k : E) ≠ 0)
+    (hratio : ∀ k ∈ Finset.Ico m n,
+      a (k + 1) * (Q.map f.toRingHom).eval (k : E) =
+        a k * (P.map f.toRingHom).eval (k : E)) :
+    ∑ k ∈ Finset.Ico m n, a k =
+      a n * ((r.numerator.map f.toRingHom).eval (n : E) /
+          (r.denominator.map f.toRingHom).eval (n : E)) -
+        a m * ((r.numerator.map f.toRingHom).eval (m : E) /
+          (r.denominator.map f.toRingHom).eval (m : E)) := by
+  classical
+  have hv := gosperTerm_specialize_verified backend hbackend i hi f P Q r hrun
+    hP0 hQ0 hV0 hzero
+  calc
+    _ = ∑ k ∈ Finset.Ico m n,
+        (a (k + 1) * ((r.numerator.map f.toRingHom).eval ((k + 1 : ℕ) : E) /
+            (r.denominator.map f.toRingHom).eval ((k + 1 : ℕ) : E)) -
+          a k * ((r.numerator.map f.toRingHom).eval (k : E) /
+            (r.denominator.map f.toRingHom).eval (k : E))) := by
+      apply Finset.sum_congr rfl
+      intro k hk
+      have hk' := Finset.mem_Ico.mp hk
+      have he := verify_at _ _ _ _ hv (k : E) (hQ k hk)
+        (hV k (Finset.mem_Icc.mpr ⟨hk'.1, by omega⟩))
+        (by simpa using hV (k + 1) (Finset.mem_Icc.mpr ⟨by omega, by omega⟩))
+      have ha := (eq_div_iff (hQ k hk)).mpr (hratio k hk)
+      symm
+      simp only [Nat.cast_add, Nat.cast_one]
+      rw [ha]
+      linear_combination a k * he
+    _ = _ := Finset.sum_Ico_sub
+      (fun k => a k * ((r.numerator.map f.toRingHom).eval (k : E) /
+        (r.denominator.map f.toRingHom).eval (k : E))) hmn
 
 end Gosper.Algorithm
