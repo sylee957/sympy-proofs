@@ -3,6 +3,7 @@ module
 public import SympyProofs.Sum.Gosper.Algorithm.Correctness
 public import SympyProofs.Sum.Gosper.Algorithm.NormalizationCorrectness
 public import SympyProofs.Sum.Gosper.Algorithm.SolverCorrectness
+public import SympyProofs.Sum.Gosper.RationalExtension
 
 /-! Completeness of Gosper reconstruction, conditional on successful coefficient descent. -/
 
@@ -67,16 +68,22 @@ variable [CommRing K] [IsDomain K] [CharZero K] [DecidableEq K]
 variable {L : Type} [CommRing L] [IsDomain L] [CharZero L] [Algebra K L]
 variable (backend : TermBackend K L)
 
-/-- A run without a descent error is complete over the fraction field of `L`,
-while its matrix is solved over `K` and its result remains over `L`. -/
+/-- A run without a descent error is complete for rational functions over `L`. -/
 theorem gosperTerm_complete (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
     (result : Option (Result L))
     (hrun : gosperTerm backend P Q = .ok result) :
     (∃ c, result = some c ∧ (∀ value ∈ c.residual, value = 0)) ↔
+      Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
+  have htransport : Gosper.HasHypergeometricAntidifference (toRatFunc P Q) ↔
       Gosper.HasHypergeometricAntidifference
         (toRatFunc (P.map (algebraMap L (FractionRing L)))
           (Q.map (algebraMap L (FractionRing L)))) := by
+    simpa only [toRatFunc, map_div₀, Gosper.fractionRingRatFuncEquiv_polynomial] using
+      Gosper.hasHypergeometricAntidifference_equiv (Gosper.fractionRingRatFuncEquiv L)
+        (fun f => by simp)
+        (toRatFunc P Q)
+  rw [htransport]
   obtain ⟨A, B, C, hsolve, hvalid⟩ :=
     gosperTerm_normalForm backend hbackend P Q hP hQ result hrun
   have hi := IsFractionRing.injective L (FractionRing L)
@@ -111,9 +118,7 @@ theorem gosperTerm_complete (hbackend : backend.Valid)
 theorem gosperTerm_none_not_summable (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
     (h : gosperTerm backend P Q = .ok none) :
-    ¬Gosper.HasHypergeometricAntidifference
-      (toRatFunc (P.map (algebraMap L (FractionRing L)))
-        (Q.map (algebraMap L (FractionRing L)))) := by
+    ¬Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
   simpa using (gosperTerm_complete backend hbackend P Q hP hQ none h).not
 
 /-- For a returned result, the retained residual vanishes exactly when the input is summable. -/
@@ -121,9 +126,7 @@ theorem gosperTerm_result_complete (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c)) :
     (∀ value ∈ c.residual, value = 0) ↔
-      Gosper.HasHypergeometricAntidifference
-        (toRatFunc (P.map (algebraMap L (FractionRing L)))
-          (Q.map (algebraMap L (FractionRing L)))) := by
+      Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
   simpa using gosperTerm_complete backend hbackend P Q hP hQ (some c) h
 
 /-- Without a descent error, `none` proves nonsummability and a candidate's residual
@@ -132,14 +135,10 @@ theorem gosperTerm_spec [DecidableEq L] (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Option (Result L))
     (hrun : gosperTerm backend P Q = .ok result) :
     match result with
-    | none => ¬Gosper.HasHypergeometricAntidifference
-        (toRatFunc (P.map (algebraMap L (FractionRing L)))
-          (Q.map (algebraMap L (FractionRing L))))
+    | none => ¬Gosper.HasHypergeometricAntidifference (toRatFunc P Q)
     | some c =>
         ((∀ value ∈ c.residual, value = 0) ↔
-          Gosper.HasHypergeometricAntidifference
-            (toRatFunc (P.map (algebraMap L (FractionRing L)))
-              (Q.map (algebraMap L (FractionRing L))))) ∧
+          Gosper.HasHypergeometricAntidifference (toRatFunc P Q)) ∧
         ((∀ value ∈ c.residual, value = 0) → verify P Q c.numerator c.denominator = true) := by
   cases result with
   | none =>
@@ -177,9 +176,7 @@ theorem reference_gosperTerm_complete (descendCoeff : L → Option K)
         solver := referenceLinearBackend integerRatio rrefK
         descend := descendCoeff } P Q = .ok result) :
     (∃ c, result = some c ∧ (∀ value ∈ c.residual, value = 0)) ↔
-      Gosper.HasHypergeometricAntidifference
-        (toRatFunc (P.map (algebraMap L (FractionRing L)))
-          (Q.map (algebraMap L (FractionRing L)))) :=
+      Gosper.HasHypergeometricAntidifference (toRatFunc P Q) :=
   gosperTerm_complete
     { normalization := normalization
       solver := referenceLinearBackend integerRatio rrefK

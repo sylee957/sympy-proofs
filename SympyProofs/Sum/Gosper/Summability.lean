@@ -19,21 +19,22 @@ namespace Gosper
 
 open Polynomial
 
-variable {K : Type*} [Field K]
+variable {R : Type*} [CommRing R] [IsDomain R]
 
-theorem rationalShift_add (a b : K) (f : RatFunc K) :
+theorem rationalShift_add (a b : R) (f : RatFunc R) :
     rationalShift a (rationalShift b f) = rationalShift (a + b) f := by
-  conv_lhs => rw [← f.num_div_denom]
-  simp only [map_div₀, rationalShift_polynomial, taylor_taylor]
-  rw [← rationalShift_fraction]
+  induction f using RatFunc.induction_on with
+  | f p q hq => simp only [map_div₀, rationalShift_polynomial, taylor_taylor]
 
-@[simp] theorem rationalShift_zero (f : RatFunc K) : rationalShift 0 f = f := by
-  rw [rationalShift_fraction]
-  simp
+@[simp] theorem rationalShift_zero (f : RatFunc R) : rationalShift 0 f = f := by
+  induction f using RatFunc.induction_on with
+  | f p q hq => simp only [map_div₀, rationalShift_polynomial, taylor_zero]
 
 /-- The rational multiplier equation for an indefinite hypergeometric sum. -/
-def HasRationalAntidifference (ρ : RatFunc K) : Prop :=
-  ∃ g : RatFunc K, ρ * g - rationalShift (-1) g = ρ
+def HasRationalAntidifference (ρ : RatFunc R) : Prop :=
+  ∃ g : RatFunc R, ρ * g - rationalShift (-1) g = ρ
+
+variable {K : Type*} [Field K]
 
 /-- The term ratio in equation (5). -/
 def normalRatio (p q r : K[X]) : RatFunc K :=

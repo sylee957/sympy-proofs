@@ -19,12 +19,26 @@ namespace Gosper
 
 open Polynomial
 
-variable {K : Type*} [Field K]
+variable {K : Type*} [CommRing K] [IsDomain K]
 
 /-- A nonzero forward difference of a hypergeometric sum, expressed without division. -/
 def HasHypergeometricAntidifference (ρ : RatFunc K) : Prop :=
   ∃ σ : RatFunc K, σ ≠ 0 ∧ σ ≠ 1 ∧
     ρ * (σ - 1) = σ * (rationalShift 1 σ - 1)
+
+/-- Summability is unchanged by an equivalence that preserves translation. -/
+theorem hasHypergeometricAntidifference_equiv
+    {R : Type*} [CommRing R] [IsDomain R] (e : RatFunc K ≃+* RatFunc R)
+    (hshift : ∀ f, e (rationalShift 1 f) = rationalShift 1 (e f)) (ρ : RatFunc K) :
+    HasHypergeometricAntidifference ρ ↔ HasHypergeometricAntidifference (e ρ) := by
+  constructor
+  · rintro ⟨σ, hσ0, hσ1, he⟩
+    refine ⟨e σ, by simpa using hσ0, by simpa using hσ1, ?_⟩
+    simpa only [map_mul, map_sub, map_one, hshift] using congrArg e he
+  · rintro ⟨σ, hσ0, hσ1, he⟩
+    obtain ⟨σ, rfl⟩ := e.surjective σ
+    refine ⟨σ, by simpa using hσ0, by simpa using hσ1, e.injective ?_⟩
+    simpa only [map_mul, map_sub, map_one, hshift] using he
 
 /-- The forward sum-ratio formula is equivalent to the forward multiplier equation. -/
 theorem hypergeometric_iff_forward (ρ : RatFunc K) (hρ : ρ ≠ 0) :
@@ -78,10 +92,10 @@ theorem hypergeometric_iff_rational (ρ : RatFunc K) (hρ : ρ ≠ 0) :
     simp only [map_sub, map_one, rationalShift_add, add_neg_cancel, rationalShift_zero]
     linear_combination hh
 
-variable [DecidableEq K]
+variable {F : Type*} [Field F] [DecidableEq F]
 
 /-- The paper's decision criterion in terms of the hypergeometric sum ratio. -/
-theorem hypergeometric_gosper_criterion [CharZero K] (p q r : K[X])
+theorem hypergeometric_gosper_criterion [CharZero F] (p q r : F[X])
     (hp : p ≠ 0) (hq : q ≠ 0) (hr : r ≠ 0) (hqr : ShiftCoprime q r) :
     HasHypergeometricAntidifference (normalRatio p q r) ↔
       let k := paperDegreeBound p (taylor 1 q) r
@@ -95,7 +109,7 @@ theorem hypergeometric_gosper_criterion [CharZero K] (p q r : K[X])
   rw [hypergeometric_iff_rational _ hρ, gosper_criterion p q r hp hq hr hqr]
 
 /-- A negative degree bound excludes a hypergeometric antidifference. -/
-theorem no_hypergeometric_antidifference_of_degreeBound_neg [CharZero K] (p q r : K[X])
+theorem no_hypergeometric_antidifference_of_degreeBound_neg [CharZero F] (p q r : F[X])
     (hp : p ≠ 0) (hq : q ≠ 0) (hr : r ≠ 0) (hqr : ShiftCoprime q r)
     (hk : paperDegreeBound p (taylor 1 q) r < 0) :
     ¬HasHypergeometricAntidifference (normalRatio p q r) := by

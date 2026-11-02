@@ -11,22 +11,24 @@ namespace Gosper
 
 open Polynomial
 
-variable {K : Type*} [Field K]
+variable {R : Type*} [CommRing R] [IsDomain R]
 
 /-- Translation of rational functions, extending polynomial translation. -/
-def rationalShift (a : K) : RatFunc K →+* RatFunc K :=
-  RatFunc.liftRingHom ((algebraMap K[X] (RatFunc K)).comp (taylorAlgHom a).toRingHom)
+def rationalShift (a : R) : RatFunc R →+* RatFunc R :=
+  RatFunc.liftRingHom ((algebraMap R[X] (RatFunc R)).comp (taylorAlgHom a).toRingHom)
     (by
       intro p hp
-      change algebraMap K[X] (RatFunc K) (taylor a p) ∈ nonZeroDivisors _
+      change algebraMap R[X] (RatFunc R) (taylor a p) ∈ nonZeroDivisors _
       rw [mem_nonZeroDivisors_iff_ne_zero] at hp ⊢
       exact fun h => hp ((taylor_eq_zero a p).mp
-        ((IsFractionRing.injective K[X] (RatFunc K)) (by simpa using h))))
+        ((IsFractionRing.injective R[X] (RatFunc R)) (by simpa using h))))
 
-@[simp] theorem rationalShift_polynomial (a : K) (p : K[X]) :
-    rationalShift a (algebraMap K[X] (RatFunc K) p) =
-      algebraMap K[X] (RatFunc K) (taylor a p) :=
+@[simp] theorem rationalShift_polynomial (a : R) (p : R[X]) :
+    rationalShift a (algebraMap R[X] (RatFunc R) p) =
+      algebraMap R[X] (RatFunc R) (taylor a p) :=
   RatFunc.liftRingHom_algebraMap _ _ _
+
+variable {K : Type*} [Field K]
 
 theorem rationalShift_fraction (a : K) (f : RatFunc K) :
     rationalShift a f =

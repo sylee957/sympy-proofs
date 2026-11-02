@@ -36,21 +36,23 @@ theorem verify_at [DecidableEq F] (P Q U V : F[X]) (h : verify P Q U V = true) (
   field_simp
   linear_combination hi
 
-def toRatFunc (U V : F[X]) : RatFunc F :=
-  algebraMap F[X] (RatFunc F) U / algebraMap F[X] (RatFunc F) V
+def toRatFunc {R : Type*} [CommRing R] [IsDomain R] (U V : R[X]) : RatFunc R :=
+  algebraMap R[X] (RatFunc R) U / algebraMap R[X] (RatFunc R) V
 
-theorem toRatFunc_ne_zero (U V : F[X]) (hU : U ≠ 0) (hV : V ≠ 0) :
+theorem toRatFunc_ne_zero {R : Type*} [CommRing R] [IsDomain R]
+    (U V : R[X]) (hU : U ≠ 0) (hV : V ≠ 0) :
     toRatFunc U V ≠ 0 := by
   unfold toRatFunc
   exact div_ne_zero (by simpa using hU) (by simpa using hV)
 
-theorem verify_ratFunc [DecidableEq F] (P Q U V : F[X]) (h : verify P Q U V = true) :
+theorem verify_ratFunc {R : Type*} [CommRing R] [IsDomain R] [DecidableEq R]
+    (P Q U V : R[X]) (h : verify P Q U V = true) :
     toRatFunc P Q * Gosper.rationalShift 1 (toRatFunc U V) - toRatFunc U V = 1 := by
   obtain ⟨hQ, hV, he⟩ := verify_sound P Q U V h
-  let ι := algebraMap F[X] (RatFunc F)
-  have map_ne (p : F[X]) (hp : p ≠ 0) : ι p ≠ 0 := by
+  let ι := algebraMap R[X] (RatFunc R)
+  have map_ne (p : R[X]) (hp : p ≠ 0) : ι p ≠ 0 := by
     intro hz
-    exact hp ((IsFractionRing.injective F[X] (RatFunc F)) (by simpa [ι] using hz))
+    exact hp ((IsFractionRing.injective R[X] (RatFunc R)) (by simpa [ι] using hz))
   have hq := map_ne _ hQ
   have hv := map_ne _ hV
   have hsv := map_ne _ ((taylor_eq_zero 1 V).not.mpr hV)
@@ -94,8 +96,9 @@ theorem forward_iff_backward (ρ : RatFunc F) :
     simp only [map_sub, map_one]
     linear_combination hs
 
-theorem forward_iff_hypergeometric (ρ : RatFunc F) (hρ : ρ ≠ 0) :
-    (∃ g : RatFunc F, ρ * Gosper.rationalShift 1 g - g = 1) ↔
+theorem forward_iff_hypergeometric {R : Type*} [CommRing R] [IsDomain R]
+    (ρ : RatFunc R) (hρ : ρ ≠ 0) :
+    (∃ g : RatFunc R, ρ * Gosper.rationalShift 1 g - g = 1) ↔
       Gosper.HasHypergeometricAntidifference ρ :=
   (Gosper.hypergeometric_iff_forward ρ hρ).symm
 
@@ -246,78 +249,75 @@ theorem gosperTerm_identity (hbackend : backend.Valid)
   classical
   exact verify_sound P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
 
-/-- Interpret the ring-valued output as a rational multiplier in its fraction field. -/
+/-- The returned multiplier satisfies the rational-function identity over the input domain. -/
 theorem gosperTerm_sound (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
-    let i := algebraMap L (FractionRing L)
-    toRatFunc (P.map i) (Q.map i) * Gosper.rationalShift 1
-      (toRatFunc (c.numerator.map i) (c.denominator.map i)) -
-      toRatFunc (c.numerator.map i) (c.denominator.map i) = 1 := by
+    toRatFunc P Q * Gosper.rationalShift 1 (toRatFunc c.numerator c.denominator) -
+      toRatFunc c.numerator c.denominator = 1 := by
   classical
   exact verify_ratFunc _ _ _ _
-    ((verify_map_iff (algebraMap L (FractionRing L)) (IsFractionRing.injective L (FractionRing L))
-      P Q c.numerator c.denominator).mpr
-        (gosperTerm_verified backend hbackend P Q hP hQ c h hzero))
+    (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
 
 /-- A returned multiplier with vanishing residual gives a hypergeometric antidifference. -/
 theorem gosperTerm_hypergeometric (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
-    Gosper.HasHypergeometricAntidifference
-      (toRatFunc (P.map (algebraMap L (FractionRing L)))
-        (Q.map (algebraMap L (FractionRing L)))) := by
-  have hρ : toRatFunc (P.map (algebraMap L (FractionRing L)))
-      (Q.map (algebraMap L (FractionRing L))) ≠ 0 := by
-    have hi := IsFractionRing.injective L (FractionRing L)
-    exact toRatFunc_ne_zero _ _ ((Polynomial.map_eq_zero_iff hi).not.mpr hP)
-      ((Polynomial.map_eq_zero_iff hi).not.mpr hQ)
-  exact (forward_iff_hypergeometric _ hρ).mp
+    Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
+  exact (forward_iff_hypergeometric _ (toRatFunc_ne_zero P Q hP hQ)).mp
     ⟨_, gosperTerm_sound backend hbackend P Q hP hQ c h hzero⟩
+
+variable {E : Type*} [Field E] [Algebra L E]
 
 /-- The reconstructed forward antidifference advances by the input term. -/
 theorem gosperTerm_step (hbackend : backend.Valid)
     (P Q : L[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
-    (hzero : ∀ value ∈ c.residual, value = 0) (a : ℕ → FractionRing L) (n : ℕ)
-    (hQ : (Q.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) ≠ 0)
-    (hV : (c.denominator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) ≠ 0)
-    (hVnext : (c.denominator.map (algebraMap L (FractionRing L))).eval ((n + 1 : ℕ) : FractionRing L) ≠ 0)
-    (hratio : a (n + 1) * (Q.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) = a n * (P.map (algebraMap L (FractionRing L))).eval (n : FractionRing L)) :
-    a (n + 1) * ((c.numerator.map (algebraMap L (FractionRing L))).eval ((n + 1 : ℕ) : FractionRing L) /
-        (c.denominator.map (algebraMap L (FractionRing L))).eval ((n + 1 : ℕ) : FractionRing L)) -
-      a n * ((c.numerator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L)) = a n := by
-  classical
-  have hv := (verify_map_iff (algebraMap L (FractionRing L))
-    (IsFractionRing.injective L (FractionRing L)) P Q c.numerator c.denominator).mpr
-    (gosperTerm_verified backend hbackend P Q hP0 hQ0 c h hzero)
-  have he := verify_at _ _ _ _ hv
-    (n : FractionRing L) hQ hV (by simpa using hVnext)
+    (hzero : ∀ value ∈ c.residual, value = 0) (a : ℕ → E) (n : ℕ)
+    (hQ : aeval (n : E) Q ≠ 0)
+    (hV : aeval (n : E) c.denominator ≠ 0)
+    (hVnext : aeval ((n + 1 : ℕ) : E) c.denominator ≠ 0)
+    (hratio : a (n + 1) * aeval (n : E) Q = a n * aeval (n : E) P) :
+    a (n + 1) * (aeval ((n + 1 : ℕ) : E) c.numerator /
+        aeval ((n + 1 : ℕ) : E) c.denominator) -
+      a n * (aeval (n : E) c.numerator / aeval (n : E) c.denominator) = a n := by
+  have ht (p : L[X]) : aeval (n : E) (taylor 1 p) = aeval ((n : E) + 1) p := by
+    simp only [← eval_map_algebraMap, map_taylor, map_one, taylor_eval]
+  have he := congrArg (aeval (n : E))
+    (gosperTerm_identity backend hbackend P Q hP0 hQ0 c h hzero).2.2
+  simp only [residual, map_sub, map_mul, map_zero, ht] at he
+  have hvnext : aeval ((n : E) + 1) c.denominator ≠ 0 := by simpa using hVnext
+  have hi : aeval (n : E) P / aeval (n : E) Q *
+        (aeval ((n : E) + 1) c.numerator / aeval ((n : E) + 1) c.denominator) -
+      aeval (n : E) c.numerator / aeval (n : E) c.denominator = 1 := by
+    field_simp
+    linear_combination he
   have ha := (eq_div_iff hQ).mpr hratio
   simp only [Nat.cast_add, Nat.cast_one]
   rw [ha]
-  linear_combination a n * he
+  linear_combination a n * hi
 
-/-- The returned multiplier telescopes a finite sum under the stated denominator conditions. -/
+/-- The returned multiplier telescopes a finite sum in any target field where
+its evaluated denominators do not vanish. -/
 theorem gosperTerm_sum (hbackend : backend.Valid)
     (P Q : L[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0)
-    (a : ℕ → FractionRing L) (m n : ℕ) (hmn : m ≤ n)
-    (hQ : ∀ k ∈ Finset.Ico m n, (Q.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) ≠ 0)
-    (hV : ∀ k ∈ Finset.Icc m n, (c.denominator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) ≠ 0)
+    (a : ℕ → E) (m n : ℕ) (hmn : m ≤ n)
+    (hQ : ∀ k ∈ Finset.Ico m n, aeval (k : E) Q ≠ 0)
+    (hV : ∀ k ∈ Finset.Icc m n, aeval (k : E) c.denominator ≠ 0)
     (hratio : ∀ k ∈ Finset.Ico m n,
-      a (k + 1) * (Q.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) = a k * (P.map (algebraMap L (FractionRing L))).eval (k : FractionRing L)) :
+      a (k + 1) * aeval (k : E) Q = a k * aeval (k : E) P) :
     ∑ k ∈ Finset.Ico m n, a k =
-      a n * ((c.numerator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L)) -
-        a m * ((c.numerator.map (algebraMap L (FractionRing L))).eval (m : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (m : FractionRing L)) := by
+      a n * (aeval (n : E) c.numerator / aeval (n : E) c.denominator) -
+        a m * (aeval (m : E) c.numerator / aeval (m : E) c.denominator) := by
   calc
     _ = ∑ k ∈ Finset.Ico m n,
-        (a (k + 1) * ((c.numerator.map (algebraMap L (FractionRing L))).eval ((k + 1 : ℕ) : FractionRing L) /
-            (c.denominator.map (algebraMap L (FractionRing L))).eval ((k + 1 : ℕ) : FractionRing L)) -
-          a k * ((c.numerator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L))) := by
+        (a (k + 1) * (aeval ((k + 1 : ℕ) : E) c.numerator /
+            aeval ((k + 1 : ℕ) : E) c.denominator) -
+          a k * (aeval (k : E) c.numerator / aeval (k : E) c.denominator)) := by
       apply Finset.sum_congr rfl
       intro k hk
       have hk' := Finset.mem_Ico.mp hk
@@ -326,6 +326,6 @@ theorem gosperTerm_sum (hbackend : backend.Valid)
         (hV k (Finset.mem_Icc.mpr ⟨hk'.1, by omega⟩))
         (hV (k + 1) (Finset.mem_Icc.mpr ⟨by omega, by omega⟩)) (hratio k hk)).symm
     _ = _ := Finset.sum_Ico_sub
-      (fun k => a k * ((c.numerator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L))) hmn
+      (fun k => a k * (aeval (k : E) c.numerator / aeval (k : E) c.denominator)) hmn
 
 end Gosper.Algorithm
