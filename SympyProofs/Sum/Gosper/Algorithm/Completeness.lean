@@ -31,17 +31,18 @@ theorem normalForm_backwardRatio (P Q : K[X]) (hQ : Q ≠ 0) (s : K[X] × K[X] �
 theorem normalForm_hypergeometric_iff_polynomial [CharZero K]
     (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
     (s : K[X] × K[X] × K[X]) (hs : normalFormValid P Q s) :
-    Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) ↔
+    Gosper.HasHypergeometricAntidifference (toRatFunc P Q) ↔
       ∃ x : K[X], s.1 * taylor 1 x - taylor (-1) s.2.1 * x = s.2.2 := by
-  have hρ : Gosper.rationalShift (-1) (toRatFunc P Q) ≠ 0 := by
-    simp only [toRatFunc, map_div₀, Gosper.rationalShift_polynomial]
+  have hρ : toRatFunc P Q ≠ 0 := by
+    unfold toRatFunc
     exact div_ne_zero (by simpa using hP) (by simpa using hQ)
   have hA : taylor (-1 : K) s.1 ≠ 0 := (taylor_eq_zero _ _).not.mpr hs.1.1
   have hB : taylor (-1 : K) s.2.1 ≠ 0 := (taylor_eq_zero _ _).not.mpr hs.1.2.1
   have hcop : Gosper.ShiftCoprime (taylor (-1) s.1) (taylor (-1) s.2.1) := by
     intro j
     simpa [taylor_taylor, add_comm] using (hs.2.1 j).map (taylorAlgHom (-1 : K)).toRingHom
-  rw [Gosper.hypergeometric_iff_rational _ hρ, normalForm_backwardRatio P Q hQ s hs,
+  rw [Gosper.hypergeometric_iff_forward _ hρ, forward_iff_backward,
+    normalForm_backwardRatio P Q hQ s hs,
     Gosper.summable_iff_rational_solution _ _ _ hs.1.2.2 hA hB,
     Gosper.rational_solution_iff_polynomial _ _ _ hcop]
   constructor
@@ -70,7 +71,7 @@ theorem gosperTerm_complete (hbackend : backend.Valid)
     (result : Option (Result L))
     (hrun : gosperTerm backend P Q = .ok result) :
     (∃ c, result = some c ∧ (∀ value ∈ c.residual, value = 0)) ↔
-      Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) := by
+      Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
   obtain ⟨A, B, hA, hB, hsolve⟩ :=
     (gosperTerm_eq_ok_iff backend P Q result).mp hrun
   have hmapA := (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ A).mp hA
@@ -98,7 +99,7 @@ theorem gosperTerm_complete (hbackend : backend.Valid)
 theorem gosperTerm_none_not_summable (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
     (h : gosperTerm backend P Q = .ok none) :
-    ¬Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) := by
+    ¬Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
   simpa using (gosperTerm_complete backend hbackend P Q hP hQ none h).not
 
 /-- For a returned result, the retained residual vanishes exactly when the input is summable. -/
@@ -106,7 +107,7 @@ theorem gosperTerm_result_complete (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c)) :
     (∀ value ∈ c.residual, value = 0) ↔
-      Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) := by
+      Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
   simpa using gosperTerm_complete backend hbackend P Q hP hQ (some c) h
 
 /-- Without a descent error, `none` proves nonsummability and a candidate's residual
@@ -115,11 +116,10 @@ theorem gosperTerm_spec (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Option (Result L))
     (hrun : gosperTerm backend P Q = .ok result) :
     match result with
-    | none => ¬Gosper.HasHypergeometricAntidifference
-        (Gosper.rationalShift (-1) (toRatFunc P Q))
+    | none => ¬Gosper.HasHypergeometricAntidifference (toRatFunc P Q)
     | some c =>
-        ((∀ value ∈ c.residual, value = 0) ↔ Gosper.HasHypergeometricAntidifference
-          (Gosper.rationalShift (-1) (toRatFunc P Q))) ∧
+        ((∀ value ∈ c.residual, value = 0) ↔
+          Gosper.HasHypergeometricAntidifference (toRatFunc P Q)) ∧
         ((∀ value ∈ c.residual, value = 0) → verify P Q c.numerator c.denominator = true) := by
   cases result with
   | none =>
@@ -152,7 +152,7 @@ theorem reference_gosperTerm_complete (descendCoeff : L → Option K)
         solver := referenceBackend rrefK
         descend := descendCoeff } P Q = .ok result) :
     (∃ c, result = some c ∧ (∀ value ∈ c.residual, value = 0)) ↔
-      Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) :=
+      Gosper.HasHypergeometricAntidifference (toRatFunc P Q) :=
   gosperTerm_complete
     { normalization := referenceBackend rrefL
       solver := referenceBackend rrefK

@@ -3,11 +3,11 @@ module
 public import SympyProofs.Sum.Gosper.Summability
 
 /-!
-# Hypergeometric sum ratios, equations (2) and (4)
+# Hypergeometric antidifferences in the forward convention
 
-If `σ(n) = S(n)/S(n-1)`, then the ratio of the backward differences of `S`
-is `(σ(n)-1)/(1-1/σ(n-1))`. This module proves that this formulation of
-hypergeometric summability is equivalent to the rational multiplier equation.
+If `σ(n) = S(n+1)/S(n)` and `a(n) = S(n+1)-S(n)`, then the forward term ratio
+`ρ(n) = a(n+1)/a(n)` satisfies `ρ(n)(σ(n)-1) = σ(n)(σ(n+1)-1)`.
+This module connects that formula to both rational multiplier conventions.
 All equations here are identities of rational functions, so isolated poles
 are handled separately by the finite-sum theorems' nonvanishing assumptions.
 -/
@@ -21,41 +21,62 @@ open Polynomial
 
 variable {K : Type*} [Field K]
 
-/-- The sum ratio (2) and term ratio (4), excluding the zero difference. -/
+/-- A nonzero forward difference of a hypergeometric sum, expressed without division. -/
 def HasHypergeometricAntidifference (ρ : RatFunc K) : Prop :=
   ∃ σ : RatFunc K, σ ≠ 0 ∧ σ ≠ 1 ∧
-    ρ = (σ - 1) / (1 - (rationalShift (-1) σ)⁻¹)
+    ρ * (σ - 1) = σ * (rationalShift 1 σ - 1)
 
-theorem hypergeometric_iff_rational (ρ : RatFunc K) (hρ : ρ ≠ 0) :
-    HasHypergeometricAntidifference ρ ↔ HasRationalAntidifference ρ := by
+/-- The forward sum-ratio formula is equivalent to the forward multiplier equation. -/
+theorem hypergeometric_iff_forward (ρ : RatFunc K) (hρ : ρ ≠ 0) :
+    HasHypergeometricAntidifference ρ ↔
+      ∃ g : RatFunc K, ρ * rationalShift 1 g - g = 1 := by
   constructor
   · rintro ⟨σ, hs0, hs1, he⟩
-    have hsg0 : rationalShift (-1) σ ≠ 0 :=
-      fun h => hs0 ((rationalShift (-1)).injective (by simpa using h))
-    have hsg1 : rationalShift (-1) σ ≠ 1 :=
-      fun h => hs1 ((rationalShift (-1)).injective (by simpa using h))
-    refine ⟨σ / (σ - 1), ?_⟩
-    rw [he, map_div₀, map_sub, map_one]
-    field_simp
+    have hsg1 : rationalShift 1 σ ≠ 1 :=
+      fun h => hs1 ((rationalShift 1).injective (by simpa using h))
+    have hratio := (eq_div_iff (sub_ne_zero.mpr hs1)).mpr he
+    refine ⟨(σ - 1)⁻¹, ?_⟩
+    rw [hratio, map_inv₀, map_sub, map_one]
+    field_simp [sub_ne_zero.mpr hs1, sub_ne_zero.mpr hsg1]
   · rintro ⟨g, hg⟩
-    have hg0 : g ≠ 0 := by intro h; simp [h] at hg; exact hρ hg.symm
-    have hg1 : g ≠ 1 := by intro h; simp [h] at hg
-    have hsg0 : rationalShift (-1) g ≠ 0 :=
-      fun h => hg0 ((rationalShift (-1)).injective (by simpa using h))
-    have hsg1 : rationalShift (-1) g ≠ 1 :=
-      fun h => hg1 ((rationalShift (-1)).injective (by simpa using h))
-    let σ := g / (g - 1)
-    have hs0 : σ ≠ 0 := div_ne_zero hg0 (sub_ne_zero.mpr hg1)
+    have hg0 : g ≠ 0 := by
+      intro h
+      simp [h] at hg
+    have hgadd : g + 1 ≠ 0 := by
+      intro h
+      have he : g = -1 := by linear_combination h
+      rw [he] at hg
+      simp only [map_neg, map_one, mul_neg_one, sub_neg_eq_add] at hg
+      apply hρ
+      linear_combination -hg
+    let σ := (g + 1) / g
+    have hs0 : σ ≠ 0 := div_ne_zero hgadd hg0
     have hs1 : σ ≠ 1 := by
       intro h
-      have he := (div_eq_one_iff_eq (sub_ne_zero.mpr hg1)).mp h
+      have he := (div_eq_one_iff_eq hg0).mp h
       have : (1 : RatFunc K) = 0 := by linear_combination he
       exact one_ne_zero this
     refine ⟨σ, hs0, hs1, ?_⟩
     dsimp [σ]
-    rw [map_div₀, map_sub, map_one]
-    field_simp
+    rw [map_div₀, map_add, map_one]
+    have hsg0 : rationalShift 1 g ≠ 0 :=
+      fun h => hg0 ((rationalShift 1).injective (by simpa using h))
+    field_simp [hg0, hsg0]
     linear_combination hg
+
+/-- The forward formulation also characterizes the paper's rational multiplier equation. -/
+theorem hypergeometric_iff_rational (ρ : RatFunc K) (hρ : ρ ≠ 0) :
+    HasHypergeometricAntidifference ρ ↔ HasRationalAntidifference ρ := by
+  rw [hypergeometric_iff_forward ρ hρ]
+  constructor
+  · rintro ⟨g, hg⟩
+    refine ⟨rationalShift 1 g + 1, ?_⟩
+    simp only [map_add, map_one, rationalShift_add, neg_add_cancel, rationalShift_zero]
+    linear_combination hg
+  · rintro ⟨h, hh⟩
+    refine ⟨rationalShift (-1) h - 1, ?_⟩
+    simp only [map_sub, map_one, rationalShift_add, add_neg_cancel, rationalShift_zero]
+    linear_combination hh
 
 variable [DecidableEq K]
 

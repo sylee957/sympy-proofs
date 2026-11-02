@@ -88,10 +88,8 @@ theorem forward_iff_backward (ρ : RatFunc K) :
 
 theorem forward_iff_hypergeometric (ρ : RatFunc K) (hρ : ρ ≠ 0) :
     (∃ g : RatFunc K, ρ * Gosper.rationalShift 1 g - g = 1) ↔
-      Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) ρ) := by
-  rw [Gosper.hypergeometric_iff_rational]
-  · exact forward_iff_backward ρ
-  · exact fun h => hρ ((Gosper.rationalShift (-1)).injective (by simpa using h))
+      Gosper.HasHypergeometricAntidifference ρ :=
+  (Gosper.hypergeometric_iff_forward ρ hρ).symm
 
 variable [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
 variable {L : Type} [Field L] [CharZero L] [DecidableEq L]
@@ -218,7 +216,7 @@ theorem gosperTerm_hypergeometric (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
-    Gosper.HasHypergeometricAntidifference (Gosper.rationalShift (-1) (toRatFunc P Q)) := by
+    Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
   have hρ : toRatFunc P Q ≠ 0 := by
     unfold toRatFunc
     exact div_ne_zero (by simpa using hP) (by simpa using hQ)

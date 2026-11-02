@@ -17,6 +17,8 @@ The main theorem is `Gosper.hypergeometric_gosper_criterion`. Normalization is
 provided by `Gosper.exists_normalForm`; `Gosper.exists_normalized_criterion`
 combines normalization and the finite linear-system reduction. Numerical
 finite sums follow from `Gosper.certificate_sum` and the product-sum theorems.
+`Gosper.HasHypergeometricAntidifference ρ` uses the forward term ratio
+`ρ(X) = a(X+1)/a(X)` and a forward sum ratio `σ(X) = S(X+1)/S(X)`.
 
 `Algorithm.gosperTerm` models the procedure on Mathlib polynomials over a
 characteristic-zero coefficient field with decidable `IsLocalization.IsInteger ℤ`
@@ -36,7 +38,8 @@ For a returned result, `Algorithm.gosperSolve_specialize_complete` characterizes
 the solvable specialized polynomial equations by the evaluated residual conditions,
 including a zero specialized right-hand side. `Algorithm.gosperSolve_specialize_ratFunc` gives
 the corresponding rational multiplier identity directly from normalized inputs.
-`Algorithm.gosperTerm backend P Q` takes a `TermBackend K L` bundling
+`Algorithm.gosperTerm backend P Q` takes the forward term ratio `P/Q` and a
+`TermBackend K L` bundling
 `normalization : Backend L`, `solver : Backend K`, and `descend : L → Option K`.
 It normalizes over `L`, converts the coefficients of `A` and `B` to `K`, then
 reduces the matrix over `K`. `C` and the output remain over `L`.
