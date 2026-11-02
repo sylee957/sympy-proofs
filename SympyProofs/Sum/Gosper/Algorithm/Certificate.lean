@@ -11,11 +11,13 @@ namespace Gosper.Algorithm
 
 open Polynomial
 
-variable {K : Type*} [Field K] [DecidableEq K]
+variable {K : Type*} [Field K]
 
 /-- Cross-multiplied forward Gosper equation for the multiplier U/V. -/
 def residual (P Q U V : K[X]) : K[X] :=
   P * taylor 1 U * V - Q * U * taylor 1 V - Q * V * taylor 1 V
+
+variable [DecidableEq K]
 
 /-- Equality in K[X] replaces the former rational sampling test. -/
 def verify (P Q U V : K[X]) : Bool :=

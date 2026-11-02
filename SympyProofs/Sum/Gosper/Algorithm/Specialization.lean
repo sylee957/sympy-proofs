@@ -20,11 +20,11 @@ def Result.map {R S : Type*} [CommRing R] [CommRing S]
   denominator := r.denominator.map f
   residual := r.residual.map f
 
-variable {K R S : Type} [Field K] [DecidableEq K]
-variable [DecidablePred (IsInteger ℤ : K → Prop)]
-variable [CommRing R] [Algebra K R] [CommRing S] [Algebra K S]
+variable {K : Type} [Field K]
+variable {R : Type} [CommRing R] [Algebra K R]
+variable {S : Type} [CommRing S] [Algebra K S]
+variable {L : Type} [Field L] [Algebra K L]
 
-omit [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)] in
 private theorem matrix_mulVec_map {m n : ℕ} (f : R →ₐ[K] S)
     (M : Matrix (Fin m) (Fin n) K) (b : Fin n → R) :
     f ∘ (M.map (algebraMap K R)).mulVec b =
@@ -33,7 +33,9 @@ private theorem matrix_mulVec_map {m n : ℕ} (f : R →ₐ[K] S)
   simp [Matrix.mulVec, dotProduct, map_sum, map_mul]
 
 /-- Describe the mapped output using the original coefficient matrix, without rerunning the solver. -/
-private theorem gosperSolve_output_map (backend : Backend K) (hbackend : backend.Valid)
+private theorem gosperSolve_output_map [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    (backend : Backend K) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] S) (r : Result R)
     (hrun : gosperSolve backend A B C = some r) :
     let d := degreeBound A B C
@@ -74,7 +76,9 @@ private theorem gosperSolve_output_map (backend : Backend K) (hbackend : backend
 set_option backward.isDefEq.respectTransparency false in
 /-- Rerunning the solver commutes with evaluation when the right-hand-side degree is
 preserved. The direct output-specialization theorems below also cover degree drops. -/
-theorem gosperSolve_map (backend : Backend K) (hbackend : backend.Valid)
+theorem gosperSolve_map [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    (backend : Backend K) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] S)
     (hdegree : (C.map f.toRingHom).natDegree = C.natDegree) :
     gosperSolve backend A B (C.map f.toRingHom) =
@@ -108,13 +112,11 @@ theorem gosperSolve_map (backend : Backend K) (hbackend : backend.Valid)
       exact congrArg (Polynomial.monomial j.val) (congrFun (hvec q.inverse) j).symm
     · exact congrArg (fun v => q.residualEntries v) (hvec q.rightMatrix).symm
 
-section Field
-
-variable {L : Type} [Field L] [Algebra K L]
-
 /-- Vanishing evaluated conditions certify the specialized normalized equation.
 No injectivity or preservation of the right-hand-side degree is required. -/
-theorem gosperSolve_specialize_sound (backend : Backend K) (hbackend : backend.Valid)
+theorem gosperSolve_specialize_sound [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    (backend : Backend K) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] L) (r : Result R)
     (hrun : gosperSolve backend A B C = some r)
     (hzero : ∀ value ∈ r.residual, f value = 0) :
@@ -147,11 +149,11 @@ theorem gosperSolve_specialize_sound (backend : Backend K) (hbackend : backend.V
   · exact (coefficientSystem_correct_extension_bounded A B (C.map f.toRingHom)
       d.toNat C.natDegree Polynomial.natDegree_map_le (q.inverse.mulVec b)).mp hcoeffs
 
-variable [CharZero K]
-
 /-- The retained output's evaluated residual detects solvability, including degree
 drops and specializations that make the entire right-hand side zero. -/
-theorem gosperSolve_specialize_complete (backend : Backend K) (hbackend : backend.Valid)
+theorem gosperSolve_specialize_complete [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)] [CharZero K]
+    (backend : Backend K) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] L) (r : Result R)
     (hrun : gosperSolve backend A B C = some r) (hA : A ≠ 0) (hB : B ≠ 0) :
     (∀ value ∈ r.residual, f value = 0) ↔
@@ -194,9 +196,10 @@ theorem gosperSolve_specialize_complete (backend : Backend K) (hbackend : backen
       simpa only [q, RrefResult.map_residualEntries, RrefResult.map_rightMatrix] using hzq
     simpa [Result.map, Array.mem_map] using hz
 
-omit [CharZero K] in
 /-- The evaluated output is a rational Gosper multiplier for the specialized normal form. -/
-theorem gosperSolve_specialize_ratFunc (backend : Backend K) (hbackend : backend.Valid)
+theorem gosperSolve_specialize_ratFunc [DecidableEq K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    (backend : Backend K) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] L) (r : Result R)
     (hrun : gosperSolve backend A B C = some r)
     (hzero : ∀ value ∈ r.residual, f value = 0)
@@ -236,7 +239,5 @@ theorem gosperSolve_specialize_ratFunc (backend : Backend K) (hbackend : backend
       ι (r.numerator.map f.toRingHom) / ι c = 1
   field_simp [hbnext, hcbase, hcnext]
   linear_combination hm
-
-end Field
 
 end Gosper.Algorithm

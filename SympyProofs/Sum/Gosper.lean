@@ -39,14 +39,17 @@ the corresponding rational multiplier identity directly from normalized inputs.
 `Algorithm.gosperTerm backendL backendK descendCoeff P Q` first normalizes
 over `L`, then converts the coefficients of `A` and `B` into a chosen smaller
 field `K`. `C` and the output remain over `L`; matrix reduction uses `backendK`.
-`Algorithm.CoefficientDescentValid` specifies that the supplied coefficient
-converter succeeds exactly on the image of `algebraMap K L`.
-`Algorithm.descendPolynomial_eq_some_iff` proves exact polynomial reconstruction.
-`Algorithm.gosperTerm_complete` proves completeness when both normalized
-polynomials descend. A conversion error identifies `A` or `B`; it does not assert
-nonsummability. A successful conversion preserves the solver's optional result.
+The supplied converter `descendCoeff : L → Option K` tests membership and converts
+coefficients. `Algorithm.CoefficientDescentValid` requires
+`descendCoeff c = some a ↔ algebraMap K L a = c`.
+Successful conversion therefore supplies exact reconstruction of `A` and `B`;
+callers need no separate membership hypotheses.
+`Algorithm.Correctness` proves soundness and finite-sum identities for this entry
+point. `Algorithm.Completeness` proves completeness whenever the call returns
+`.ok result`, under valid primitive operations and the converter contract.
 For the same field, use `Algorithm.gosperTerm backend backend some P Q`.
-`Algorithm.gosperTerm_self` proves that identity conversion cannot fail.
+`Algorithm.gosperTerm_self` proves that identity conversion cannot return an error.
+The same soundness and completeness theorems apply to this case.
 The coefficient matrix is augmented by an identity matrix
 to record reusable row operations. One matrix-vector product applies its right
 block to the right-hand side. The pivot rows give the coefficients, and the
@@ -62,10 +65,10 @@ For a fixed rational matrix, `rationalInverseCandidate` and
 without testing parameter coefficients for equality. `inverseRref_map_solve_iff`
 proves exact solvability, and the candidate and residual commute with every
 ℚ-algebra specialization.
-`Algorithm.gosperTerm_complete_self` proves that any backend satisfying `Backend.Valid`
-returns an output with vanishing residual exactly when a hypergeometric
-antidifference exists in the same-field case. `Algorithm.gosperTerm_none_not_summable` certifies
-nonsummability under explicit nonzero-input hypotheses when the degree bound is negative.
+Given `.ok result`, `Algorithm.gosperTerm_complete` characterizes hypergeometric
+summability by `result = some c` with vanishing residual. For nonzero inputs,
+`.ok none` proves nonsummability; `.ok (some c)` still requires checking the residual.
+An `.error` reports unavailable coefficient descent and makes no summability claim.
 The entry point returns `Except DescentFailure (Option Result)`; each result contains a candidate multiplier
 and an array of the remaining residual equations, retained without an equality test.
 When the residual vanishes, the candidate gives finite sums via

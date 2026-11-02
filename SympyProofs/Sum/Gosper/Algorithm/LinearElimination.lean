@@ -8,7 +8,7 @@ public import SympyProofs.Sum.Gosper.Algorithm.Polynomial
 
 namespace Gosper.Algorithm.Linear
 
-variable {K : Type*} [Field K] [DecidableEq K] {m n : ℕ}
+variable {K : Type*} [Field K] {m n : ℕ}
 
 def tailMatrix (A : Matrix (Fin m) (Fin (n + 1)) K) : Matrix (Fin m) (Fin n) K :=
   fun i j => A i j.succ
@@ -24,13 +24,11 @@ def recover (A : Matrix (Fin m) (Fin (n + 1)) K) (b : Fin m → K) (i : Fin m)
     (y : Fin n → K) : Fin (n + 1) → K :=
   Fin.cons ((b i - (tailMatrix A).mulVec y i) / A i 0) y
 
-omit [DecidableEq K] in
 theorem mulVec_expand (A : Matrix (Fin m) (Fin (n + 1)) K) (x : Fin (n + 1) → K)
     (j : Fin m) :
     A.mulVec x j = A j 0 * x 0 + (tailMatrix A).mulVec (fun k => x k.succ) j := by
   simp only [Matrix.mulVec, dotProduct, Fin.sum_univ_succ, tailMatrix]
 
-omit [DecidableEq K] in
 theorem reduceMatrix_mulVec (A : Matrix (Fin m) (Fin (n + 1)) K) (i j : Fin m)
     (y : Fin n → K) :
     (reduceMatrix A i).mulVec y j = (tailMatrix A).mulVec y j -
@@ -38,7 +36,6 @@ theorem reduceMatrix_mulVec (A : Matrix (Fin m) (Fin (n + 1)) K) (i j : Fin m)
   simp only [Matrix.mulVec, dotProduct, reduceMatrix, tailMatrix, sub_mul,
     Finset.sum_sub_distrib, Finset.mul_sum, mul_assoc]
 
-omit [DecidableEq K] in
 theorem recover_correct (A : Matrix (Fin m) (Fin (n + 1)) K) (b : Fin m → K)
     (i : Fin m) (hp : A i 0 ≠ 0) (y : Fin n → K) :
     (reduceMatrix A i).mulVec y = reduceRhs A b i ↔ A.mulVec (recover A b i y) = b := by
@@ -48,7 +45,6 @@ theorem recover_correct (A : Matrix (Fin m) (Fin (n + 1)) K) (b : Fin m → K)
   intro j
   constructor <;> intro h <;> field_simp at h ⊢ <;> linear_combination h
 
-omit [DecidableEq K] in
 theorem project_solution (A : Matrix (Fin m) (Fin (n + 1)) K) (b : Fin m → K)
     (i : Fin m) (hp : A i 0 ≠ 0) (x : Fin (n + 1) → K) (hx : A.mulVec x = b) :
     (reduceMatrix A i).mulVec (fun k => x k.succ) = reduceRhs A b i := by
@@ -61,6 +57,8 @@ theorem project_solution (A : Matrix (Fin m) (Fin (n + 1)) K) (b : Fin m → K)
     field_simp
     linear_combination -h0
   exact (recover_correct A b i hp _).mpr (he.symm ▸ hx)
+
+variable [DecidableEq K]
 
 /-- Eliminate the first column, recurse on the remaining columns, then recover
 the pivot variable. A zero column gives a free variable, set to zero. -/

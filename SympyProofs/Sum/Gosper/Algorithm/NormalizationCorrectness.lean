@@ -10,12 +10,13 @@ namespace Gosper.Algorithm
 
 open Polynomial IsLocalization
 
-variable {K : Type} [Field K] [DecidableEq K]
+variable {K : Type} [Field K]
 
 def normalFormNonzero (s : (K[X] × K[X] × K[X])) : Prop := s.1 ≠ 0 ∧ s.2.1 ≠ 0 ∧ s.2.2 ≠ 0
 
 /-- The inline root test inserts exactly the nonnegative integer root of a linear factor. -/
-theorem normalization_root_step [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
+theorem normalization_root_step [DecidableEq K] [CharZero K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
     (factor : K[X] × ℕ) (shifts : Finset ℕ) :
     (if factor.1.natDegree = 1 then
       if h : IsInteger ℤ (-factor.1.coeff 0 / factor.1.coeff 1) then
@@ -33,7 +34,8 @@ theorem normalization_root_step [CharZero K] [DecidablePred (IsInteger ℤ : K �
 
 /-- The explicit gcd update in the normalization loop preserves the ratio and
 nonzero polynomials, clears the current shift, and preserves earlier coprimality. -/
-theorem normalization_step_spec (P Q : K[X]) (s : (K[X] × K[X] × K[X])) (hs : normalFormNonzero s)
+theorem normalization_step_spec [DecidableEq K]
+    (P Q : K[X]) (s : (K[X] × K[X] × K[X])) (hs : normalFormNonzero s)
     (he : P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2)) (j : ℕ) :
     let d := gcd s.1 (taylor (j : K) s.2.1)
     let t : (K[X] × K[X] × K[X]) := (s.1 / d, taylor (-(j : K)) (taylor (j : K) s.2.1 / d),
@@ -72,7 +74,6 @@ theorem normalization_step_spec (P Q : K[X]) (s : (K[X] × K[X] × K[X])) (hs : 
     have hdb : b ∣ s.2.1 := ⟨_, by rw [hb]; ring⟩
     exact IsCoprime.mono hda ((taylorAlgHom (k : K)).toRingHom.map_dvd hdb) hk
 
-omit [DecidableEq K] in
 /-- Fold form of the inline loop invariant. Each step clears its own shift and
 preserves all coprimality established before it. -/
 theorem normalization_foldl_spec (P Q : K[X]) (step : (K[X] × K[X] × K[X]) → ℕ → (K[X] × K[X] × K[X]))
@@ -106,20 +107,18 @@ def normalFormValid (P Q : K[X]) (s : (K[X] × K[X] × K[X])) : Prop :=
   normalFormNonzero s ∧ Gosper.ShiftCoprime s.1 s.2.1 ∧
     P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2)
 
-omit [DecidableEq K] in
 theorem monic_ne_zero (p : K[X]) (hp : p ≠ 0) : monic p ≠ 0 := by
   exact mul_ne_zero (Polynomial.C_ne_zero.mpr (inv_ne_zero (leadingCoeff_ne_zero.mpr hp))) hp
 
-omit [DecidableEq K] in
 theorem leadingCoeff_mul_monic (p : K[X]) (hp : p ≠ 0) : C p.leadingCoeff * monic p = p := by
   unfold monic
   rw [← mul_assoc, ← map_mul, mul_inv_cancel₀ (leadingCoeff_ne_zero.mpr hp), map_one, one_mul]
 
-variable [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
-
 /-- Normalization preserves the input ratio over a characteristic-zero
 coefficient field. Shift-coprimality is only needed for completeness. -/
-theorem gosperNormal_sound (backend : Backend K) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : (K[X] × K[X] × K[X]))
+theorem gosperNormal_sound [DecidableEq K] [CharZero K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    (backend : Backend K) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : (K[X] × K[X] × K[X]))
     (h : gosperNormal backend P Q = s) :
     normalFormNonzero s ∧ P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2) := by
   let a := monic P
@@ -169,7 +168,9 @@ theorem gosperNormal_sound (backend : Backend K) (P Q : K[X]) (hP : P ≠ 0) (hQ
 
 /-- Normalization returns the exact
 ratio identity and shift-coprimality required by Gosper's theorem. -/
-theorem gosperNormal_exists (backend : Backend K) (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) :
+theorem gosperNormal_exists [DecidableEq K] [CharZero K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    (backend : Backend K) (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) :
     ∃ s, gosperNormal backend P Q = s ∧ normalFormValid P Q s := by
   let a := monic P
   let b := monic Q
@@ -209,7 +210,9 @@ theorem gosperNormal_exists (backend : Backend K) (hbackend : backend.Valid) (P 
     by_contra hn
     exact hj ((backend.mem_shifts hbackend a b ha hb j).mpr hn)
 
-theorem gosperNormal_spec (backend : Backend K) (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
+theorem gosperNormal_spec [DecidableEq K] [CharZero K]
+    [DecidablePred (IsInteger ℤ : K → Prop)]
+    (backend : Backend K) (hbackend : backend.Valid) (P Q : K[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
     (s : (K[X] × K[X] × K[X])) (h : gosperNormal backend P Q = s) : normalFormValid P Q s := by
   obtain ⟨t, ht, hs⟩ := gosperNormal_exists backend hbackend P Q hP hQ
   have : t = s := ht.symm.trans h

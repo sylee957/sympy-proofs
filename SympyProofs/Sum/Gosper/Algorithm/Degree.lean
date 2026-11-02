@@ -12,23 +12,25 @@ namespace Gosper.Algorithm
 
 open Polynomial IsLocalization
 
-variable {K : Type*} [Field K] [CharZero K] [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
+variable {K : Type*} [Field K]
 
-omit [CharZero K] in
 /-- Equal right-hand-side degrees give the same signed solution bound,
 independently of the coefficients and their coefficient ring. -/
-theorem degreeBound_rhs_eq {R S : Type*} [Semiring R] [Semiring S]
+theorem degreeBound_rhs_eq [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
+    {R S : Type*} [Semiring R] [Semiring S]
     (A B : K[X]) (C : R[X]) (D : S[X]) (hdegree : C.natDegree = D.natDegree) :
     degreeBound A B C = degreeBound A B D := by
   simp only [degreeBound, hdegree]
 
-omit [CharZero K] in
 /-- Increasing the right-hand-side degree cannot decrease the solution bound. -/
-theorem degreeBound_mono {R S : Type*} [Semiring R] [Semiring S]
+theorem degreeBound_mono [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
+    {R S : Type*} [Semiring R] [Semiring S]
     (A B : K[X]) (C : R[X]) (D : S[X]) (hdegree : C.natDegree ≤ D.natDegree) :
     degreeBound A B C ≤ degreeBound A B D := by
   simp only [degreeBound, Id.run, pure]
   split_ifs <;> omega
+
+variable [CharZero K] [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
 
 theorem degreeBound_eq_paper (A B C : K[X]) :
     degreeBound A B C = Gosper.paperDegreeBound C A B := by
@@ -53,14 +55,12 @@ theorem solution_degree_le (A B C x : K[X])
     simpa [taylor_taylor] using he
   simpa using Gosper.solution_intDegree_le C A B (taylor 1 x) hA hB ht he'
 
-section Extension
-
-variable {L : Type*} [Field L] [CharZero L] [Algebra K L]
-  [DecidableEq L] [DecidablePred (IsInteger ℤ : L → Prop)]
+variable {L : Type*} [Field L] [Algebra K L]
 
 /-- Extending the coefficient field does not change the degree bound: its only
 dependence on the right-hand side is its degree. -/
-theorem degreeBound_map (A B : K[X]) (C : L[X]) :
+theorem degreeBound_map [CharZero L]
+    [DecidableEq L] [DecidablePred (IsInteger ℤ : L → Prop)] (A B : K[X]) (C : L[X]) :
     degreeBound (A.map (algebraMap K L)) (B.map (algebraMap K L)) C =
       degreeBound A B C := by
   have hint (x : K) : IsInteger ℤ (algebraMap K L x) ↔ IsInteger ℤ x := by
@@ -88,7 +88,6 @@ theorem degreeBound_map (A B : K[X]) (C : L[X]) :
   · exact (hL ((hint _).mpr hK)).elim
   · rfl
 
-omit [CharZero L] [DecidableEq L] [DecidablePred (IsInteger ℤ : L → Prop)] in
 /-- The bound computed in `K` applies to solutions with coefficients in `L`. -/
 theorem solution_degree_le_extension (A B : K[X]) (C x : L[X])
     (hA : A ≠ 0) (hB : B ≠ 0) (hx : x ≠ 0)
@@ -101,7 +100,6 @@ theorem solution_degree_le_extension (A B : K[X]) (C x : L[X])
   · simpa using hA
   · simpa using hB
 
-omit [CharZero L] [DecidableEq L] [DecidablePred (IsInteger ℤ : L → Prop)] in
 /-- The degree bound from a source polynomial remains valid when evaluation
 lowers the right-hand-side degree. -/
 theorem solution_degree_le_extension_bounded {R : Type*} [Semiring R]
@@ -111,7 +109,5 @@ theorem solution_degree_le_extension_bounded {R : Type*} [Semiring R]
     (x.natDegree : ℤ) ≤ degreeBound A B C₀ :=
   (solution_degree_le_extension A B C x hA hB hx he).trans
     (degreeBound_mono A B C C₀ hdegree)
-
-end Extension
 
 end Gosper.Algorithm

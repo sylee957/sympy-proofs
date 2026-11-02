@@ -18,12 +18,10 @@ namespace Gosper.Algorithm
 open Polynomial IsLocalization
 
 variable {K : Type} [Field K] [DecidableEq K]
-variable [DecidablePred (IsInteger ℤ : K → Prop)]
-variable (backend : Backend K)
-
-section Algebra
-
+  [DecidablePred (IsInteger ℤ : K → Prop)]
 variable {R : Type} [CommRing R] [Algebra K R]
+variable {L : Type} [Field L] [Algebra K L]
+variable (backend : Backend K)
 
 set_option backward.isDefEq.respectTransparency false in
 /-- Reduction stays over `K`; the recorded row operations act on the coefficient algebra.
@@ -66,12 +64,6 @@ theorem gosperSolve_eq (hbackend : backend.Valid) (A B : K[X]) (C : R[X]) :
   rw [hM]
   simp only [hsolution]
   rfl
-
-end Algebra
-
-section Field
-
-variable {L : Type} [Field L] [Algebra K L]
 
 private theorem gosperSolve_eq_field (hbackend : backend.Valid) (A B : K[X]) (C : L[X]) :
     gosperSolve backend A B C =
@@ -119,10 +111,8 @@ theorem gosperSolve_sound (hbackend : backend.Valid) (A B : K[X]) (C : L[X])
   refine ⟨x, rfl, rfl, ?_⟩
   exact (coefficientSystem_correct_extension A B C d.toNat coeffs).mp hcoeffs
 
-variable [CharZero K]
-
 /-- A polynomial solution over `L` is found using the degree bound and reduction over `K`. -/
-theorem gosperSolve_of_solution (hbackend : backend.Valid) (A B : K[X]) (C : L[X])
+theorem gosperSolve_of_solution [CharZero K] (hbackend : backend.Valid) (A B : K[X]) (C : L[X])
     (hA : A ≠ 0) (hB : B ≠ 0) (hC : C ≠ 0) (x : L[X])
     (hx : A.map (algebraMap K L) * taylor 1 x - B.map (algebraMap K L) * x = C) :
     ∃ c, gosperSolve backend A B C = some c ∧ (∀ value ∈ c.residual, value = 0) := by
@@ -162,7 +152,7 @@ theorem gosperSolve_of_solution (hbackend : backend.Valid) (A B : K[X]) (C : L[X
 
 /-- For nonzero `A`, `B`, and `C`, the residual vanishes exactly when the normalized equation
 has a polynomial solution over the right-hand-side field. -/
-theorem gosperSolve_complete (hbackend : backend.Valid) (A B : K[X]) (C : L[X])
+theorem gosperSolve_complete [CharZero K] (hbackend : backend.Valid) (A B : K[X]) (C : L[X])
     (hA : A ≠ 0) (hB : B ≠ 0) (hC : C ≠ 0) :
     (∃ c, gosperSolve backend A B C = some c ∧ (∀ value ∈ c.residual, value = 0)) ↔
       ∃ x : L[X], A.map (algebraMap K L) * taylor 1 x - B.map (algebraMap K L) * x = C := by
@@ -174,7 +164,7 @@ theorem gosperSolve_complete (hbackend : backend.Valid) (A B : K[X]) (C : L[X])
     exact gosperSolve_of_solution backend hbackend A B C hA hB hC x hx
 
 /-- Once an output exists, its residual criterion also covers the zero right-hand side. -/
-theorem gosperSolve_result_complete (hbackend : backend.Valid)
+theorem gosperSolve_result_complete [CharZero K] (hbackend : backend.Valid)
     (A B : K[X]) (C : L[X])
     (hA : A ≠ 0) (hB : B ≠ 0) (c : Result L)
     (hrun : gosperSolve backend A B C = some c) :
@@ -199,7 +189,5 @@ theorem gosperSolve_result_complete (hbackend : backend.Valid)
         (gosperSolve_complete backend hbackend A B C hA hB hC).mpr hx
       have hc : c = c' := Option.some.inj (hrun.symm.trans hc')
       simpa only [hc] using hzero
-
-end Field
 
 end Gosper.Algorithm

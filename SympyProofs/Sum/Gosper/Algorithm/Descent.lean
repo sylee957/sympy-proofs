@@ -11,20 +11,25 @@ namespace Gosper.Algorithm
 
 open Polynomial
 
-variable {K L : Type} [Field K] [Field L] [Algebra K L]
+variable {K L : Type} [Field K] [Field L]
 
 /-- The coefficient test returns exactly the preimage under the field embedding. -/
-def CoefficientDescentValid (descendCoeff : L → Option K) : Prop :=
+def CoefficientDescentValid [Algebra K L] (descendCoeff : L → Option K) : Prop :=
   ∀ c a, descendCoeff c = some a ↔ algebraMap K L a = c
 
-omit [Algebra K L] in
+/-- Identity conversion satisfies the descent contract over the same field. -/
+@[simp] theorem coefficientDescentValid_self :
+    CoefficientDescentValid (some : K → Option K) := by
+  intro c a
+  simp [Algebra.algebraMap_self, eq_comm]
+
 private theorem descendPolynomial_eq_foldlM (descendCoeff : L → Option K) (p : L[X]) :
     descendPolynomial descendCoeff p =
       p.support.toList.foldlM
         (fun q n => (fun a => q + monomial n a) <$> descendCoeff (p.coeff n)) 0 := by
   simp only [descendPolynomial, bind_pure_comp, List.forIn_yield_eq_foldlM, bind_pure]
 
-private theorem descent_fold_sound (descendCoeff : L → Option K)
+private theorem descent_fold_sound [Algebra K L] (descendCoeff : L → Option K)
     (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) (ns : List ℕ)
     (q r : K[X])
     (h : ns.foldlM
@@ -49,7 +54,7 @@ private theorem descent_fold_sound (descendCoeff : L → Option K)
             add_assoc]
 
 /-- Every successful descent maps back to the original polynomial. -/
-theorem descendPolynomial_sound (descendCoeff : L → Option K)
+theorem descendPolynomial_sound [Algebra K L] (descendCoeff : L → Option K)
     (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) (q : K[X])
     (h : descendPolynomial descendCoeff p = some q) :
     q.map (algebraMap K L) = p := by
@@ -58,7 +63,7 @@ theorem descendPolynomial_sound (descendCoeff : L → Option K)
   simpa only [Polynomial.map_zero, zero_add, Finset.sum_map_toList, ← as_sum_support] using hs
 
 /-- A polynomial over the smaller field is recovered exactly. -/
-theorem descendPolynomial_map (descendCoeff : L → Option K)
+theorem descendPolynomial_map [Algebra K L] (descendCoeff : L → Option K)
     (hdesc : CoefficientDescentValid descendCoeff) (q : K[X]) :
     descendPolynomial descendCoeff (q.map (algebraMap K L)) = some q := by
   have hcoeff (a : K) : descendCoeff (algebraMap K L a) = some a :=
@@ -72,7 +77,7 @@ theorem descendPolynomial_map (descendCoeff : L → Option K)
   rfl
 
 /-- Success is equivalent to being the polynomial's preimage under the field embedding. -/
-theorem descendPolynomial_eq_some_iff (descendCoeff : L → Option K)
+theorem descendPolynomial_eq_some_iff [Algebra K L] (descendCoeff : L → Option K)
     (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) (q : K[X]) :
     descendPolynomial descendCoeff p = some q ↔ q.map (algebraMap K L) = p := by
   constructor
@@ -82,14 +87,14 @@ theorem descendPolynomial_eq_some_iff (descendCoeff : L → Option K)
     exact descendPolynomial_map descendCoeff hdesc q
 
 /-- Descent succeeds exactly when every coefficient belongs to the smaller field. -/
-theorem descendPolynomial_exists_iff (descendCoeff : L → Option K)
+theorem descendPolynomial_exists_iff [Algebra K L] (descendCoeff : L → Option K)
     (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) :
     (∃ q, descendPolynomial descendCoeff p = some q) ↔
       p ∈ Polynomial.lifts (algebraMap K L) := by
   simp only [descendPolynomial_eq_some_iff descendCoeff hdesc, Polynomial.mem_lifts]
 
 /-- Failure means there is no polynomial over the nominated smaller field mapping to the input. -/
-theorem descendPolynomial_eq_none_iff (descendCoeff : L → Option K)
+theorem descendPolynomial_eq_none_iff [Algebra K L] (descendCoeff : L → Option K)
     (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) :
     descendPolynomial descendCoeff p = none ↔
       ¬ ∃ q : K[X], q.map (algebraMap K L) = p := by
@@ -99,10 +104,7 @@ theorem descendPolynomial_eq_none_iff (descendCoeff : L → Option K)
 /-- Identity conversion succeeds without changing any coefficient. -/
 @[simp] theorem descendPolynomial_self (p : K[X]) :
     descendPolynomial (some : K → Option K) p = some p := by
-  have hdesc : CoefficientDescentValid (some : K → Option K) := by
-    intro c a
-    simp [Algebra.algebraMap_self, eq_comm]
-  exact (descendPolynomial_eq_some_iff some hdesc p p).mpr (by simp)
+  exact (descendPolynomial_eq_some_iff some coefficientDescentValid_self p p).mpr (by simp)
 
 /-- Using the same field with identity conversion cannot produce a descent error. -/
 theorem gosperTerm_self [CharZero K] [DecidableEq K]
