@@ -8,12 +8,14 @@ public import SympyProofs.Sum.Gosper.Backend.Rref
 
 namespace Gosper.Algorithm
 
-variable {K : Type*} [Field K] {m n : ℕ}
+variable {K : Type*} {m n : ℕ}
 
 /-- Augment a matrix by the identity, retaining all possible right-hand sides. -/
-def augmentedIdentity (A : Matrix (Fin m) (Fin n) K) :
+def augmentedIdentity [Semiring K] (A : Matrix (Fin m) (Fin n) K) :
     Matrix (Fin m) (Fin (n + m)) K :=
   fun i => Fin.addCases (A i) ((1 : Matrix (Fin m) (Fin m) K) i)
+
+variable [Field K]
 
 theorem augmentedIdentity_mulVec (A : Matrix (Fin m) (Fin n) K)
     (x : Fin n → K) (b : Fin m → K) :

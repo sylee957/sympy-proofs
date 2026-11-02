@@ -21,35 +21,35 @@ theorem shiftCoprime_iff_resultant (q r : K[X]) (hq : q ≠ 0) :
     true_or, true_and, not_not]
 
 /-- The product inserted into `p` by the change of variables (6'). -/
-def shiftProduct (g : K[X]) (j : ℕ) : K[X] :=
-  ∏ i ∈ Finset.range j, taylor (-(i : K)) g
+def shiftProduct {R : Type*} [CommRing R] (g : R[X]) (j : ℕ) : R[X] :=
+  ∏ i ∈ Finset.range j, taylor (-(i : R)) g
 
-@[simp] theorem shiftProduct_zero (g : K[X]) : shiftProduct g 0 = 1 := by
+@[simp] theorem shiftProduct_zero {R : Type*} [CommRing R] (g : R[X]) : shiftProduct g 0 = 1 := by
   simp [shiftProduct]
 
-theorem shiftProduct_succ (g : K[X]) (j : ℕ) :
-    shiftProduct g (j + 1) = shiftProduct g j * taylor (-(j : K)) g := by
+theorem shiftProduct_succ {R : Type*} [CommRing R] (g : R[X]) (j : ℕ) :
+    shiftProduct g (j + 1) = shiftProduct g j * taylor (-(j : R)) g := by
   simp [shiftProduct, Finset.prod_range_succ]
 
-theorem shiftProduct_ne_zero (g : K[X]) (hg : g ≠ 0) (j : ℕ) :
+theorem shiftProduct_ne_zero {R : Type*} [CommRing R] [IsDomain R] (g : R[X]) (hg : g ≠ 0) (j : ℕ) :
     shiftProduct g j ≠ 0 := by
   exact Finset.prod_ne_zero_iff.mpr fun i _ => (taylor_eq_zero _ _).not.mpr hg
 
 /-- The telescoping product identity underlying (6'). -/
-theorem shiftProduct_identity (g : K[X]) (j : ℕ) :
-    shiftProduct g j * taylor (-(j : K)) g = taylor (-1) (shiftProduct g j) * g := by
+theorem shiftProduct_identity {R : Type*} [CommRing R] (g : R[X]) (j : ℕ) :
+    shiftProduct g j * taylor (-(j : R)) g = taylor (-1) (shiftProduct g j) * g := by
   induction j with
   | zero => simp
   | succ j ih =>
     rw [shiftProduct_succ, taylor_mul, taylor_taylor, ih]
-    have h : -(↑(j + 1) : K) = -1 + -(j : K) := by push_cast; ring
+    have h : -(↑(j + 1) : R) = -1 + -(j : R) := by push_cast; ring
     rw [h]
     ring
 
 /-- One cancellation preserves the cross-multiplied term ratio. -/
-theorem normalization_step (p g q r : K[X]) (j : ℕ) :
+theorem normalization_step {R : Type*} [CommRing R] (p g q r : R[X]) (j : ℕ) :
     (p * (g * q)) * (taylor (-1) (p * shiftProduct g j) * r) =
-      (taylor (-1) p * (taylor (-(j : K)) g * r)) *
+      (taylor (-1) p * (taylor (-(j : R)) g * r)) *
         ((p * shiftProduct g j) * q) := by
   rw [taylor_mul]
   have h := shiftProduct_identity g j

@@ -2,6 +2,7 @@ module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Descent
 public import SympyProofs.Sum.Gosper.Algorithm.SolverCorrectness
+public import SympyProofs.Sum.Gosper.Algorithm.NormalizationSpecialization
 public import SympyProofs.Sum.Gosper.Algorithm.NormalizationCorrectness
 public import SympyProofs.Sum.Gosper.Rational
 public import SympyProofs.Sum.Gosper.Hypergeometric
@@ -13,19 +14,21 @@ noncomputable section
 
 namespace Gosper.Algorithm
 
+attribute [local instance 2000] Ring.toIntAlgebra
+
 open Polynomial IsLocalization
 
-variable {K : Type} [Field K]
+variable {F : Type} [Field F]
 
-theorem verify_identity [DecidableEq K] (P Q U V : K[X]) (h : verify P Q U V = true) (x : K) :
+theorem verify_identity [DecidableEq F] (P Q U V : F[X]) (h : verify P Q U V = true) (x : F) :
     P.eval x * U.eval (x + 1) * V.eval x -
         Q.eval x * U.eval x * V.eval (x + 1) =
       Q.eval x * V.eval x * V.eval (x + 1) := by
-  have he := congrArg (fun p : K[X] => p.eval x) (verify_sound P Q U V h).2.2
+  have he := congrArg (fun p : F[X] => p.eval x) (verify_sound P Q U V h).2.2
   simpa only [residual, Polynomial.eval_sub, Polynomial.eval_mul, taylor_eval,
     Polynomial.eval_zero, sub_eq_zero] using he
 
-theorem verify_at [DecidableEq K] (P Q U V : K[X]) (h : verify P Q U V = true) (x : K)
+theorem verify_at [DecidableEq F] (P Q U V : F[X]) (h : verify P Q U V = true) (x : F)
     (hQ : Q.eval x ≠ 0) (hV : V.eval x ≠ 0) (hVnext : V.eval (x + 1) ≠ 0) :
     P.eval x / Q.eval x * (U.eval (x + 1) / V.eval (x + 1)) -
       U.eval x / V.eval x = 1 := by
@@ -33,16 +36,21 @@ theorem verify_at [DecidableEq K] (P Q U V : K[X]) (h : verify P Q U V = true) (
   field_simp
   linear_combination hi
 
-def toRatFunc (U V : K[X]) : RatFunc K :=
-  algebraMap K[X] (RatFunc K) U / algebraMap K[X] (RatFunc K) V
+def toRatFunc (U V : F[X]) : RatFunc F :=
+  algebraMap F[X] (RatFunc F) U / algebraMap F[X] (RatFunc F) V
 
-theorem verify_ratFunc [DecidableEq K] (P Q U V : K[X]) (h : verify P Q U V = true) :
+theorem toRatFunc_ne_zero (U V : F[X]) (hU : U ≠ 0) (hV : V ≠ 0) :
+    toRatFunc U V ≠ 0 := by
+  unfold toRatFunc
+  exact div_ne_zero (by simpa using hU) (by simpa using hV)
+
+theorem verify_ratFunc [DecidableEq F] (P Q U V : F[X]) (h : verify P Q U V = true) :
     toRatFunc P Q * Gosper.rationalShift 1 (toRatFunc U V) - toRatFunc U V = 1 := by
   obtain ⟨hQ, hV, he⟩ := verify_sound P Q U V h
-  let ι := algebraMap K[X] (RatFunc K)
-  have map_ne (p : K[X]) (hp : p ≠ 0) : ι p ≠ 0 := by
+  let ι := algebraMap F[X] (RatFunc F)
+  have map_ne (p : F[X]) (hp : p ≠ 0) : ι p ≠ 0 := by
     intro hz
-    exact hp ((IsFractionRing.injective K[X] (RatFunc K)) (by simpa [ι] using hz))
+    exact hp ((IsFractionRing.injective F[X] (RatFunc F)) (by simpa [ι] using hz))
   have hq := map_ne _ hQ
   have hv := map_ne _ hV
   have hsv := map_ne _ ((taylor_eq_zero 1 V).not.mpr hV)
@@ -55,10 +63,10 @@ theorem verify_ratFunc [DecidableEq K] (P Q U V : K[X]) (h : verify P Q U V = tr
 
 /-- The normalized equation and ratio identity imply the certificate identity;
 shift-coprimality is not needed for this direction. -/
-theorem normalForm_verify_solution_of_ratio [DecidableEq K]
-    (P Q : K[X]) (hQ : Q ≠ 0) (s : K[X] × K[X] × K[X])
+theorem normalForm_verify_solution_of_ratio [DecidableEq F]
+    (P Q : F[X]) (hQ : Q ≠ 0) (s : F[X] × F[X] × F[X])
     (hC : s.2.2 ≠ 0) (hratio : P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2))
-    (x : K[X]) (hx : s.1 * taylor 1 x - taylor (-1) s.2.1 * x = s.2.2) :
+    (x : F[X]) (hx : s.1 * taylor 1 x - taylor (-1) s.2.1 * x = s.2.2) :
     verify P Q (taylor (-1) s.2.1 * x) s.2.2 = true := by
   rw [verify_iff]
   refine ⟨hQ, hC, ?_⟩
@@ -67,8 +75,8 @@ theorem normalForm_verify_solution_of_ratio [DecidableEq K]
 
 /-- Translate the forward multiplier equation to the paper's backward ratio.
 The paper's multiplier is `g + 1`. -/
-theorem forward_iff_backward (ρ : RatFunc K) :
-    (∃ g : RatFunc K, ρ * Gosper.rationalShift 1 g - g = 1) ↔
+theorem forward_iff_backward (ρ : RatFunc F) :
+    (∃ g : RatFunc F, ρ * Gosper.rationalShift 1 g - g = 1) ↔
       Gosper.HasRationalAntidifference (Gosper.rationalShift (-1) ρ) := by
   constructor
   · rintro ⟨g, hg⟩
@@ -86,14 +94,13 @@ theorem forward_iff_backward (ρ : RatFunc K) :
     simp only [map_sub, map_one]
     linear_combination hs
 
-theorem forward_iff_hypergeometric (ρ : RatFunc K) (hρ : ρ ≠ 0) :
-    (∃ g : RatFunc K, ρ * Gosper.rationalShift 1 g - g = 1) ↔
+theorem forward_iff_hypergeometric (ρ : RatFunc F) (hρ : ρ ≠ 0) :
+    (∃ g : RatFunc F, ρ * Gosper.rationalShift 1 g - g = 1) ↔
       Gosper.HasHypergeometricAntidifference ρ :=
   (Gosper.hypergeometric_iff_forward ρ hρ).symm
 
-variable [DecidableEq K] [DecidablePred (IsInteger ℤ : K → Prop)]
-variable {L : Type} [Field L] [CharZero L] [DecidableEq L]
-  [DecidablePred (IsInteger ℤ : L → Prop)] [Algebra K L]
+variable {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
+variable {L : Type} [CommRing L] [IsDomain L] [Algebra K L]
 variable (backend : TermBackend K L)
 
 private theorem gosperTerm_eq (P Q : L[X]) :
@@ -132,21 +139,21 @@ theorem gosperTerm_eq_ok_iff (P Q : L[X]) (c : Option (Result L)) :
     simp [gosperTerm_eq, hA, hB]
 
 /-- After successful descent, `none` is exactly the negative-degree branch. -/
-theorem gosperTerm_none_iff_degreeBound_neg (hsolver : backend.solver.Valid)
+theorem gosperTerm_none_iff_degreeBound_neg
     (P Q : L[X]) :
     gosperTerm backend P Q = .ok none ↔
       ∃ A B : K[X],
         descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 = some A ∧
         descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 = some B ∧
-        degreeBound A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2 < 0 := by
+        degreeBound backend.solver A (taylor (-1) B)
+          (gosperNormal backend.normalization P Q).2.2 < 0 := by
   rw [gosperTerm_eq_ok_iff backend P Q none]
   apply exists_congr
   intro A
   apply exists_congr
   intro B
-  rw [gosperSolve_eq backend.solver hsolver]
-  dsimp only
-  split_ifs <;> simp_all
+  rw [gosperSolve_none_iff_degreeBound_neg]
+
 
 /-- The first descent error means that the normalized `A` is not defined over `K`. -/
 theorem gosperTerm_error_A_iff (hdesc : CoefficientDescentValid backend.descend)
@@ -172,54 +179,101 @@ theorem gosperTerm_error_B_iff (hdesc : CoefficientDescentValid backend.descend)
     cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 <;>
     simp [gosperTerm_eq, hA, hB]
 
-/-- A vanishing residual certifies the input ratio after exact coefficient descent. -/
-theorem gosperTerm_verified (hbackend : backend.Valid)
+/-- A successful run supplies a ring normal form and a solver call over the input ring. -/
+theorem gosperTerm_normalForm (hbackend : backend.Valid)
+    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Option (Result L))
+    (hrun : gosperTerm backend P Q = .ok result) :
+    ∃ A B : K[X], ∃ C : L[X],
+      gosperSolve backend.solver A (taylor (-1) B) C = result ∧
+      normalFormValid (P.map (algebraMap L (FractionRing L)))
+        (Q.map (algebraMap L (FractionRing L)))
+        (A.map (algebraMap K (FractionRing L)),
+          B.map (algebraMap K (FractionRing L)), C.map (algebraMap L (FractionRing L))) := by
+  obtain ⟨A, B, hA, hB, hsolve⟩ := (gosperTerm_eq_ok_iff backend P Q result).mp hrun
+  let normal := gosperNormal backend.normalization P Q
+  have hmapA : A.map (algebraMap K L) = normal.1 :=
+    (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ A).mp hA
+  have hmapB : B.map (algebraMap K L) = normal.2.1 :=
+    (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ B).mp hB
+  have hvalid := gosperNormal_spec backend.normalization hbackend.normalization
+    P Q hP hQ normal rfl
+  refine ⟨A, B, normal.2.2, hsolve, ?_⟩
+  have hAF : A.map (algebraMap K (FractionRing L)) =
+      normal.1.map (algebraMap L (FractionRing L)) := by
+    simpa [Polynomial.map_map, ← IsScalarTower.algebraMap_eq K L (FractionRing L)] using
+      congrArg (Polynomial.map (algebraMap L (FractionRing L))) hmapA
+  have hBF : B.map (algebraMap K (FractionRing L)) =
+      normal.2.1.map (algebraMap L (FractionRing L)) := by
+    simpa [Polynomial.map_map, ← IsScalarTower.algebraMap_eq K L (FractionRing L)] using
+      congrArg (Polynomial.map (algebraMap L (FractionRing L))) hmapB
+  rw [hAF, hBF]
+  exact hvalid
+
+/-- A vanishing residual verifies the polynomial certificate over the input ring. -/
+theorem gosperTerm_verified [DecidableEq L] (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
     verify P Q c.numerator c.denominator = true := by
-  obtain ⟨A, B, hA, hB, hsolve⟩ :=
-    (gosperTerm_eq_ok_iff backend P Q (some c)).mp h
-  have hmapA := (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ A).mp hA
-  have hmapB := (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ B).mp hB
-  have hmapB' : (taylor (-1) B).map (algebraMap K L) =
-      taylor (-1) (gosperNormal backend.normalization P Q).2.1 := by simp [hmapB]
-  obtain ⟨x, hnum, hden, hx⟩ :=
-    gosperSolve_sound backend.solver hbackend.solver A (taylor (-1) B) _ c hsolve hzero
-  rw [hmapA, hmapB'] at hx
-  rw [hmapB'] at hnum
-  obtain ⟨hs, hratio⟩ := gosperNormal_sound backend.normalization P Q hP hQ _ rfl
+  classical
+  have hKF : Function.Injective (algebraMap K (FractionRing L)) :=
+    (IsFractionRing.injective L (FractionRing L)).comp hbackend.descend.injective
+  obtain ⟨A, B, C, hsolve, hvalid⟩ :=
+    gosperTerm_normalForm backend hbackend P Q hP hQ (some c) h
+  let i : L →ₐ[K] FractionRing L := IsScalarTower.toAlgHom K L (FractionRing L)
+  obtain ⟨δ, hδ, x, hnum, hden, hx⟩ := gosperSolve_sound backend.solver hbackend.solver
+    A (taylor (-1) B) C i hKF c hsolve
+    (by intro v hv; simp [hzero v hv])
+  apply (verify_map_iff (algebraMap L (FractionRing L))
+    (IsFractionRing.injective L (FractionRing L)) P Q c.numerator c.denominator).mp
+  change verify (P.map i.toRingHom) (Q.map i.toRingHom)
+    (c.numerator.map i.toRingHom) (c.denominator.map i.toRingHom) = true
   rw [hnum, hden]
-  exact normalForm_verify_solution_of_ratio P Q hQ _ hs.2.2 hratio x hx
+  have hQF : Q.map i.toRingHom ≠ 0 :=
+    (Polynomial.map_eq_zero_iff (IsFractionRing.injective L (FractionRing L))).not.mpr hQ
+  have hδF : algebraMap K (FractionRing L) δ ≠ 0 :=
+    fun hz => hδ (hKF (by simpa using hz))
+  have hscaled := normalFormValid_scale_C _ _ _ _ _ _ hδF hvalid
+  simpa [i] using normalForm_verify_solution_of_ratio _ _ hQF _
+    hscaled.1.2.2 hscaled.2.2 x (by simpa [i] using hx)
 
-/-- Successful descent and a vanishing residual yield a rational Gosper multiplier. -/
-theorem gosperTerm_sound (hbackend : backend.Valid)
-    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
-    (h : gosperTerm backend P Q = .ok (some c))
-    (hzero : ∀ value ∈ c.residual, value = 0) :
-    toRatFunc P Q * Gosper.rationalShift 1 (toRatFunc c.numerator c.denominator) -
-      toRatFunc c.numerator c.denominator = 1 :=
-  verify_ratFunc P Q _ _
-    (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
-
-/-- The returned multiplier satisfies its polynomial identity, including at denominator roots. -/
+/-- The returned multiplier satisfies its polynomial identity over the coefficient ring. -/
 theorem gosperTerm_identity (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
-    Q ≠ 0 ∧ c.denominator ≠ 0 ∧ residual P Q c.numerator c.denominator = 0 :=
-  verify_sound P Q _ _
-    (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
+    Q ≠ 0 ∧ c.denominator ≠ 0 ∧ residual P Q c.numerator c.denominator = 0 := by
+  classical
+  exact verify_sound P Q _ _ (gosperTerm_verified backend hbackend P Q hP hQ c h hzero)
+
+/-- Interpret the ring-valued output as a rational multiplier in its fraction field. -/
+theorem gosperTerm_sound (hbackend : backend.Valid)
+    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
+    (h : gosperTerm backend P Q = .ok (some c))
+    (hzero : ∀ value ∈ c.residual, value = 0) :
+    let i := algebraMap L (FractionRing L)
+    toRatFunc (P.map i) (Q.map i) * Gosper.rationalShift 1
+      (toRatFunc (c.numerator.map i) (c.denominator.map i)) -
+      toRatFunc (c.numerator.map i) (c.denominator.map i) = 1 := by
+  classical
+  exact verify_ratFunc _ _ _ _
+    ((verify_map_iff (algebraMap L (FractionRing L)) (IsFractionRing.injective L (FractionRing L))
+      P Q c.numerator c.denominator).mpr
+        (gosperTerm_verified backend hbackend P Q hP hQ c h hzero))
 
 /-- A returned multiplier with vanishing residual gives a hypergeometric antidifference. -/
 theorem gosperTerm_hypergeometric (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0) :
-    Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
-  have hρ : toRatFunc P Q ≠ 0 := by
-    unfold toRatFunc
-    exact div_ne_zero (by simpa using hP) (by simpa using hQ)
+    Gosper.HasHypergeometricAntidifference
+      (toRatFunc (P.map (algebraMap L (FractionRing L)))
+        (Q.map (algebraMap L (FractionRing L)))) := by
+  have hρ : toRatFunc (P.map (algebraMap L (FractionRing L)))
+      (Q.map (algebraMap L (FractionRing L))) ≠ 0 := by
+    have hi := IsFractionRing.injective L (FractionRing L)
+    exact toRatFunc_ne_zero _ _ ((Polynomial.map_eq_zero_iff hi).not.mpr hP)
+      ((Polynomial.map_eq_zero_iff hi).not.mpr hQ)
   exact (forward_iff_hypergeometric _ hρ).mp
     ⟨_, gosperTerm_sound backend hbackend P Q hP hQ c h hzero⟩
 
@@ -227,17 +281,20 @@ theorem gosperTerm_hypergeometric (hbackend : backend.Valid)
 theorem gosperTerm_step (hbackend : backend.Valid)
     (P Q : L[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
-    (hzero : ∀ value ∈ c.residual, value = 0) (a : ℕ → L) (n : ℕ)
-    (hQ : Q.eval (n : L) ≠ 0)
-    (hV : c.denominator.eval (n : L) ≠ 0)
-    (hVnext : c.denominator.eval ((n + 1 : ℕ) : L) ≠ 0)
-    (hratio : a (n + 1) * Q.eval (n : L) = a n * P.eval (n : L)) :
-    a (n + 1) * (c.numerator.eval ((n + 1 : ℕ) : L) /
-        c.denominator.eval ((n + 1 : ℕ) : L)) -
-      a n * (c.numerator.eval (n : L) / c.denominator.eval (n : L)) = a n := by
-  have he := verify_at P Q c.numerator c.denominator
+    (hzero : ∀ value ∈ c.residual, value = 0) (a : ℕ → FractionRing L) (n : ℕ)
+    (hQ : (Q.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) ≠ 0)
+    (hV : (c.denominator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) ≠ 0)
+    (hVnext : (c.denominator.map (algebraMap L (FractionRing L))).eval ((n + 1 : ℕ) : FractionRing L) ≠ 0)
+    (hratio : a (n + 1) * (Q.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) = a n * (P.map (algebraMap L (FractionRing L))).eval (n : FractionRing L)) :
+    a (n + 1) * ((c.numerator.map (algebraMap L (FractionRing L))).eval ((n + 1 : ℕ) : FractionRing L) /
+        (c.denominator.map (algebraMap L (FractionRing L))).eval ((n + 1 : ℕ) : FractionRing L)) -
+      a n * ((c.numerator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L)) = a n := by
+  classical
+  have hv := (verify_map_iff (algebraMap L (FractionRing L))
+    (IsFractionRing.injective L (FractionRing L)) P Q c.numerator c.denominator).mpr
     (gosperTerm_verified backend hbackend P Q hP0 hQ0 c h hzero)
-    (n : L) hQ hV (by simpa using hVnext)
+  have he := verify_at _ _ _ _ hv
+    (n : FractionRing L) hQ hV (by simpa using hVnext)
   have ha := (eq_div_iff hQ).mpr hratio
   simp only [Nat.cast_add, Nat.cast_one]
   rw [ha]
@@ -248,19 +305,19 @@ theorem gosperTerm_sum (hbackend : backend.Valid)
     (P Q : L[X]) (hP0 : P ≠ 0) (hQ0 : Q ≠ 0) (c : Result L)
     (h : gosperTerm backend P Q = .ok (some c))
     (hzero : ∀ value ∈ c.residual, value = 0)
-    (a : ℕ → L) (m n : ℕ) (hmn : m ≤ n)
-    (hQ : ∀ k ∈ Finset.Ico m n, Q.eval (k : L) ≠ 0)
-    (hV : ∀ k ∈ Finset.Icc m n, c.denominator.eval (k : L) ≠ 0)
+    (a : ℕ → FractionRing L) (m n : ℕ) (hmn : m ≤ n)
+    (hQ : ∀ k ∈ Finset.Ico m n, (Q.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) ≠ 0)
+    (hV : ∀ k ∈ Finset.Icc m n, (c.denominator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) ≠ 0)
     (hratio : ∀ k ∈ Finset.Ico m n,
-      a (k + 1) * Q.eval (k : L) = a k * P.eval (k : L)) :
+      a (k + 1) * (Q.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) = a k * (P.map (algebraMap L (FractionRing L))).eval (k : FractionRing L)) :
     ∑ k ∈ Finset.Ico m n, a k =
-      a n * (c.numerator.eval (n : L) / c.denominator.eval (n : L)) -
-        a m * (c.numerator.eval (m : L) / c.denominator.eval (m : L)) := by
+      a n * ((c.numerator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (n : FractionRing L)) -
+        a m * ((c.numerator.map (algebraMap L (FractionRing L))).eval (m : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (m : FractionRing L)) := by
   calc
     _ = ∑ k ∈ Finset.Ico m n,
-        (a (k + 1) * (c.numerator.eval ((k + 1 : ℕ) : L) /
-            c.denominator.eval ((k + 1 : ℕ) : L)) -
-          a k * (c.numerator.eval (k : L) / c.denominator.eval (k : L))) := by
+        (a (k + 1) * ((c.numerator.map (algebraMap L (FractionRing L))).eval ((k + 1 : ℕ) : FractionRing L) /
+            (c.denominator.map (algebraMap L (FractionRing L))).eval ((k + 1 : ℕ) : FractionRing L)) -
+          a k * ((c.numerator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L))) := by
       apply Finset.sum_congr rfl
       intro k hk
       have hk' := Finset.mem_Ico.mp hk
@@ -269,6 +326,6 @@ theorem gosperTerm_sum (hbackend : backend.Valid)
         (hV k (Finset.mem_Icc.mpr ⟨hk'.1, by omega⟩))
         (hV (k + 1) (Finset.mem_Icc.mpr ⟨by omega, by omega⟩)) (hratio k hk)).symm
     _ = _ := Finset.sum_Ico_sub
-      (fun k => a k * (c.numerator.eval (k : L) / c.denominator.eval (k : L))) hmn
+      (fun k => a k * ((c.numerator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L) / (c.denominator.map (algebraMap L (FractionRing L))).eval (k : FractionRing L))) hmn
 
 end Gosper.Algorithm

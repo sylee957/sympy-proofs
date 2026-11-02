@@ -11,7 +11,7 @@ neither division nor decidable equality. -/
 namespace Gosper.Algorithm
 
 @[simp]
-theorem RrefResult.map_rightMatrix {K L : Type*} [Field K] [Field L] {m n : ℕ}
+theorem RrefResult.map_rightMatrix {K L : Type*} [CommRing K] [CommRing L] {m n : ℕ}
     (r : RrefResult K m (n + m)) (f : K →+* L) :
     (r.map f).rightMatrix = r.rightMatrix.map f := rfl
 
@@ -24,7 +24,7 @@ theorem RrefResult.map_inverse {K L : Type*} [Field K] [Field L] {m n : ℕ}
   rfl
 
 @[simp]
-theorem RrefResult.map_residualEntries {K L α : Type*} [Field K] [Field L] {m n : ℕ}
+theorem RrefResult.map_residualEntries {K L α : Type*} [CommRing K] [CommRing L] {m n : ℕ}
     (r : RrefResult K m (n + m)) (f : K →+* L) (values : Fin m → α) :
     (r.map f).residualEntries values = r.residualEntries values := rfl
 

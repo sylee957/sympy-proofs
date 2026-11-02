@@ -12,7 +12,7 @@ namespace Gosper.Algorithm
 
 open Polynomial
 
-variable {K : Type*} [Field K]
+variable {K : Type*} [CommRing K]
 
 def forwardOperator (A B : K[X]) : K[X] →ₗ[K] K[X] where
   toFun x := A * taylor 1 x - B * x
@@ -84,7 +84,7 @@ theorem coefficientSystem_correct [DecidableEq K] (A B C : K[X]) (d : ℕ) (c : 
     rw [coefficientSystem_mulVec]
     exact h i (Nat.le_of_lt_succ i.isLt)
 
-variable {L : Type*} [Field L] [Algebra K L] [DecidableEq L]
+variable {L : Type*} [CommRing L] [Algebra K L] [DecidableEq L]
 
 /-- The coefficient rows stay over `K` when the unknown coefficients lie in `L`. -/
 theorem coefficientSystem_mulVec_extension_bounded (A B : K[X]) (C : L[X])
@@ -128,8 +128,8 @@ theorem coefficientSystem_correct_extension_bounded (A B : K[X]) (C : L[X])
       (forwardOperator (A.map (algebraMap K L)) (B.map (algebraMap K L))
         (ofFn (d + 1) c)).natDegree ≤ max N (max A.natDegree B.natDegree + d) := by
     apply (forwardOperator_degree_le _ _ _ d hx).trans
-    simpa only [Polynomial.natDegree_map_eq_of_injective (algebraMap K L).injective]
-      using le_max_right N (max A.natDegree B.natDegree + d)
+    exact (Nat.add_le_add_right (max_le_max natDegree_map_le natDegree_map_le) d).trans
+      (le_max_right _ _)
   rw [ext_iff_natDegree_le ho (hC.trans (le_max_left _ _))]
   constructor
   · intro h i hi

@@ -2,7 +2,7 @@ module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Polynomial
 
-/-! Direct polynomial certificate checking over the coefficient field. -/
+/-! Direct polynomial certificate checking over a coefficient ring. -/
 
 @[expose] public section
 noncomputable section
@@ -11,24 +11,37 @@ namespace Gosper.Algorithm
 
 open Polynomial
 
-variable {K : Type*} [Field K]
+variable {R : Type*} [CommRing R]
 
 /-- Cross-multiplied forward Gosper equation for the multiplier U/V. -/
-def residual (P Q U V : K[X]) : K[X] :=
+def residual (P Q U V : R[X]) : R[X] :=
   P * taylor 1 U * V - Q * U * taylor 1 V - Q * V * taylor 1 V
 
-variable [DecidableEq K]
+/-- Certificate identities commute with coefficient maps. -/
+theorem residual_map {S : Type*} [CommRing S] (f : R →+* S) (P Q U V : R[X]) :
+    (residual P Q U V).map f = residual (P.map f) (Q.map f) (U.map f) (V.map f) := by
+  simp [residual]
 
-/-- Equality in K[X] replaces the former rational sampling test. -/
-def verify (P Q U V : K[X]) : Bool :=
+variable [DecidableEq R]
+
+/-- Equality in R[X] replaces the former rational sampling test. -/
+def verify (P Q U V : R[X]) : Bool :=
   decide (Q ≠ 0 ∧ V ≠ 0 ∧ residual P Q U V = 0)
 
-theorem verify_iff (P Q U V : K[X]) :
+theorem verify_iff (P Q U V : R[X]) :
     verify P Q U V = true ↔ Q ≠ 0 ∧ V ≠ 0 ∧ residual P Q U V = 0 := by
   simp [verify]
 
-theorem verify_sound (P Q U V : K[X]) (h : verify P Q U V = true) :
+theorem verify_sound (P Q U V : R[X]) (h : verify P Q U V = true) :
     Q ≠ 0 ∧ V ≠ 0 ∧ residual P Q U V = 0 := (verify_iff P Q U V).mp h
+
+/-- An injective coefficient map preserves certificate verification. -/
+theorem verify_map_iff {S : Type*} [CommRing S] [DecidableEq S]
+    (f : R →+* S) (hf : Function.Injective f) (P Q U V : R[X]) :
+    verify (P.map f) (Q.map f) (U.map f) (V.map f) = true ↔ verify P Q U V = true := by
+  simp only [verify_iff, ← residual_map, ne_eq, Polynomial.map_eq_zero_iff hf]
+
+variable {K : Type*} [Field K] [DecidableEq K]
 
 /-- Cancelling a common polynomial factor preserves the certificate identity. -/
 theorem verify_cancel_common (P Q U V d : K[X]) (hd : d ≠ 0)

@@ -20,63 +20,33 @@ finite sums follow from `Gosper.certificate_sum` and the product-sum theorems.
 `Gosper.HasHypergeometricAntidifference ρ` uses the forward term ratio
 `ρ(X) = a(X+1)/a(X)` and a forward sum ratio `σ(X) = S(X+1)/S(X)`.
 
-`Algorithm.gosperTerm` models the procedure on Mathlib polynomials over a
-characteristic-zero coefficient field with decidable `IsLocalization.IsInteger ℤ`
-membership. `Encodable.choose` recovers integer witnesses constructively; a rational
-instance decides membership by checking the reduced denominator. A `Backend`
-supplies factorization, resultant, zero matrices, entry updates, column reads, and RREF;
-shift resultants, natural integer roots, and linear solving
-are derived from them. `Algorithm.gosperSolve backend A B C` starts directly
-from `A*x(X+1) - B*x = C`, where `B` is already shifted backward from the
-normal form. `A` and `B` determine matrix entries over `K`; `C` may have
-coefficients in a commutative `K`-algebra. RREF and all inversions stay over `K`.
-The degree of `C` determines the matrix dimensions. `Algorithm.gosperSolve_map`
-proves that rerunning the solver commutes with degree-preserving specialization.
-The retained candidate and residual also specialize correctly under noninjective
-evaluation maps that lower the degree, without rerunning the solver.
-For a returned result, `Algorithm.gosperSolve_specialize_complete` characterizes
-the solvable specialized polynomial equations by the evaluated residual conditions,
-including a zero specialized right-hand side. `Algorithm.gosperSolve_specialize_ratFunc` gives
-the corresponding rational multiplier identity directly from normalized inputs.
-`Algorithm.gosperTerm backend P Q` takes the forward term ratio `P/Q` and a
-`TermBackend K L` bundling
-`normalization : Backend L`, `solver : Backend K`, and `descend : L → Option K`.
-It normalizes over `L`, converts the coefficients of `A` and `B` to `K`, then
-reduces the matrix over `K`. `C` and the output remain over `L`.
-`Algorithm.TermBackend.Valid` bundles the two primitive-operation contracts with
-`CoefficientDescentValid backend.descend`, which requires
-`backend.descend c = some a ↔ algebraMap K L a = c`.
-Successful conversion therefore supplies exact reconstruction of `A` and `B`;
-callers need no separate membership hypotheses.
-`Algorithm.Correctness` proves soundness and finite-sum identities for this entry
-point. `Algorithm.Completeness` proves completeness whenever the call returns
-`.ok result`, under the bundled backend contract.
-For the same field, use `Algorithm.gosperTerm (TermBackend.self backend) P Q`.
-`Algorithm.gosperTerm_self` proves that identity conversion cannot return an error.
-The same soundness and completeness theorems apply to this case.
-The coefficient matrix is augmented by an identity matrix
-to record reusable row operations. One matrix-vector product applies its right
-block to the right-hand side. The pivot rows give the coefficients, and the
-remaining transformed equations give the consistency conditions.
-The generalized inverse is used in the proof specification. Gcd and translation
-remain Mathlib operations. Ordinary and fraction-free RREF use the same
-matrix/denominator/pivots contract.
-`referenceBackend rref` supplies Mathlib factorization and resultant with the
-given RREF operation. The degree bound is unchanged.
-`inverseRref_mul` proves `M * U * M = M` for the prepared inverse `U`.
-For a fixed rational matrix, `rationalInverseCandidate` and
-`rationalInverseResidual` apply that inverse over any commutative ℚ-algebra,
-without testing parameter coefficients for equality. `inverseRref_map_solve_iff`
-proves exact solvability, and the candidate and residual commute with every
-ℚ-algebra specialization.
-Given `.ok result`, `Algorithm.gosperTerm_complete` characterizes hypergeometric
-summability by `result = some c` with vanishing residual. For nonzero inputs,
-`.ok none` proves nonsummability; `.ok (some c)` still requires checking the residual.
-An `.error` reports unavailable coefficient descent and makes no summability claim.
-The entry point returns `Except DescentFailure (Option Result)`; each result contains a candidate multiplier
-and an array of the remaining residual equations, retained without an equality test.
-When the residual vanishes, the candidate gives finite sums via
-`Algorithm.gosperTerm_sum`, with explicit denominator conditions on the summation
-interval. Mathlib's noncomputable
-operations keep this a mathematical algorithm model.
+`Algorithm.gosperTerm backend P Q` normalizes the forward ratio `P/Q`
+directly over an integral domain `L`. `TermBackend K L` supplies normalization
+operations over `L`, linear elimination over the constant domain `K`, and
+optional coefficient descent from `L` to `K`. Normalization keeps nonmonic
+polynomials and uses gcd and exact division. It constructs the shift resultant
+and extracts natural roots using supplied arithmetic operations.
+Its ratio identity holds over the ring; shift-coprimality is interpreted in
+the fraction field.
+
+`Algorithm.gosperSolve backend A B C` starts from the normalized equation
+`A*x(X+1) - B*x = C`. Its degree bound uses an integer-ratio test over `K`.
+The matrix entries lie in `K`; `C` and the output
+lie in a commutative `K`-algebra. Fraction-free reduction of `[M | I]` records
+row operations, pivot coefficients, and residual equations. Its nonzero scalar
+denominator is retained in the candidate, so no division in the parameter ring
+or parameter-coefficient equality test is needed during linear solving.
+
+`Algorithm.Correctness` proves the multiplier identity and finite-sum formula.
+`Algorithm.Completeness` characterizes summability by a returned candidate with
+vanishing residual, conditional on successful coefficient descent.
+`Algorithm.Specialization` transports these results through parameter evaluation,
+including degree drops and newly vanishing residuals. Constants from `K` must
+embed in the target field, and the specialized denominators must stay nonzero.
+
+For field backends, `TermBackend.self` supplies identity coefficient descent
+and uses `Backend.toNormalization` and `Backend.toLinear`. Correctness assumes
+the supplied primitive contracts; no external implementation is trusted by them.
+The definitions remain mathematical algorithm models where their underlying
+polynomial operations are noncomputable.
 -/

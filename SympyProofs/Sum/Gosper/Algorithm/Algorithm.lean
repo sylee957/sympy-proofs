@@ -19,27 +19,25 @@ noncomputable section
 
 namespace Gosper.Algorithm
 
-open Polynomial IsLocalization
+open Polynomial
 
 /-- Degree bound for `A(X)x(X+1) - B(X)x(X) = C(X)`, including the exceptional
-integer degree from leading-term cancellation. -/
-def degreeBound {K : Type*} [Field K] [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)] {L : Type*} [Semiring L]
+integer degree found by testing an integer ratio directly in `K`. -/
+def degreeBound {K : Type*} [CommRing K] [IsDomain K] [DecidableEq K]
+    (backend : LinearBackend K) {L : Type*} [Semiring L]
     (A B : K[X]) (C : L[X]) : ℤ := Id.run do
   let l := max A.natDegree B.natDegree
   if A.coeff l ≠ B.coeff l then return (C.natDegree : ℤ) - l
   if l = 0 then return (C.natDegree : ℤ) + 1
   let ordinary := (C.natDegree : ℤ) - l + 1
-  let exceptional := (B.coeff (l - 1) - A.coeff (l - 1)) / B.coeff l
-  if h : IsInteger ℤ exceptional then
-    let k : ℤ := Encodable.choose h
+  if let some k := backend.integerRatio (B.coeff (l - 1) - A.coeff (l - 1)) (B.coeff l) then
     return max k ordinary
   return ordinary
 
-/-- Convert the finitely many nonzero coefficients to a chosen smaller field.
+/-- Convert the finitely many nonzero coefficients to the chosen constant domain.
 `descendCoeff` supplies the coefficient membership test and conversion; its
 correctness contract appears only in the theorems. -/
-def descendPolynomial {K L : Type} [Field K] [Field L]
+def descendPolynomial {K L : Type} [CommRing K] [CommRing L]
     (descendCoeff : L → Option K) (p : L[X]) : Option K[X] := do
   let mut q := 0
   for n in p.support.toList do
@@ -48,35 +46,28 @@ def descendPolynomial {K L : Type} [Field K] [Field L]
   return q
 
 /-- Return `(A, B, C)` with `P/Q = A(X) C(X+1) / (B(X) C(X))`.
-Shift zero also removes common factors of the input pair. -/
-def gosperNormal {K : Type} [Field K] [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)]
-    (backend : Backend K) (P Q : K[X]) : K[X] × K[X] × K[X] := Id.run do
-  let z := P.leadingCoeff / Q.leadingCoeff
-  let a := monic P
-  let b := monic Q
-  let mappedA := a.map (Polynomial.C : K →+* K[X])
-  let shiftedB := taylor (X : K[X]) (b.map (Polynomial.C : K →+* K[X]))
-  let resultant := backend.resultant mappedA shiftedB
-  let (_, factors) := backend.factor resultant
-  let mut shifts : Finset ℕ := ∅
-  for (base, _) in factors do
-    if base.natDegree = 1 then
-      let root := -base.coeff 0 / base.coeff 1
-      if h : IsInteger ℤ root then
-        let n : ℤ := Encodable.choose h
-        if 0 ≤ n then
-          shifts := insert n.toNat shifts
-  let mut s := (a, b, (1 : K[X]))
+All polynomials stay over `K`. Exact quotients remove the common factors;
+their correctness contract appears only in the proofs. -/
+def gosperNormal {K : Type} [CommRing K] [IsDomain K]
+    (backend : NormalizationBackend K) (P Q : K[X]) : K[X] × K[X] × K[X] := Id.run do
+  -- Eliminate the outer variable; the inner variable records the shift.
+  let p := P.map (Polynomial.C : K →+* K[X])
+  let q := taylor (X : K[X]) (Q.map (Polynomial.C : K →+* K[X]))
+  let resultant := backend.resultant p q
+  -- Shift zero also cancels common coefficient content.
+  let shifts := insert 0 (backend.naturalRoots resultant)
+  let mut s := (P, Q, (1 : K[X]))
   for j in shifts.sort (· ≤ ·) do
     let (a, b, c) := s
-    let d := gcd a (taylor (j : K) b)
-    let a := a / d
-    let b := taylor (-(j : K)) (taylor (j : K) b / d)
-    let c := c * taylor (-1) (Gosper.shiftProduct d j)
+    let shifted := taylor (j : K) b
+    let d := backend.gcd a shifted
+    let a := backend.exactDiv a d
+    let b := taylor (-(j : K)) (backend.exactDiv shifted d)
+    let mut c := c
+    for k in [:j] do
+      c := c * taylor (-((k : K) + 1)) d
     s := (a, b, c)
-  let (a, b, c) := s
-  return (Polynomial.C z * a, b, c)
+  return s
 
 /-- A candidate multiplier together with the remaining linear compatibility conditions. -/
 structure Result (K : Type*) [CommRing K] where
@@ -84,23 +75,23 @@ structure Result (K : Type*) [CommRing K] where
   denominator : K[X]
   residual : Array K
 
-/-- Solve the normalized equation `A*x(X+1) - B*x = C`, retaining a candidate
-`B*x/C` and its residual conditions. Here `B` is already shifted backward from
-the `B` returned by `gosperNormal`. Matrix reduction takes place over `K`;
-the right-hand side and result lie in a commutative `K`-algebra `L`.
-No decidable equality on `L` is required; residual conditions are returned
-without deciding whether they vanish.
-The matrix entries depend on `A` and `B`; its size uses `C.natDegree`.
-The retained candidate and residual can be specialized even when this degree drops.
-Only a negative degree bound returns `none`; a nonzero residual is returned for
-the caller to inspect. The field-valued rational multiplier interpretation
-requires `C ≠ 0` after specialization.
-Backend validity and nonzero-input hypotheses appear only in the theorems. -/
-def gosperSolve {K : Type} [Field K] [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)] (backend : Backend K)
+/-- Apply a coefficient homomorphism to the candidate and its retained conditions. -/
+def Result.map {R S : Type*} [CommRing R] [CommRing S]
+    (f : R →+* S) (r : Result R) : Result S where
+  numerator := r.numerator.map f
+  denominator := r.denominator.map f
+  residual := r.residual.map f
+
+/-- Solve over the constant domain `K` without dividing parameter coefficients.
+When the residual vanishes, the unscaled coefficients solve `A*x(X+1) - B*x = d*C`.
+The returned
+multiplier is `B*x/(d*C)`, with `d` the nonzero elimination denominator.
+Residual conditions are returned without testing them in `L`. -/
+def gosperSolve {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
+    (backend : LinearBackend K)
     {L : Type} [CommRing L] [Algebra K L]
     (A B : K[X]) (C : L[X]) : Option (Result L) := Id.run do
-  let d := degreeBound A B C
+  let d := degreeBound backend A B C
   if d < 0 then return none
   let n := d.toNat + 1
   let m := max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1
@@ -126,36 +117,29 @@ def gosperSolve {K : Type} [Field K] [DecidableEq K]
     let row : Fin m := ⟨row, lt_of_lt_of_le (List.mem_zipIdx' hp).1 r.length_le⟩
     if h : pivot.val < n then
       let pivot : Fin n := ⟨pivot.val, h⟩
-      coefficients := coefficients.set pivot.val
-        (transformed[row.val] * algebraMap K L r.denominator⁻¹)
+      coefficients := coefficients.set pivot.val transformed[row.val]
     else
       residual := residual.push transformed[row.val]
   let x := ∑ j : Fin n, Polynomial.monomial j.val coefficients[j.val]
   let U := B.map (algebraMap K L) * x
-  let V := C
+  let V := Polynomial.C (algebraMap K L r.denominator) * C
   return some
     { numerator := U
       denominator := V
       residual := residual }
 
-/-- The normalized polynomial that could not be represented in the chosen field. -/
+/-- The normalized polynomial that could not be represented in the constant domain. -/
 inductive DescentFailure where
   | A
   | B
   deriving DecidableEq, Repr
 
-/-- Normalize over `L`, then convert `A` and `B` to `K` and solve over `K`.
-The right-hand side `C`, candidate, and residual remain over `L`.
-An error identifies a failed coefficient conversion. An `ok none` instead
-records the solver's negative degree bound; `ok (some r)` retains its residual.
-No search for a smallest field is performed: the caller chooses `K` and supplies
-`backend.descend`. For the same field, use `gosperTerm (TermBackend.self backend) P Q`.
-Use `gosperSolve` directly when the normalized equation is already available.
-Correctness of this conversion is required only by the proofs. -/
-def gosperTerm {K : Type} [Field K] [DecidableEq K]
-    [DecidablePred (IsInteger ℤ : K → Prop)]
-    {L : Type} [Field L] [CharZero L] [DecidableEq L]
-    [DecidablePred (IsInteger ℤ : L → Prop)] [Algebra K L]
+/-- Normalize directly over `L`, descend the fixed factors `A` and `B` to `K`,
+and solve with the parameter polynomial `C` over `L`.
+An error identifies failed coefficient descent; `ok none` records a negative
+solution-degree bound. Correctness contracts appear only in the theorems. -/
+def gosperTerm {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
+    {L : Type} [CommRing L] [IsDomain L] [Algebra K L]
     (backend : TermBackend K L) (P Q : L[X]) : Except DescentFailure (Option (Result L)) := OptionT.run do
   let (A, B, C) := gosperNormal backend.normalization P Q
   let some A := descendPolynomial backend.descend A | throwThe DescentFailure .A

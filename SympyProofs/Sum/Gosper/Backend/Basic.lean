@@ -68,14 +68,14 @@ theorem referenceBackend_valid [DecidableEq K] (rref : RrefOperation K)
   rref_valid := hrref
 
 /-- The natural roots used by Gosper are read from the backend's factor list. -/
-noncomputable def Backend.nonnegativeIntegerRoots [DecidableEq K] [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
+noncomputable def Backend.naturalRoots [DecidableEq K] [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
     (backend : Backend K) (p : K[X]) : Finset ℕ :=
-  nonnegativeIntegerRootsFromFactors (backend.factor p).2
+  naturalRootsFromFactors (backend.factor p).2
 
-theorem Backend.mem_nonnegativeIntegerRoots [DecidableEq K] [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)] (backend : Backend K)
+theorem Backend.mem_naturalRoots [DecidableEq K] [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)] (backend : Backend K)
     (h : backend.Valid) (p : K[X]) (hp : p ≠ 0) (n : ℕ) :
-    n ∈ backend.nonnegativeIntegerRoots p ↔ p.eval (n : K) = 0 :=
-  (h.factor_valid p hp).mem_nonnegativeIntegerRoots n
+    n ∈ backend.naturalRoots p ↔ p.eval (n : K) = 0 :=
+  (h.factor_valid p hp).mem_naturalRoots n
 
 /-- A different sign convention for the resultant still satisfies its contract. -/
 theorem Backend.Valid.scaleResultant {backend : Backend K} (h : backend.Valid)

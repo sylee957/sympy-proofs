@@ -10,19 +10,23 @@ row transformation, so its validity is preserved by the field embedding. -/
 
 namespace Gosper.Algorithm
 
-variable {K L : Type*} [Field K] [Field L] {m n : ℕ}
+variable {K L : Type*} {m n : ℕ}
 
 /-- Embed the computed entries and denominator while retaining the pivot indices. -/
-def RrefResult.map (r : RrefResult K m n) (f : K →+* L) : RrefResult L m n where
+def RrefResult.map [CommRing K] [CommRing L]
+    (r : RrefResult K m n) (f : K →+* L) : RrefResult L m n where
   matrix := r.matrix.map f
   denominator := f r.denominator
   pivots := r.pivots
   length_le := r.length_le
 
 @[simp]
-theorem RrefResult.map_id (r : RrefResult K m n) : r.map (RingHom.id K) = r := by
+theorem RrefResult.map_id [CommRing K] (r : RrefResult K m n) :
+    r.map (RingHom.id K) = r := by
   cases r
   rfl
+
+variable [Field K] [Field L]
 
 /-- Embedding preserves the pivot structure, independently of the original input matrix. -/
 theorem RrefResult.map_valid_self {A : Matrix (Fin m) (Fin n) K}

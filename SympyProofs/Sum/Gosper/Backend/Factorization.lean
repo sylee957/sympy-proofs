@@ -73,7 +73,7 @@ theorem IsFactorization.eval_eq_zero_iff {p : K[X]} {f : K × List (K[X] × ℕ)
 variable [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)]
 
 /-- Read the root of a linear factor when it is a nonnegative integer. -/
-def nonnegativeIntegerRoot (p : K[X]) : Option ℕ :=
+def naturalRoot (p : K[X]) : Option ℕ :=
   match linearRoot p with
   | none => none
   | some root =>
@@ -82,9 +82,9 @@ def nonnegativeIntegerRoot (p : K[X]) : Option ℕ :=
       if 0 ≤ n then some n.toNat else none
     else none
 
-theorem nonnegativeIntegerRoot_eq_some (p : K[X]) (n : ℕ) :
-    nonnegativeIntegerRoot p = some n ↔ linearRoot p = some (n : K) := by
-  unfold nonnegativeIntegerRoot
+theorem naturalRoot_eq_some (p : K[X]) (n : ℕ) :
+    naturalRoot p = some n ↔ linearRoot p = some (n : K) := by
+  unfold naturalRoot
   cases hr : linearRoot p with
   | none => simp
   | some root =>
@@ -110,29 +110,29 @@ theorem nonnegativeIntegerRoot_eq_some (p : K[X]) (n : ℕ) :
 
 /-- Extract linear factors, recognize natural roots, and discard duplicates.
 This is the interpretation of factorization used by Gosper, not a backend operation. -/
-def nonnegativeIntegerRootsFromFactors (factors : List (K[X] × ℕ)) : Finset ℕ :=
-  (factors.filterMap fun z => nonnegativeIntegerRoot z.1).toFinset
+def naturalRootsFromFactors (factors : List (K[X] × ℕ)) : Finset ℕ :=
+  (factors.filterMap fun z => naturalRoot z.1).toFinset
 
 omit [CharZero K] in
 /-- Inserting roots in a loop gives the same finite set as filtering the factors. -/
-theorem nonnegativeIntegerRootsFromFactors_foldl (factors : List (K[X] × ℕ))
+theorem naturalRootsFromFactors_foldl (factors : List (K[X] × ℕ))
     (roots : Finset ℕ) :
     (factors.foldl (fun roots factor =>
-      (nonnegativeIntegerRoot factor.1).elim roots (fun n => insert n roots))
-        roots) = roots ∪ nonnegativeIntegerRootsFromFactors factors := by
+      (naturalRoot factor.1).elim roots (fun n => insert n roots))
+        roots) = roots ∪ naturalRootsFromFactors factors := by
   induction factors generalizing roots with
-  | nil => simp [nonnegativeIntegerRootsFromFactors]
+  | nil => simp [naturalRootsFromFactors]
   | cons factor factors ih =>
-    cases h : nonnegativeIntegerRoot factor.1 <;>
-      simp [List.foldl_cons, ih, nonnegativeIntegerRootsFromFactors,
+    cases h : naturalRoot factor.1 <;>
+      simp [List.foldl_cons, ih, naturalRootsFromFactors,
         h, Finset.insert_union, Finset.union_insert]
 
-theorem IsFactorization.mem_nonnegativeIntegerRoots
+theorem IsFactorization.mem_naturalRoots
     {p : K[X]} {f : K × List (K[X] × ℕ)} (h : IsFactorization p f) (n : ℕ) :
-    n ∈ nonnegativeIntegerRootsFromFactors f.2 ↔ p.eval (n : K) = 0 := by
+    n ∈ naturalRootsFromFactors f.2 ↔ p.eval (n : K) = 0 := by
   rw [h.eval_eq_zero_iff]
-  simp only [nonnegativeIntegerRootsFromFactors, List.mem_toFinset, List.mem_filterMap,
-    nonnegativeIntegerRoot_eq_some]
+  simp only [naturalRootsFromFactors, List.mem_toFinset, List.mem_filterMap,
+    naturalRoot_eq_some]
   constructor
   · rintro ⟨z, hz, he⟩
     exact ⟨z, hz, (linearRoot_eq_some z.1 (h.irreducible z hz) _).mp he⟩
