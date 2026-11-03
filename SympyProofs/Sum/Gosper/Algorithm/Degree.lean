@@ -12,18 +12,19 @@ namespace Gosper.Algorithm
 
 open Polynomial
 
-variable {K : Type*} [CommRing K] [IsDomain K] [DecidableEq K]
+variable {K W : Type*} [CommRing K] [IsDomain K] [DecidableEq K]
+variable [CommRing W] [IsDomain W]
 
 /-- Equal right-hand-side degrees give the same signed solution bound,
 independently of the coefficients and their coefficient ring. -/
-theorem degreeBound_rhs_eq (backend : LinearBackend K)
+theorem degreeBound_rhs_eq (backend : TermBackend K W)
     {R S : Type*} [Semiring R] [Semiring S]
     (A B : K[X]) (C : R[X]) (D : S[X]) (hdegree : C.natDegree = D.natDegree) :
     degreeBound backend A B C = degreeBound backend A B D := by
   simp only [degreeBound, hdegree]
 
 /-- Increasing the right-hand-side degree cannot decrease the solution bound. -/
-theorem degreeBound_mono (backend : LinearBackend K)
+theorem degreeBound_mono (backend : TermBackend K W)
     {R S : Type*} [Semiring R] [Semiring S]
     (A B : K[X]) (C : R[X]) (D : S[X]) (hdegree : C.natDegree ≤ D.natDegree) :
     degreeBound backend A B C ≤ degreeBound backend A B D := by
@@ -44,9 +45,11 @@ private theorem top_coeff_ne_zero (A B : K[X])
   · have hB : B = 0 := leadingCoeff_eq_zero.mp (by simpa [h] using hb)
     exact hl (by simpa [hB] using h)
 
+variable [Algebra K W]
+
 omit [DecidableEq K] in
 /-- Integer-ratio recognition agrees with division after an injective map into a field. -/
-private theorem integerRatio_eq_div (backend : LinearBackend K) (hbackend : backend.Valid)
+private theorem integerRatio_eq_div (backend : TermBackend K W) (hbackend : backend.Valid)
     {L : Type*} [Field L] (f : K →+* L) (hf : Function.Injective f)
     (a b : K) (hb : b ≠ 0) (z : ℤ) :
     backend.integerRatio a b = some z ↔ (z : L) = f a / f b := by
@@ -62,7 +65,7 @@ private theorem integerRatio_eq_div (backend : LinearBackend K) (hbackend : back
 variable [CharZero K] {L : Type*} [Field L] [Algebra K L]
 
 /-- The domain computation agrees with the paper's bound in every faithful field target. -/
-theorem degreeBound_eq_paper_map (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem degreeBound_eq_paper_map (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : L[X]) (hKL : Function.Injective (algebraMap K L)) :
     degreeBound backend A B C =
       Gosper.paperDegreeBound C (A.map (algebraMap K L)) (B.map (algebraMap K L)) := by
@@ -99,7 +102,7 @@ theorem degreeBound_eq_paper_map (backend : LinearBackend K) (hbackend : backend
     exact (Gosper.caseTwoDegreeBound_of_integer C _ _ l z ((hratio z).mp hr)).symm
 
 /-- A bound computed in the domain applies to solutions in a faithful field target. -/
-theorem solution_degree_le_extension (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem solution_degree_le_extension (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C x : L[X]) (hKL : Function.Injective (algebraMap K L))
     (hA : A ≠ 0) (hB : B ≠ 0) (hx : x ≠ 0)
     (he : A.map (algebraMap K L) * taylor 1 x - B.map (algebraMap K L) * x = C) :
@@ -115,7 +118,7 @@ theorem solution_degree_le_extension (backend : LinearBackend K) (hbackend : bac
     ((Polynomial.map_ne_zero_iff hKL).mpr hA) ((Polynomial.map_ne_zero_iff hKL).mpr hB) ht he'
 
 /-- The source degree remains a valid bound when evaluation lowers the right-hand-side degree. -/
-theorem solution_degree_le_extension_bounded (backend : LinearBackend K)
+theorem solution_degree_le_extension_bounded (backend : TermBackend K W)
     (hbackend : backend.Valid) {R : Type*} [Semiring R]
     (A B : K[X]) (C₀ : R[X]) (C x : L[X]) (hKL : Function.Injective (algebraMap K L))
     (hdegree : C.natDegree ≤ C₀.natDegree) (hA : A ≠ 0) (hB : B ≠ 0) (hx : x ≠ 0)

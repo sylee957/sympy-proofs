@@ -2,7 +2,7 @@ module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Certificate
 public import SympyProofs.Sum.Gosper.Backend.Inverse
-public import SympyProofs.Sum.Gosper.Backend.Descent
+public import SympyProofs.Sum.Gosper.Backend.Normalization
 public import SympyProofs.Sum.Gosper.Backend.Resultant
 public import SympyProofs.Sum.Gosper.Normalization
 
@@ -23,8 +23,8 @@ open Polynomial
 
 /-- Degree bound for `A(X)x(X+1) - B(X)x(X) = C(X)`, including the exceptional
 integer degree found by testing an integer ratio directly in `K`. -/
-def degreeBound {K : Type*} [CommRing K] [IsDomain K] [DecidableEq K]
-    (backend : LinearBackend K) {L : Type*} [Semiring L]
+def degreeBound {K W : Type*} [CommRing K] [IsDomain K] [DecidableEq K]
+    [CommRing W] [IsDomain W] (backend : TermBackend K W) {L : Type*} [Semiring L]
     (A B : K[X]) (C : L[X]) : ℤ := Id.run do
   let l := max A.natDegree B.natDegree
   if A.coeff l ≠ B.coeff l then return (C.natDegree : ℤ) - l
@@ -46,26 +46,26 @@ def descendPolynomial {K L : Type} [CommRing K] [CommRing L]
   return q
 
 /-- Return `(A, B, C)` with `P/Q = A(X) C(X+1) / (B(X) C(X))`.
-All polynomials stay over `K`. Exact quotients remove the common factors;
+All polynomials stay over `L`. Exact quotients remove the common factors;
 their correctness contract appears only in the proofs. -/
-def gosperNormal {K : Type} [CommRing K] [IsDomain K]
-    (backend : NormalizationBackend K) (P Q : K[X]) : K[X] × K[X] × K[X] := Id.run do
+def gosperNormal {K L : Type} [CommRing K] [IsDomain K] [CommRing L] [IsDomain L]
+    (backend : TermBackend K L) (P Q : L[X]) : L[X] × L[X] × L[X] := Id.run do
   -- Eliminate the outer variable; the inner variable records the shift.
-  let p := P.map (Polynomial.C : K →+* K[X])
-  let q := taylor (X : K[X]) (Q.map (Polynomial.C : K →+* K[X]))
+  let p := P.map (Polynomial.C : L →+* L[X])
+  let q := taylor (X : L[X]) (Q.map (Polynomial.C : L →+* L[X]))
   let resultant := backend.resultant p q
   -- Shift zero also cancels common coefficient content.
   let shifts := insert 0 (backend.naturalRoots resultant)
-  let mut s := (P, Q, (1 : K[X]))
+  let mut s := (P, Q, (1 : L[X]))
   for j in shifts.sort (· ≤ ·) do
     let (a, b, c) := s
-    let shifted := taylor (j : K) b
+    let shifted := taylor (j : L) b
     let d := backend.gcd a shifted
     let a := backend.exactDiv a d
-    let b := taylor (-(j : K)) (backend.exactDiv shifted d)
+    let b := taylor (-(j : L)) (backend.exactDiv shifted d)
     let mut c := c
     for k in [:j] do
-      c := c * taylor (-((k : K) + 1)) d
+      c := c * taylor (-((k : L) + 1)) d
     s := (a, b, c)
   return s
 
@@ -89,8 +89,8 @@ The returned multiplier is `B*x/(d*C)`, with `d` the nonzero elimination denomin
 The residual numerator is `d*C - (A*x(X+1) - B*x)`.
 The residual is returned without testing whether it vanishes in `L`.
 A negative degree bound returns zero multiplier and the whole input as remainder. -/
-def gosperSolve {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
-    (backend : LinearBackend K)
+def gosperSolve {K W : Type} [CommRing K] [IsDomain K] [DecidableEq K]
+    [CommRing W] [IsDomain W] (backend : TermBackend K W)
     {L : Type} [CommRing L] [Algebra K L]
     (A B : K[X]) (C : L[X]) : Result L := Id.run do
   let d := degreeBound backend A B C
@@ -145,9 +145,9 @@ a reduction. Correctness contracts appear only in the theorems. -/
 def gosperTerm {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
     {L : Type} [CommRing L] [IsDomain L] [Algebra K L]
     (backend : TermBackend K L) (P Q : L[X]) : Except DescentFailure (Result L) := do
-  let (A, B, C) := gosperNormal backend.normalization P Q
+  let (A, B, C) := gosperNormal backend P Q
   let some A := descendPolynomial backend.descend A | throw .A
   let some B := descendPolynomial backend.descend B | throw .B
-  return gosperSolve backend.solver A (taylor (-1) B) C
+  return gosperSolve backend A (taylor (-1) B) C
 
 end Gosper.Algorithm

@@ -75,14 +75,14 @@ theorem gosperTerm_specialize_normalForm (hbackend : backend.Valid)
     (hP : P.map f.toRingHom ≠ 0) (hQ : Q.map f.toRingHom ≠ 0)
     (hV : r.denominator.map f.toRingHom ≠ 0) :
     ∃ A B : K[X], ∃ C : L[X],
-      gosperSolve backend.solver A (taylor (-1) B) C = r ∧
+      gosperSolve backend A (taylor (-1) B) C = r ∧
       normalFormValid (P.map f.toRingHom) (Q.map f.toRingHom)
         (A.map (algebraMap K E), B.map (algebraMap K E), C.map f.toRingHom) := by
   have hP0 : P ≠ 0 := fun hz => hP (by simp [hz])
   have hQ0 : Q ≠ 0 := fun hz => hQ (by simp [hz])
   obtain ⟨A, B, C, hsolve, hvalid⟩ :=
     gosperTerm_normalForm backend hbackend P Q hP0 hQ0 r hrun
-  obtain ⟨δ, _, hden⟩ := gosperSolve_denominator backend.solver hbackend.solver
+  obtain ⟨δ, _, hden⟩ := gosperSolve_denominator backend hbackend
     A (taylor (-1) B) C r hsolve
   have hC : C.map f.toRingHom ≠ 0 := by
     intro hzero
@@ -92,7 +92,7 @@ theorem gosperTerm_specialize_normalForm (hbackend : backend.Valid)
   refine ⟨A, B, C, hsolve, ?_⟩
   have hKi : Function.Injective (algebraMap K (FractionRing L)) := by
     rw [IsScalarTower.algebraMap_eq K L (FractionRing L)]
-    exact (IsFractionRing.injective L (FractionRing L)).comp hbackend.descend.injective
+    exact (IsFractionRing.injective L (FractionRing L)).comp hbackend.algebraMap_injective
   exact normalFormValid_specialize (IsScalarTower.toAlgHom K L (FractionRing L))
     (IsFractionRing.injective L (FractionRing L)) f hKi hK
     A B C P Q hvalid hC
@@ -110,7 +110,7 @@ theorem gosperTerm_specialize_verified [DecidableEq E] (hbackend : backend.Valid
       (r.numerator.map f.toRingHom) (r.denominator.map f.toRingHom) = true := by
   obtain ⟨A, B, C, hsolve, hvalid⟩ :=
     gosperTerm_specialize_normalForm backend hbackend f hK P Q r hrun hP hQ hV
-  obtain ⟨δ, hδ, x, hu, hd, hx⟩ := gosperSolve_specialize_sound backend.solver hbackend.solver
+  obtain ⟨δ, hδ, x, hu, hd, hx⟩ := gosperSolve_specialize_sound backend hbackend
     A (taylor (-1) B) C f hK r hsolve hzero
   simp only [Polynomial.map_taylor, map_neg, map_one] at hu hx
   have hδE : algebraMap K E δ ≠ 0 := fun hz => hδ (hK (by simpa using hz))

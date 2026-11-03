@@ -38,7 +38,7 @@ theorem gosperTerm_specialize_complete [CharZero K] [CharZero E]
   have hA : A ≠ 0 := fun hz => hvalid.1.1 (by simp [hz])
   have hB0 : B ≠ 0 := fun hz => hvalid.1.2.1 (by simp [hz])
   have hB : taylor (-1 : K) B ≠ 0 := (taylor_eq_zero _ _).not.mpr hB0
-  rw [gosperSolve_specialize_complete backend.solver hbackend.solver
+  rw [gosperSolve_specialize_complete backend hbackend
     A (taylor (-1) B) C f hK r hsolve hA hB]
   simpa using (normalForm_hypergeometric_iff_polynomial
     (P.map f.toRingHom) (Q.map f.toRingHom) hP hQ _ hvalid).symm

@@ -14,7 +14,7 @@ The coefficient field has characteristic zero, so the integer and natural casts
 are injective. Decidable `IsLocalization.IsInteger ℤ` membership and
 `Encodable.choose` recognize and recover integer coefficients constructively.
 Mathlib's polynomial division and factorization remain
-noncomputable; `Backend.Basic` specifies the replaceable CAS operations.
+noncomputable; `TermBackend` specifies the replaceable operations.
 -/
 
 @[expose] public section

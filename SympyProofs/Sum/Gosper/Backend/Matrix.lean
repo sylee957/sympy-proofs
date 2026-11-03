@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.Sum.Gosper.Backend.Basic
+public import SympyProofs.Sum.Gosper.Backend.Linear
 public import SympyProofs.Sum.Gosper.Backend.Inverse
 public import SympyProofs.Sum.Gosper.Backend.Residual
 
@@ -12,23 +12,9 @@ namespace Gosper.Algorithm
 
 variable {K : Type*} [Field K] {m n : ℕ}
 
-/-- Filling a list of entries copies the target matrix at exactly those positions. -/
-theorem Backend.setElement_foldl_apply (backend : Backend K) (h : backend.Valid)
-    (entries : List (Fin m × Fin n)) (initial target : Matrix (Fin m) (Fin n) K)
-    (i : Fin m) (j : Fin n) :
-    (entries.foldl (fun M pos => backend.setElement M pos.1 pos.2 (target pos.1 pos.2))
-      initial) i j = if (i, j) ∈ entries then target i j else initial i j := by
-  induction entries generalizing initial with
-  | nil => simp
-  | cons pos entries ih =>
-    rw [List.foldl_cons, ih, h.setElement_apply]
-    by_cases hm : (i, j) ∈ entries
-    · simp [hm]
-    · by_cases hi : i = pos.1 <;> by_cases hj : j = pos.2 <;>
-        simp_all [Prod.ext_iff]
-
 /-- Writing each coefficient constructs the matrix independently of any right-hand side. -/
-theorem Backend.fill_matrix_eq (backend : Backend K) (h : backend.Valid)
+theorem TermBackend.fill_matrix_eq {L : Type*} [CommRing L] [IsDomain L] [Algebra K L]
+    (backend : TermBackend K L) (h : backend.Valid)
     (A : Matrix (Fin m) (Fin n) K) :
     (Id.run do
       let mut M := backend.zeros m n
@@ -53,42 +39,9 @@ theorem Backend.fill_matrix_eq (backend : Backend K) (h : backend.Valid)
   have hm : (i, j) ∈ entries := by simp [entries]
   simp [hm]
 
-/-- Fill the coefficient block and identity diagonal in one pass to construct `[A | I]`. -/
-theorem Backend.fill_identity_augmented_eq (backend : Backend K) (h : backend.Valid)
-    (A : Matrix (Fin m) (Fin n) K) :
-    (Id.run do
-      let mut M := backend.zeros m (n + m)
-      for i in List.finRange m do
-        for j in List.finRange n do
-          M := backend.setElement M i (j.castAdd m) (A i j)
-        M := backend.setElement M i (Fin.natAdd n i) 1
-      return M) = augmentedIdentity A := by
-  let entries := (List.finRange m).flatMap fun i =>
-    ((List.finRange n).map fun j => (i, j.castAdd m)) ++ [(i, Fin.natAdd n i)]
-  have he : (Id.run do
-      let mut M := backend.zeros m (n + m)
-      for i in List.finRange m do
-        for j in List.finRange n do
-          M := backend.setElement M i (j.castAdd m) (A i j)
-        M := backend.setElement M i (Fin.natAdd n i) 1
-      return M) =
-      entries.foldl (fun M pos =>
-        backend.setElement M pos.1 pos.2 (augmentedIdentity A pos.1 pos.2))
-        (backend.zeros m (n + m)) := by
-    simp [entries, List.foldl_flatMap, List.foldl_append, List.foldl_map,
-      augmentedIdentity]
-  rw [he]
-  ext i j
-  rw [backend.setElement_foldl_apply h]
-  refine Fin.addCases (fun j => ?_) (fun j => ?_) j
-  · simp [entries, augmentedIdentity]
-  · by_cases hij : i = j
-    · subst j
-      simp [entries, augmentedIdentity]
-    · simp [entries, augmentedIdentity, h.zeros_eq, hij]
-
 /-- Writing every coefficient column and then the right-hand side constructs `[A | b]`. -/
-theorem Backend.fill_augmented_eq (backend : Backend K) (h : backend.Valid)
+theorem TermBackend.fill_augmented_eq {L : Type*} [CommRing L] [IsDomain L] [Algebra K L]
+    (backend : TermBackend K L) (h : backend.Valid)
     (A : Matrix (Fin m) (Fin n) K) (b : Fin m → K) :
     (Id.run do
       let mut M := backend.zeros m (n + 1)
@@ -121,10 +74,10 @@ theorem Backend.fill_augmented_eq (backend : Backend K) (h : backend.Valid)
   simp [hm]
 
 /-- Read the augmented column once and reconstruct the polynomial from its pivot rows. -/
-theorem Backend.reconstruct_eq [DecidableEq K] (backend : Backend K) (h : backend.Valid)
+theorem RrefResult.reconstruct_eq [DecidableEq K]
     (r : RrefResult K m (n + 1)) (hlast : Fin.last n ∉ r.pivots) :
     (Id.run do
-      let rhs := backend.getCol r.matrix (Fin.last n)
+      let rhs := fun i => r.matrix i (Fin.last n)
       let mut x : Polynomial K := 0
       for ⟨(pivot, row), hp⟩ in r.pivots.zipIdx.attach do
         let row : Fin m := ⟨row, lt_of_lt_of_le (List.mem_zipIdx' hp).1 r.length_le⟩
@@ -132,7 +85,7 @@ theorem Backend.reconstruct_eq [DecidableEq K] (backend : Backend K) (h : backen
       return x) = Polynomial.ofFn n r.solution := by
   rw [r.ofFn_solution_eq_pivots hlast, List.mapFinIdx_eq_zipIdx_map,
     List.sum_eq_foldl, List.foldl_map]
-  simp [h.getCol_apply]
+  simp
 
 /-- The coefficient at a left pivot is read from its unique pivot row. -/
 theorem RrefResult.leftSolution_apply_of_pivot {A : Matrix (Fin m) (Fin (n + m)) K}

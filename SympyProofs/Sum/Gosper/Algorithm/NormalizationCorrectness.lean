@@ -1,6 +1,7 @@
 module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Algorithm
+public import SympyProofs.Sum.Gosper.Backend.Normalization
 public import SympyProofs.Sum.Gosper.Normalization
 
 /-! Ring-valued normalization preserves the ratio and removes all relevant shifts. -/
@@ -21,7 +22,7 @@ def normalFormValid {F : Type*} [Field F] (P Q : F[X]) (s : F[X] × F[X] × F[X]
   normalFormNonzero s ∧ Gosper.ShiftCoprime s.1 s.2.1 ∧
     P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2)
 
-variable {R : Type} [CommRing R]
+variable {K R : Type} [CommRing K] [IsDomain K] [CommRing R] [Algebra K R]
 
 /-- The imperative update multiplies the shifts from `-1` through `-j`. -/
 private theorem normalization_product_loop (c d : R[X]) (j : ℕ) :
@@ -72,7 +73,7 @@ private theorem normalization_factor_step [IsDomain R] (P Q : R[X]) (s : R[X] ×
 
 /-- A gcd update preserves the ring identity, clears its selected shift in the fraction
 field, and preserves every previously established coprimality condition. -/
-theorem normalization_step_spec [IsDomain R] (backend : NormalizationBackend R) (hbackend : backend.Valid)
+theorem normalization_step_spec [IsDomain R] (backend : TermBackend K R) (hbackend : backend.Valid)
     (P Q : R[X]) (s : R[X] × R[X] × R[X]) (hs : normalFormNonzero s)
     (he : P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2)) (j : ℕ) :
     let d := backend.gcd s.1 (taylor (j : R) s.2.1)
@@ -147,7 +148,7 @@ theorem normalization_foldl_spec (P Q : R[X])
 variable [IsDomain R]
 
 /-- The completed loop keeps its exact ring identity and clears every nonnegative shift. -/
-theorem gosperNormal_invariants (backend : NormalizationBackend R) (hbackend : backend.Valid)
+theorem gosperNormal_invariants (backend : TermBackend K R) (hbackend : backend.Valid)
     (P Q : R[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : R[X] × R[X] × R[X])
     (h : gosperNormal backend P Q = s) :
     normalFormNonzero s ∧ P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2) ∧
@@ -180,7 +181,7 @@ theorem gosperNormal_invariants (backend : NormalizationBackend R) (hbackend : b
     exact hj ((backend.mem_naturalRoots_shiftResultant hbackend P Q hP hQ j).mpr hn)
 
 /-- Normalization preserves the ratio and nonzero components over the input ring itself. -/
-theorem gosperNormal_sound (backend : NormalizationBackend R) (hbackend : backend.Valid)
+theorem gosperNormal_sound (backend : TermBackend K R) (hbackend : backend.Valid)
     (P Q : R[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : R[X] × R[X] × R[X])
     (h : gosperNormal backend P Q = s) :
     normalFormNonzero s ∧ P * (s.2.1 * s.2.2) = Q * (s.1 * taylor 1 s.2.2) := by
@@ -189,7 +190,7 @@ theorem gosperNormal_sound (backend : NormalizationBackend R) (hbackend : backen
 
 /-- The ring-valued output satisfies the usual field normal-form specification after
 its coefficients are embedded into the fraction field. -/
-theorem gosperNormal_spec (backend : NormalizationBackend R) (hbackend : backend.Valid)
+theorem gosperNormal_spec (backend : TermBackend K R) (hbackend : backend.Valid)
     (P Q : R[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (s : R[X] × R[X] × R[X])
     (h : gosperNormal backend P Q = s) :
     let ι := algebraMap R (FractionRing R)
@@ -203,7 +204,7 @@ theorem gosperNormal_spec (backend : NormalizationBackend R) (hbackend : backend
   simpa using he
 
 /-- Nonzero ring inputs always produce a valid normal form in their fraction field. -/
-theorem gosperNormal_exists (backend : NormalizationBackend R) (hbackend : backend.Valid)
+theorem gosperNormal_exists (backend : TermBackend K R) (hbackend : backend.Valid)
     (P Q : R[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) :
     ∃ s, gosperNormal backend P Q = s ∧
       normalFormValid (P.map (algebraMap R (FractionRing R)))

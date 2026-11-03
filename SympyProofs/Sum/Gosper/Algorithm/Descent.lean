@@ -20,7 +20,7 @@ private theorem descendPolynomial_eq_foldlM (descendCoeff : L → Option K) (p :
   simp only [descendPolynomial, bind_pure_comp, List.forIn_yield_eq_foldlM, bind_pure]
 
 private theorem descent_fold_sound [Algebra K L] (descendCoeff : L → Option K)
-    (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) (ns : List ℕ)
+    (hdesc : ∀ c a, descendCoeff c = some a ↔ algebraMap K L a = c) (p : L[X]) (ns : List ℕ)
     (q r : K[X])
     (h : ns.foldlM
       (fun q n => (fun a => q + monomial n a) <$> descendCoeff (p.coeff n)) q = some r) :
@@ -45,7 +45,7 @@ private theorem descent_fold_sound [Algebra K L] (descendCoeff : L → Option K)
 
 /-- Every successful descent maps back to the original polynomial. -/
 theorem descendPolynomial_sound [Algebra K L] (descendCoeff : L → Option K)
-    (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) (q : K[X])
+    (hdesc : ∀ c a, descendCoeff c = some a ↔ algebraMap K L a = c) (p : L[X]) (q : K[X])
     (h : descendPolynomial descendCoeff p = some q) :
     q.map (algebraMap K L) = p := by
   rw [descendPolynomial_eq_foldlM] at h
@@ -54,11 +54,17 @@ theorem descendPolynomial_sound [Algebra K L] (descendCoeff : L → Option K)
 
 /-- A polynomial over the smaller coefficient ring is recovered exactly. -/
 theorem descendPolynomial_map [Algebra K L] (descendCoeff : L → Option K)
-    (hdesc : CoefficientDescentValid descendCoeff) (q : K[X]) :
+    (hdesc : ∀ c a, descendCoeff c = some a ↔ algebraMap K L a = c) (q : K[X]) :
     descendPolynomial descendCoeff (q.map (algebraMap K L)) = some q := by
   have hcoeff (a : K) : descendCoeff (algebraMap K L a) = some a :=
     (hdesc _ _).mpr rfl
-  rw [descendPolynomial_eq_foldlM, support_map_of_injective q hdesc.injective]
+  have hinj : Function.Injective (algebraMap K L) := by
+    intro a b h
+    apply Option.some.inj
+    calc
+      some a = descendCoeff (algebraMap K L a) := ((hdesc _ a).mpr rfl).symm
+      _ = some b := (hdesc _ b).mpr h.symm
+  rw [descendPolynomial_eq_foldlM, support_map_of_injective q hinj]
   simp only [coeff_map, hcoeff, Option.map_eq_map, Option.map_some]
   rw [show (fun (p : K[X]) (n : ℕ) => some (p + monomial n (q.coeff n))) =
       (fun p n => (pure (p + monomial n (q.coeff n)) : Option K[X])) from rfl,
@@ -68,7 +74,7 @@ theorem descendPolynomial_map [Algebra K L] (descendCoeff : L → Option K)
 
 /-- Success is equivalent to being the polynomial's preimage under the coefficient embedding. -/
 theorem descendPolynomial_eq_some_iff [Algebra K L] (descendCoeff : L → Option K)
-    (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) (q : K[X]) :
+    (hdesc : ∀ c a, descendCoeff c = some a ↔ algebraMap K L a = c) (p : L[X]) (q : K[X]) :
     descendPolynomial descendCoeff p = some q ↔ q.map (algebraMap K L) = p := by
   constructor
   · exact descendPolynomial_sound descendCoeff hdesc p q
@@ -78,14 +84,14 @@ theorem descendPolynomial_eq_some_iff [Algebra K L] (descendCoeff : L → Option
 
 /-- Descent succeeds exactly when every coefficient belongs to the smaller coefficient ring. -/
 theorem descendPolynomial_exists_iff [Algebra K L] (descendCoeff : L → Option K)
-    (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) :
+    (hdesc : ∀ c a, descendCoeff c = some a ↔ algebraMap K L a = c) (p : L[X]) :
     (∃ q, descendPolynomial descendCoeff p = some q) ↔
       p ∈ Polynomial.lifts (algebraMap K L) := by
   simp only [descendPolynomial_eq_some_iff descendCoeff hdesc, Polynomial.mem_lifts]
 
 /-- Failure means there is no polynomial over the nominated coefficient ring mapping to the input. -/
 theorem descendPolynomial_eq_none_iff [Algebra K L] (descendCoeff : L → Option K)
-    (hdesc : CoefficientDescentValid descendCoeff) (p : L[X]) :
+    (hdesc : ∀ c a, descendCoeff c = some a ↔ algebraMap K L a = c) (p : L[X]) :
     descendPolynomial descendCoeff p = none ↔
       ¬ ∃ q : K[X], q.map (algebraMap K L) = p := by
   rw [← not_iff_not, not_not]
@@ -94,18 +100,19 @@ theorem descendPolynomial_eq_none_iff [Algebra K L] (descendCoeff : L → Option
 /-- Identity conversion succeeds without changing any coefficient. -/
 @[simp] theorem descendPolynomial_self {F : Type} [CommRing F] (p : F[X]) :
     descendPolynomial (some : F → Option F) p = some p := by
-  exact (descendPolynomial_eq_some_iff some coefficientDescentValid_self p p).mpr (by simp)
+  apply (descendPolynomial_eq_some_iff some ?_ p p).mpr (by simp)
+  intro c a
+  simp [Algebra.algebraMap_self, eq_comm]
 
 attribute [local instance 2000] Ring.toIntAlgebra
 
-/-- Over the same field, identity descent always succeeds. -/
+/-- Identity descent always succeeds over the same coefficient field. -/
 theorem gosperTerm_self {F : Type} [Field F] [CharZero F] [DecidableEq F]
-    [DecidablePred (IsLocalization.IsInteger ℤ : F → Prop)]
-    (backend : Backend F) (P Q : F[X]) :
-    gosperTerm (TermBackend.self backend) P Q = .ok (
-      let normal := gosperNormal backend.toNormalization P Q
-      gosperSolve backend.toLinear normal.1 (taylor (-1) normal.2.1) normal.2.2) := by
-  simp only [gosperTerm, TermBackend.self, descendPolynomial_self]
+    (backend : TermBackend F F) (hdesc : backend.descend = some) (P Q : F[X]) :
+    gosperTerm backend P Q = .ok (
+      let normal := gosperNormal backend P Q
+      gosperSolve backend normal.1 (taylor (-1) normal.2.1) normal.2.2) := by
+  simp only [gosperTerm, hdesc, descendPolynomial_self]
   rfl
 
 end Gosper.Algorithm

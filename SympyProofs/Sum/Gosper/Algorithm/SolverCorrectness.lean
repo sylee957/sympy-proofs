@@ -43,10 +43,11 @@ private theorem rawLeftSolution_map {m n : ℕ} (q : RrefResult K m (n + m))
   simp [RrefResult.rawLeftSolution, map_sum, apply_ite]
 
 variable [IsDomain K] [DecidableEq K]
+variable {W : Type} [CommRing W] [IsDomain W] [Algebra K W]
 
 set_option backward.isDefEq.respectTransparency false in
 /-- The imperative solver records raw pivot values and keeps the common denominator. -/
-theorem gosperSolve_eq (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem gosperSolve_eq (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) :
     gosperSolve backend A B C =
       let d := degreeBound backend A B C
@@ -84,8 +85,9 @@ theorem gosperSolve_eq (backend : LinearBackend K) (hbackend : backend.Valid)
   rw [hM]
   rfl
 
+omit [Algebra K W] in
 /-- A negative degree bound returns the complete right-hand side as a remainder. -/
-theorem gosperSolve_of_degreeBound_neg (backend : LinearBackend K)
+theorem gosperSolve_of_degreeBound_neg (backend : TermBackend K W)
     (A B : K[X]) (C : R[X]) (hd : degreeBound backend A B C < 0) :
     gosperSolve backend A B C =
       { numerator := 0, denominator := C
@@ -94,7 +96,7 @@ theorem gosperSolve_of_degreeBound_neg (backend : LinearBackend K)
 
 /-- Every returned denominator is the supplied right-hand side multiplied by a nonzero
 constant from the coefficient domain. -/
-theorem gosperSolve_denominator (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem gosperSolve_denominator (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (r : Result R)
     (hrun : gosperSolve backend A B C = r) :
     ∃ δ : K, δ ≠ 0 ∧ r.denominator = Polynomial.C (algebraMap K R δ) * C := by
@@ -112,7 +114,7 @@ theorem gosperSolve_denominator (backend : LinearBackend K) (hbackend : backend.
 
 /-- Every run supplies a polynomial reduction, whether or not the
 polynomial remainder vanishes. -/
-theorem gosperSolve_reduction_data (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem gosperSolve_reduction_data (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (r : Result R)
     (hrun : gosperSolve backend A B C = r) :
     ∃ δ : K, δ ≠ 0 ∧ ∃ x : R[X],
@@ -133,7 +135,7 @@ theorem gosperSolve_reduction_data (backend : LinearBackend K) (hbackend : backe
   exact hn (by simp [RrefResult.map, hz])
 
 /-- Evaluate the output while retaining the original matrix and degree bounds. -/
-theorem gosperSolve_output_map (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem gosperSolve_output_map (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] S) (r : Result R)
     (hrun : gosperSolve backend A B C = r)
     (hd : 0 ≤ degreeBound backend A B C) :
@@ -175,7 +177,7 @@ theorem gosperSolve_output_map (backend : LinearBackend K) (hbackend : backend.V
 
 set_option backward.isDefEq.respectTransparency false in
 /-- Rerunning commutes with a parameter map that preserves the input degree. -/
-theorem gosperSolve_map (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem gosperSolve_map (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] S)
     (hdegree : (C.map f.toRingHom).natDegree = C.natDegree) :
     gosperSolve backend A B (C.map f.toRingHom) =
@@ -197,7 +199,7 @@ theorem gosperSolve_map (backend : LinearBackend K) (hbackend : backend.Valid)
 /-- The degree bound computed over the coefficient domain controls solutions
 in every faithful field target. -/
 theorem domain_solution_degree_le [CharZero K] {T : Type*} [Semiring T]
-    (backend : LinearBackend K) (hbackend : backend.Valid) (A B : K[X]) (C₀ : T[X]) (C x : E[X])
+    (backend : TermBackend K W) (hbackend : backend.Valid) (A B : K[X]) (C₀ : T[X]) (C x : E[X])
     (hKE : Function.Injective (algebraMap K E))
     (hdegree : C.natDegree ≤ C₀.natDegree) (hA : A ≠ 0) (hB : B ≠ 0) (hx : x ≠ 0)
     (he : A.map (algebraMap K E) * taylor 1 x - B.map (algebraMap K E) * x = C) :
@@ -207,7 +209,7 @@ theorem domain_solution_degree_le [CharZero K] {T : Type*} [Semiring T]
 /-- The evaluated polynomial remainder vanishes exactly when the retained
 matrix candidate solves the original coefficient system. -/
 private theorem gosperSolve_residual_iff_system
-    (backend : LinearBackend K) (hbackend : backend.Valid)
+    (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
     (hKE : Function.Injective (algebraMap K E)) (r : Result R)
     (hrun : gosperSolve backend A B C = r)
@@ -262,7 +264,7 @@ private theorem gosperSolve_residual_iff_system
 
 /-- A vanishing evaluated remainder certifies a scaled normalized equation; the common
 scale lies in `K` and remains nonzero in every faithful target field. -/
-theorem gosperSolve_sound (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem gosperSolve_sound (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
     (_hKE : Function.Injective (algebraMap K E)) (r : Result R)
     (hrun : gosperSolve backend A B C = r)
@@ -282,7 +284,7 @@ theorem gosperSolve_sound (backend : LinearBackend K) (hbackend : backend.Valid)
   exact (sub_eq_zero.mp (hzero.symm.trans he').symm).symm.trans hv'
 
 /-- Specialization may identify parameter values without changing the source reduction. -/
-theorem gosperSolve_specialize_sound (backend : LinearBackend K) (hbackend : backend.Valid)
+theorem gosperSolve_specialize_sound (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
     (hKE : Function.Injective (algebraMap K E)) (r : Result R)
     (hrun : gosperSolve backend A B C = r)
@@ -297,7 +299,7 @@ theorem gosperSolve_specialize_sound (backend : LinearBackend K) (hbackend : bac
 /-- The vanishing remainder criterion is complete even when evaluation lowers the degree or
 annihilates the entire right-hand side. -/
 theorem gosperSolve_specialize_complete [CharZero K]
-    (backend : LinearBackend K) (hbackend : backend.Valid)
+    (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
     (hKE : Function.Injective (algebraMap K E)) (r : Result R)
     (hrun : gosperSolve backend A B C = r) (hA : A ≠ 0) (hB : B ≠ 0) :
@@ -349,7 +351,7 @@ theorem gosperSolve_specialize_complete [CharZero K]
 /-- A nonzero specialized right-hand side has no polynomial solution when the
 signed degree bound is negative. -/
 theorem degreeBound_neg_not_solvable [CharZero K]
-    (backend : LinearBackend K) (hbackend : backend.Valid) (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
+    (backend : TermBackend K W) (hbackend : backend.Valid) (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
     (hKE : Function.Injective (algebraMap K E)) (hA : A ≠ 0) (hB : B ≠ 0)
     (hC : C.map f.toRingHom ≠ 0) (hd : degreeBound backend A B C < 0) :
     ¬ ∃ x : E[X], A.map (algebraMap K E) * taylor 1 x -
@@ -363,7 +365,7 @@ theorem degreeBound_neg_not_solvable [CharZero K]
 /-- The total solver's polynomial remainder vanishes precisely when the normalized equation
 has a polynomial solution in the target field. -/
 theorem gosperSolve_complete [CharZero K]
-    (backend : LinearBackend K) (hbackend : backend.Valid)
+    (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
     (hKE : Function.Injective (algebraMap K E)) (hA : A ≠ 0) (hB : B ≠ 0) :
     (gosperSolve backend A B C).residual.map f.toRingHom = 0 ↔

@@ -201,59 +201,59 @@ variable (backend : TermBackend K L)
 
 private theorem gosperTerm_eq (P Q : L[X]) :
     gosperTerm backend P Q =
-      match descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 with
+      match descendPolynomial backend.descend (gosperNormal backend P Q).1 with
       | none => .error .A
-      | some A => match descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 with
+      | some A => match descendPolynomial backend.descend (gosperNormal backend P Q).2.1 with
         | none => .error .B
-        | some B => .ok (gosperSolve backend.solver A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2) := by
-  cases hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 with
+        | some B => .ok (gosperSolve backend A (taylor (-1) B) (gosperNormal backend P Q).2.2) := by
+  cases hA : descendPolynomial backend.descend (gosperNormal backend P Q).1 with
   | none => simp only [gosperTerm, hA]; rfl
   | some A =>
-    cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 with
+    cases hB : descendPolynomial backend.descend (gosperNormal backend P Q).2.1 with
     | none => simp only [gosperTerm, hA, hB]; rfl
     | some B => simp only [gosperTerm, hA, hB]; rfl
 
 /-- Successful descent leaves exactly the normalized solver call over `K`. -/
 theorem gosperTerm_eq_of_descent (P Q : L[X]) (A B : K[X])
-    (hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 = some A)
-    (hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 = some B) :
+    (hA : descendPolynomial backend.descend (gosperNormal backend P Q).1 = some A)
+    (hB : descendPolynomial backend.descend (gosperNormal backend P Q).2.1 = some B) :
     gosperTerm backend P Q =
-      .ok (gosperSolve backend.solver A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2) := by
+      .ok (gosperSolve backend A (taylor (-1) B) (gosperNormal backend P Q).2.2) := by
   simp [gosperTerm_eq, hA, hB]
 
 /-- An `ok` result records successful descent of both normalized polynomials. -/
 theorem gosperTerm_eq_ok_iff (P Q : L[X]) (c : Result L) :
     gosperTerm backend P Q = .ok c ↔
       ∃ A B : K[X],
-        descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 = some A ∧
-        descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 = some B ∧
-        gosperSolve backend.solver A (taylor (-1) B) (gosperNormal backend.normalization P Q).2.2 = c := by
-  cases hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 <;>
-    cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 <;>
+        descendPolynomial backend.descend (gosperNormal backend P Q).1 = some A ∧
+        descendPolynomial backend.descend (gosperNormal backend P Q).2.1 = some B ∧
+        gosperSolve backend A (taylor (-1) B) (gosperNormal backend P Q).2.2 = c := by
+  cases hA : descendPolynomial backend.descend (gosperNormal backend P Q).1 <;>
+    cases hB : descendPolynomial backend.descend (gosperNormal backend P Q).2.1 <;>
     simp [gosperTerm_eq, hA, hB]
 
 /-- The first descent error means that the normalized `A` is not defined over `K`. -/
-theorem gosperTerm_error_A_iff (hdesc : CoefficientDescentValid backend.descend)
+theorem gosperTerm_error_A_iff (hdesc : ∀ c a, backend.descend c = some a ↔ algebraMap K L a = c)
     (P Q : L[X]) :
     gosperTerm backend P Q = .error .A ↔
-      ¬∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend.normalization P Q).1 := by
+      ¬∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend P Q).1 := by
   rw [← descendPolynomial_eq_none_iff backend.descend hdesc]
-  cases hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 <;>
-    cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 <;>
+  cases hA : descendPolynomial backend.descend (gosperNormal backend P Q).1 <;>
+    cases hB : descendPolynomial backend.descend (gosperNormal backend P Q).2.1 <;>
     simp [gosperTerm_eq, hA, hB]
 
 /-- A `B` descent error occurs only after `A` has descended successfully. -/
-theorem gosperTerm_error_B_iff (hdesc : CoefficientDescentValid backend.descend)
+theorem gosperTerm_error_B_iff (hdesc : ∀ c a, backend.descend c = some a ↔ algebraMap K L a = c)
     (P Q : L[X]) :
     gosperTerm backend P Q = .error .B ↔
-      (∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend.normalization P Q).1) ∧
-      ¬∃ B : K[X], B.map (algebraMap K L) = (gosperNormal backend.normalization P Q).2.1 := by
-  have hA : (∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend.normalization P Q).1) ↔
-      ∃ A, descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 = some A := by
+      (∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend P Q).1) ∧
+      ¬∃ B : K[X], B.map (algebraMap K L) = (gosperNormal backend P Q).2.1 := by
+  have hA : (∃ A : K[X], A.map (algebraMap K L) = (gosperNormal backend P Q).1) ↔
+      ∃ A, descendPolynomial backend.descend (gosperNormal backend P Q).1 = some A := by
     simp only [descendPolynomial_eq_some_iff backend.descend hdesc]
   rw [hA, ← descendPolynomial_eq_none_iff backend.descend hdesc]
-  cases hA : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).1 <;>
-    cases hB : descendPolynomial backend.descend (gosperNormal backend.normalization P Q).2.1 <;>
+  cases hA : descendPolynomial backend.descend (gosperNormal backend P Q).1 <;>
+    cases hB : descendPolynomial backend.descend (gosperNormal backend P Q).2.1 <;>
     simp [gosperTerm_eq, hA, hB]
 
 /-- A successful run supplies a ring normal form and a solver call over the input ring. -/
@@ -261,18 +261,18 @@ theorem gosperTerm_normalForm (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Result L)
     (hrun : gosperTerm backend P Q = .ok result) :
     ∃ A B : K[X], ∃ C : L[X],
-      gosperSolve backend.solver A (taylor (-1) B) C = result ∧
+      gosperSolve backend A (taylor (-1) B) C = result ∧
       normalFormValid (P.map (algebraMap L (FractionRing L)))
         (Q.map (algebraMap L (FractionRing L)))
         (A.map (algebraMap K (FractionRing L)),
           B.map (algebraMap K (FractionRing L)), C.map (algebraMap L (FractionRing L))) := by
   obtain ⟨A, B, hA, hB, hsolve⟩ := (gosperTerm_eq_ok_iff backend P Q result).mp hrun
-  let normal := gosperNormal backend.normalization P Q
+  let normal := gosperNormal backend P Q
   have hmapA : A.map (algebraMap K L) = normal.1 :=
     (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ A).mp hA
   have hmapB : B.map (algebraMap K L) = normal.2.1 :=
     (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ B).mp hB
-  have hvalid := gosperNormal_spec backend.normalization hbackend.normalization
+  have hvalid := gosperNormal_spec backend hbackend
     P Q hP hQ normal rfl
   refine ⟨A, B, normal.2.2, hsolve, ?_⟩
   have hAF : A.map (algebraMap K (FractionRing L)) =
@@ -296,17 +296,17 @@ theorem gosperTerm_reduction_identity (hbackend : backend.Valid)
         -(Q * taylor 1 r.denominator * r.residual) := by
   obtain ⟨A, B, hA, hB, hsolve⟩ :=
     (gosperTerm_eq_ok_iff backend P Q r).mp hrun
-  let normal := gosperNormal backend.normalization P Q
+  let normal := gosperNormal backend P Q
   have hmapA : A.map (algebraMap K L) = normal.1 :=
     (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ A).mp hA
   have hmapB : B.map (algebraMap K L) = normal.2.1 :=
     (descendPolynomial_eq_some_iff backend.descend hbackend.descend _ B).mp hB
-  obtain ⟨hn, hratio⟩ := gosperNormal_sound backend.normalization hbackend.normalization
+  obtain ⟨hn, hratio⟩ := gosperNormal_sound backend hbackend
     P Q hP hQ normal rfl
-  obtain ⟨δ, hδ, x, hu, hv, he⟩ := gosperSolve_reduction_data backend.solver hbackend.solver
+  obtain ⟨δ, hδ, x, hu, hv, he⟩ := gosperSolve_reduction_data backend hbackend
     A (taylor (-1) B) normal.2.2 r hsolve
   have hδL : algebraMap K L δ ≠ 0 :=
-    fun hz => hδ (hbackend.descend.injective (by simpa using hz))
+    fun hz => hδ (hbackend.algebraMap_injective (by simpa using hz))
   have hv0 : r.denominator ≠ 0 := by
     rw [hv]
     exact mul_ne_zero (Polynomial.C_ne_zero.mpr hδL) hn.2.2
@@ -342,11 +342,11 @@ theorem gosperTerm_verified [DecidableEq L] (hbackend : backend.Valid)
     verify P Q c.numerator c.denominator = true := by
   classical
   have hKF : Function.Injective (algebraMap K (FractionRing L)) :=
-    (IsFractionRing.injective L (FractionRing L)).comp hbackend.descend.injective
+    (IsFractionRing.injective L (FractionRing L)).comp hbackend.algebraMap_injective
   obtain ⟨A, B, C, hsolve, hvalid⟩ :=
     gosperTerm_normalForm backend hbackend P Q hP hQ c h
   let i : L →ₐ[K] FractionRing L := IsScalarTower.toAlgHom K L (FractionRing L)
-  obtain ⟨δ, hδ, x, hnum, hden, hx⟩ := gosperSolve_sound backend.solver hbackend.solver
+  obtain ⟨δ, hδ, x, hnum, hden, hx⟩ := gosperSolve_sound backend hbackend
     A (taylor (-1) B) C i hKF c hsolve
     (by simp [hzero])
   apply (verify_map_iff (algebraMap L (FractionRing L))

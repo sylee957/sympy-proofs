@@ -1,7 +1,6 @@
 module
 
-public import SympyProofs.Sum.Gosper.Backend.Basic
-public import SympyProofs.Sum.Gosper.Backend.FieldExtension
+public import SympyProofs.Sum.Gosper.Backend.Term
 
 /-! Integer-ratio recognition, matrix construction, and fraction-free RREF over an
 integral domain. Runtime operations stay in the domain; reduction correctness is
@@ -13,29 +12,8 @@ namespace Gosper.Algorithm
 
 open IsLocalization
 
-/-- The primitives needed for linear solving over a coefficient domain. -/
-structure LinearBackend (K : Type*) [CommRing K] [IsDomain K] where
-  integerRatio : K → K → Option ℤ
-  zeros : (m n : ℕ) → Matrix (Fin m) (Fin n) K
-  setElement : {m n : ℕ} → Matrix (Fin m) (Fin n) K →
-    Fin m → Fin n → K → Matrix (Fin m) (Fin n) K
-  rref : RrefOperation K
-
-variable {K : Type*} [CommRing K] [IsDomain K] {m n : ℕ}
-
-/-- Integer ratios are recognized exactly for nonzero denominators. A domain
-reduction represents a valid scaled RREF in the fraction field. No inverse in the
-original coefficient domain is required. -/
-structure LinearBackend.Valid (backend : LinearBackend K) : Prop where
-  integerRatio_eq_some : ∀ a b, b ≠ 0 → ∀ z : ℤ,
-    backend.integerRatio a b = some z ↔ a = (z : K) * b
-  zeros_eq : ∀ m n, backend.zeros m n = 0
-  setElement_apply : ∀ {m n} (M : Matrix (Fin m) (Fin n) K) i j value i' j',
-    backend.setElement M i j value i' j' =
-      if i' = i ∧ j' = j then value else M i' j'
-  rref_valid : ∀ {m n} (M : Matrix (Fin m) (Fin n) K),
-    ((backend.rref M).map (algebraMap K (FractionRing K))).Valid
-      (M.map (algebraMap K (FractionRing K)))
+variable {K W : Type*} [CommRing K] [IsDomain K]
+variable [CommRing W] [IsDomain W] [Algebra K W] {m n : ℕ}
 
 /-- Mapping entries twice composes the coefficient maps. -/
 theorem RrefResult.map_map {R S T : Type*} [CommRing R] [CommRing S] [CommRing T]
@@ -53,7 +31,7 @@ theorem augmentedIdentity_map_ring {R S : Type*} [CommRing R] [CommRing S]
 
 /-- A fraction-free reduction of `[A | I]` remains valid in every field into
 which the coefficient domain embeds. -/
-theorem LinearBackend.rref_valid_augmentedIdentity (backend : LinearBackend K)
+theorem TermBackend.rref_valid_augmentedIdentity (backend : TermBackend K W)
     (hbackend : backend.Valid) {E : Type*} [Field E]
     (A : Matrix (Fin m) (Fin n) K) (f : K →+* E) (hf : Function.Injective f) :
     ((backend.rref (augmentedIdentity A)).map f).Valid
@@ -73,7 +51,7 @@ theorem LinearBackend.rref_valid_augmentedIdentity (backend : LinearBackend K)
   simpa only [RrefResult.map_map, he, hA] using h
 
 /-- Filling a list of entries copies the target matrix at exactly those positions. -/
-theorem LinearBackend.setElement_foldl_apply (backend : LinearBackend K)
+theorem TermBackend.setElement_foldl_apply (backend : TermBackend K W)
     (h : backend.Valid) (entries : List (Fin m × Fin n))
     (initial target : Matrix (Fin m) (Fin n) K) (i : Fin m) (j : Fin n) :
     (entries.foldl (fun M pos => backend.setElement M pos.1 pos.2 (target pos.1 pos.2))
@@ -88,7 +66,7 @@ theorem LinearBackend.setElement_foldl_apply (backend : LinearBackend K)
           simp_all [Prod.ext_iff]
 
 /-- Fill the coefficient block and identity diagonal to construct `[A | I]`. -/
-theorem LinearBackend.fill_identity_augmented_eq (backend : LinearBackend K)
+theorem TermBackend.fill_identity_augmented_eq (backend : TermBackend K W)
     (h : backend.Valid) (A : Matrix (Fin m) (Fin n) K) :
     (Id.run do
       let mut M := backend.zeros m (n + m)
@@ -121,29 +99,6 @@ theorem LinearBackend.fill_identity_augmented_eq (backend : LinearBackend K)
     · simp [entries, augmentedIdentity, h.zeros_eq, hij]
 
 
-/-- Supplied integer-ratio recognition and reduction with functional matrix construction. -/
-def referenceLinearBackend (integerRatio : K → K → Option ℤ)
-    (rref : RrefOperation K) : LinearBackend K where
-  integerRatio := integerRatio
-  zeros _ _ := 0
-  setElement M i j value := Function.update M i (Function.update (M i) j value)
-  rref := rref
-
-theorem referenceLinearBackend_valid (integerRatio : K → K → Option ℤ)
-    (rref : RrefOperation K)
-    (hintegerRatio : ∀ a b, b ≠ 0 → ∀ z : ℤ,
-      integerRatio a b = some z ↔ a = (z : K) * b)
-    (hrref : ∀ {m n} (M : Matrix (Fin m) (Fin n) K),
-      ((rref M).map (algebraMap K (FractionRing K))).Valid
-        (M.map (algebraMap K (FractionRing K)))) :
-    (referenceLinearBackend integerRatio rref).Valid where
-  integerRatio_eq_some := hintegerRatio
-  zeros_eq _ _ := rfl
-  setElement_apply M i j value i' j' := by
-    by_cases hi : i' = i <;> by_cases hj : j' = j <;>
-      simp [referenceLinearBackend, Function.update, hi, hj]
-  rref_valid := hrref
-
 /-- Recognize an integer quotient using the field's integer-membership test. -/
 noncomputable def fieldIntegerRatio {F : Type*} [Field F] [DecidableEq F]
     [DecidablePred (IsInteger ℤ : F → Prop)] (a b : F) : Option ℤ :=
@@ -168,14 +123,6 @@ theorem fieldIntegerRatio_eq_some {F : Type*} [Field F] [CharZero F] [DecidableE
     intro hz
     exact hi ⟨z, ((div_eq_iff hb).mpr hz).symm⟩
 
-/-- Use field integer recognition while preserving the supplied matrix operations. -/
-noncomputable def Backend.toLinear {F : Type*} [Field F] [DecidableEq F]
-    [DecidablePred (IsInteger ℤ : F → Prop)] (backend : Backend F) : LinearBackend F where
-  integerRatio := fieldIntegerRatio
-  zeros := backend.zeros
-  setElement := backend.setElement
-  rref := backend.rref
-
 private theorem matrix_kernel_fractionRing {F : Type*} [Field F]
     (A : Matrix (Fin m) (Fin n) F) (x : Fin n → FractionRing F) :
     (A.map (algebraMap F (FractionRing F))).mulVec x = 0 ↔
@@ -195,20 +142,18 @@ private theorem matrix_kernel_fractionRing {F : Type*} [Field F]
     exact e.map_zero
   rw [hvec, hz]
 
-/-- A valid field backend supplies a valid domain linear backend without changing
-any matrix primitive. -/
-theorem Backend.toLinear_valid {F : Type*} [Field F] [CharZero F] [DecidableEq F]
-    [DecidablePred (IsInteger ℤ : F → Prop)]
-    (backend : Backend F) (hbackend : backend.Valid) : backend.toLinear.Valid where
-  integerRatio_eq_some := fieldIntegerRatio_eq_some
-  zeros_eq := hbackend.zeros_eq
-  setElement_apply := hbackend.setElement_apply
-  rref_valid M := by
-    refine { (backend.rref M).map_valid_self (hbackend.rref_valid M)
-      (algebraMap F (FractionRing F)) with kernel_iff := ?_ }
-    intro x
-    exact (matrix_kernel_fractionRing M x).trans
-      (((hbackend.rref_valid M).kernel_iff _).trans
-        (matrix_kernel_fractionRing (backend.rref M).matrix x).symm)
+/-- A valid field RREF remains valid over its fraction field. -/
+theorem rref_valid_fractionRing {F : Type*} [Field F]
+    (rref : RrefOperation F) (hrref : ∀ {m n} (M : Matrix (Fin m) (Fin n) F),
+      (rref M).Valid M) {m n : ℕ}
+    (M : Matrix (Fin m) (Fin n) F) :
+    ((rref M).map (algebraMap F (FractionRing F))).Valid
+      (M.map (algebraMap F (FractionRing F))) := by
+  refine { (rref M).map_valid_self (hrref M)
+    (algebraMap F (FractionRing F)) with kernel_iff := ?_ }
+  intro x
+  exact (matrix_kernel_fractionRing M x).trans
+    (((hrref M).kernel_iff _).trans
+      (matrix_kernel_fractionRing (rref M).matrix x).symm)
 
 end Gosper.Algorithm

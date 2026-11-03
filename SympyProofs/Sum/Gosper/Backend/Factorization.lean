@@ -2,8 +2,8 @@ module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Polynomial
 
-/-! A `factor_list` result and the interpretation of its linear factors as roots.
-The backend factors polynomials; natural-root enumeration is derived here. -/
+/-! Polynomial factorization and the interpretation of linear factors as roots.
+The reference backend uses these definitions to enumerate natural roots. -/
 
 @[expose] public section
 noncomputable section
@@ -14,7 +14,7 @@ open Polynomial IsLocalization
 
 variable {K : Type*} [Field K] [DecidableEq K]
 
-/-- The contract for SymPy's `factor_list` tuple `(coefficient, factors)`.
+/-- The contract for a factorization tuple `(coefficient, factors)`.
 Repeated factors are allowed, so grouping multiplicities is not part of the contract. -/
 structure IsFactorization (p : K[X]) (f : K × List (K[X] × ℕ)) : Prop where
   coefficient_ne_zero : f.1 ≠ 0
@@ -22,7 +22,7 @@ structure IsFactorization (p : K[X]) (f : K × List (K[X] × ℕ)) : Prop where
   positive : ∀ z ∈ f.2, 0 < z.2
   reconstruct : C f.1 * (f.2.map fun z => z.1 ^ z.2).prod = p
 
-/-- Mathlib factorization as a reference implementation of `factor_list`. -/
+/-- Mathlib factorization as a reference implementation. -/
 def referenceFactor (p : K[X]) : K × List (K[X] × ℕ) :=
   ⟨p.leadingCoeff, (UniqueFactorizationMonoid.normalizedFactors p).toList.map (fun q => (q, 1))⟩
 

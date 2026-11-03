@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.Sum.Gosper.Backend.Basic
+public import SympyProofs.Sum.Gosper.Algorithm.Polynomial
 
 /-! Gosper's shift resultant is an interpretation of the general resultant primitive.
 Its root criterion follows from the primitive's contract, allowing a different sign. -/
@@ -13,12 +13,6 @@ namespace Gosper.Algorithm
 open Polynomial IsLocalization
 
 variable {K : Type*} [Field K]
-
-/-- Construct the bivariate inputs and eliminate the summation variable.
-In `K[X][X]`, the inner variable is the shift and the outer one is eliminated. -/
-def Backend.shiftResultant (backend : Backend K) (p q : K[X]) : K[X] :=
-  backend.resultant (p.map (Polynomial.C : K →+* K[X]))
-    (taylor (X : K[X]) (q.map (Polynomial.C : K →+* K[X])))
 
 /-- Res_X(p(X), q(X+h)), as a polynomial in h. In `R[X][X]` the inner
 variable is h and the outer variable is X. Mathlib computes the resultant. -/
@@ -117,40 +111,5 @@ theorem sylvesterShiftResultant_zero_iff {R : Type*} [CommRing R] [IsDomain R]
       ¬IsCoprime (p.map (algebraMap R (FractionRing R)))
         (taylor (j : FractionRing R) (q.map (algebraMap R (FractionRing R)))) := by
   simpa using sylvesterShiftResultant_eval_zero_iff p q hp hq (j : R)
-
-/-- The contract for arbitrary bivariate resultants specializes to Gosper's
-translated inputs. Translation and the constant embedding preserve degree. -/
-theorem Backend.shiftResultant_eq (backend : Backend K) (h : backend.Valid)
-    (p q : K[X]) (hp : p ≠ 0) (hq : q ≠ 0) :
-    ∃ c : K, c ≠ 0 ∧ backend.shiftResultant p q = C c * sylvesterShiftResultant p q := by
-  have hp' : p.map (Polynomial.C : K →+* K[X]) ≠ 0 := by simpa using hp
-  have hq' : taylor (X : K[X]) (q.map (Polynomial.C : K →+* K[X])) ≠ 0 := by
-    simpa using hq
-  obtain ⟨c, hc, he⟩ := h.resultant_eq _ _ hp' hq'
-  refine ⟨c, hc, ?_⟩
-  simpa [Backend.shiftResultant, sylvesterShiftResultant,
-    natDegree_map_eq_of_injective Polynomial.C_injective] using he
-
-theorem Backend.shiftResultant_ne_zero (backend : Backend K) (h : backend.Valid)
-    (p q : K[X]) (hp : p ≠ 0) (hq : q ≠ 0) : backend.shiftResultant p q ≠ 0 := by
-  obtain ⟨c, hc, he⟩ := backend.shiftResultant_eq h p q hp hq
-  rw [he]
-  exact mul_ne_zero (C_ne_zero.mpr hc) (sylvesterShiftResultant_ne_zero p q hp hq)
-
-theorem Backend.shiftResultant_zero_iff (backend : Backend K) (h : backend.Valid)
-    (p q : K[X]) (hp : p ≠ 0) (hq : q ≠ 0) (j : ℕ) :
-    (backend.shiftResultant p q).eval (j : K) = 0 ↔ ¬IsCoprime p (taylor (j : K) q) := by
-  obtain ⟨c, hc, he⟩ := backend.shiftResultant_eq h p q hp hq
-  rw [he, eval_mul, eval_C, mul_eq_zero]
-  simp only [hc, false_or, sylvesterShiftResultant_eval]
-  simpa [hp] using (Polynomial.resultant_eq_zero_iff (f := p) (g := taylor (j : K) q))
-
-/-- Both shift construction and root extraction are derived from primitive contracts. -/
-theorem Backend.mem_shifts [DecidableEq K] [CharZero K] [DecidablePred (IsInteger ℤ : K → Prop)] (backend : Backend K) (h : backend.Valid)
-    (p q : K[X]) (hp : p ≠ 0) (hq : q ≠ 0) (j : ℕ) :
-    j ∈ (backend.naturalRoots (backend.shiftResultant p q)).sort (· ≤ ·) ↔
-      ¬IsCoprime p (taylor (j : K) q) := by
-  rw [Finset.mem_sort, backend.mem_naturalRoots h _
-    (backend.shiftResultant_ne_zero h p q hp hq), backend.shiftResultant_zero_iff h p q hp hq]
 
 end Gosper.Algorithm

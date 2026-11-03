@@ -51,8 +51,7 @@ specialized summability, including degree drops and newly vanishing residuals.
 For completeness, constants from `K` must embed in the target field, and the
 specialized input and certificate denominator must stay nonzero.
 
-For field backends, `TermBackend.self` supplies identity coefficient descent
-and uses `Backend.toNormalization` and `Backend.toLinear`. Correctness assumes
+`referenceTermBackend` supplies field operations and identity coefficient descent. Correctness assumes
 the supplied primitive contracts; no external implementation is trusted by them.
 The definitions remain mathematical algorithm models where their underlying
 polynomial operations are noncomputable.
