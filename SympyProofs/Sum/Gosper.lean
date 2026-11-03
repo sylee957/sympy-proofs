@@ -33,16 +33,23 @@ the fraction field.
 `A*x(X+1) - B*x = C`. Its degree bound uses an integer-ratio test over `K`.
 The matrix entries lie in `K`; `C` and the output
 lie in a commutative `K`-algebra. Fraction-free reduction of `[M | I]` records
-row operations, pivot coefficients, and residual equations. Its nonzero scalar
+row operations and pivot coefficients. Its nonzero scalar
 denominator is retained in the candidate, so no division in the parameter ring
 or parameter-coefficient equality test is needed during linear solving.
+The output also retains the polynomial residual numerator sharing that denominator.
+The solver always returns a result. A negative degree bound gives a zero
+candidate and retains the entire input as the remainder.
 
-`Algorithm.Correctness` proves the multiplier identity and finite-sum formula.
-`Algorithm.Completeness` characterizes summability by a returned candidate with
-vanishing residual, conditional on successful coefficient descent.
-`Algorithm.Specialization` transports these results through parameter evaluation,
-including degree drops and newly vanishing residuals. Constants from `K` must
-embed in the target field, and the specialized denominators must stay nonzero.
+`Algorithm.Correctness` proves the multiplier identity and finite-sum formula,
+including an endpoint contribution plus the sum of
+`a(k) * residual(k) / denominator(k)` when the remainder is nonzero.
+`Algorithm.Completeness` characterizes summability by a vanishing residual,
+conditional on successful coefficient descent.
+`Algorithm.SpecializationCorrectness` transports the identities and sums through
+parameter evaluation. `Algorithm.SpecializationCompleteness` characterizes
+specialized summability, including degree drops and newly vanishing residuals.
+For completeness, constants from `K` must embed in the target field, and the
+specialized input and certificate denominator must stay nonzero.
 
 For field backends, `TermBackend.self` supplies identity coefficient descent
 and uses `Backend.toNormalization` and `Backend.toLinear`. Correctness assumes

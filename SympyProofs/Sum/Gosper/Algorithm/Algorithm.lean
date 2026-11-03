@@ -10,7 +10,7 @@ public import SympyProofs.Sum.Gosper.Normalization
 # Gosper's algorithm
 
 Normalization, coefficient descent, and polynomial solving for a rational shift
-quotient `P/Q`. Results retain a candidate multiplier and residual conditions.
+quotient `P/Q`. Results retain a candidate multiplier and a remainder.
 Soundness and completeness are proved in the accompanying modules.
 -/
 
@@ -69,13 +69,15 @@ def gosperNormal {K : Type} [CommRing K] [IsDomain K]
     s := (a, b, c)
   return s
 
-/-- A candidate multiplier together with the remaining linear compatibility conditions. -/
+/-- A candidate multiplier and a remainder sharing a denominator.
+For an input term `t`, the residual summand is `t * residual / denominator`.
+Vanishing of the residual polynomial characterizes summability. -/
 structure Result (K : Type*) [CommRing K] where
   numerator : K[X]
   denominator : K[X]
-  residual : Array K
+  residual : K[X]
 
-/-- Apply a coefficient homomorphism to the candidate and its retained conditions. -/
+/-- Apply a coefficient homomorphism to the candidate and remainder. -/
 def Result.map {R S : Type*} [CommRing R] [CommRing S]
     (f : R →+* S) (r : Result R) : Result S where
   numerator := r.numerator.map f
@@ -83,16 +85,20 @@ def Result.map {R S : Type*} [CommRing R] [CommRing S]
   residual := r.residual.map f
 
 /-- Solve over the constant domain `K` without dividing parameter coefficients.
-When the residual vanishes, the unscaled coefficients solve `A*x(X+1) - B*x = d*C`.
-The returned
-multiplier is `B*x/(d*C)`, with `d` the nonzero elimination denominator.
-Residual conditions are returned without testing them in `L`. -/
+The returned multiplier is `B*x/(d*C)`, with `d` the nonzero elimination denominator.
+The residual numerator is `d*C - (A*x(X+1) - B*x)`.
+The residual is returned without testing whether it vanishes in `L`.
+A negative degree bound returns zero multiplier and the whole input as remainder. -/
 def gosperSolve {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
     (backend : LinearBackend K)
     {L : Type} [CommRing L] [Algebra K L]
-    (A B : K[X]) (C : L[X]) : Option (Result L) := Id.run do
+    (A B : K[X]) (C : L[X]) : Result L := Id.run do
   let d := degreeBound backend A B C
-  if d < 0 then return none
+  if d < 0 then
+    return {
+      numerator := 0
+      denominator := C
+      residual := C }
   let n := d.toNat + 1
   let m := max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1
   -- Augment the coefficient matrix by the identity, independently of the right-hand side.
@@ -110,23 +116,21 @@ def gosperSolve {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
     for k in List.finRange m do
       value := value + algebraMap K L (r.matrix i (Fin.natAdd n k)) * C.coeff k
     transformed := transformed.set i.val value
-  -- Read pivot coefficients; the remaining transformed equations must vanish.
+  -- Read pivot coefficients; the residual is computed in the original polynomial equation.
   let mut coefficients := Vector.replicate n (0 : L)
-  let mut residual : Array L := #[]
   for ⟨(pivot, row), hp⟩ in r.pivots.zipIdx.attach do
     let row : Fin m := ⟨row, lt_of_lt_of_le (List.mem_zipIdx' hp).1 r.length_le⟩
     if h : pivot.val < n then
       let pivot : Fin n := ⟨pivot.val, h⟩
       coefficients := coefficients.set pivot.val transformed[row.val]
-    else
-      residual := residual.push transformed[row.val]
   let x := ∑ j : Fin n, Polynomial.monomial j.val coefficients[j.val]
   let U := B.map (algebraMap K L) * x
   let V := Polynomial.C (algebraMap K L r.denominator) * C
-  return some
-    { numerator := U
-      denominator := V
-      residual := residual }
+  let residual := V - (A.map (algebraMap K L) * taylor 1 x - U)
+  return {
+    numerator := U
+    denominator := V
+    residual := residual }
 
 /-- The normalized polynomial that could not be represented in the constant domain. -/
 inductive DescentFailure where
@@ -136,15 +140,14 @@ inductive DescentFailure where
 
 /-- Normalize directly over `L`, descend the fixed factors `A` and `B` to `K`,
 and solve with the parameter polynomial `C` over `L`.
-An error identifies failed coefficient descent; `ok none` records a negative
-solution-degree bound. Correctness contracts appear only in the theorems. -/
+An error identifies failed coefficient descent; every successful descent returns
+a reduction. Correctness contracts appear only in the theorems. -/
 def gosperTerm {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
     {L : Type} [CommRing L] [IsDomain L] [Algebra K L]
-    (backend : TermBackend K L) (P Q : L[X]) : Except DescentFailure (Option (Result L)) := OptionT.run do
+    (backend : TermBackend K L) (P Q : L[X]) : Except DescentFailure (Result L) := do
   let (A, B, C) := gosperNormal backend.normalization P Q
-  let some A := descendPolynomial backend.descend A | throwThe DescentFailure .A
-  let some B := descendPolynomial backend.descend B | throwThe DescentFailure .B
-  let some result := gosperSolve backend.solver A (taylor (-1) B) C | failure
-  return result
+  let some A := descendPolynomial backend.descend A | throw .A
+  let some B := descendPolynomial backend.descend B | throw .B
+  return gosperSolve backend.solver A (taylor (-1) B) C
 
 end Gosper.Algorithm

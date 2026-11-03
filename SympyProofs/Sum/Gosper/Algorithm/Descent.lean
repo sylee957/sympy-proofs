@@ -106,7 +106,6 @@ theorem gosperTerm_self {F : Type} [Field F] [CharZero F] [DecidableEq F]
       let normal := gosperNormal backend.toNormalization P Q
       gosperSolve backend.toLinear normal.1 (taylor (-1) normal.2.1) normal.2.2) := by
   simp only [gosperTerm, TermBackend.self, descendPolynomial_self]
-  generalize gosperSolve (L := F) backend.toLinear _ _ _ = result
-  cases result <;> rfl
+  rfl
 
 end Gosper.Algorithm

@@ -57,13 +57,6 @@ theorem normalForm_hypergeometric_iff_polynomial [Field K] [CharZero K]
     refine ⟨taylor 1 x, ?_⟩
     simpa [Gosper.operator_apply, taylor_taylor] using hx
 
-theorem normalForm_verify_solution [Field K] [DecidableEq K]
-    (P Q : K[X]) (hQ : Q ≠ 0) (s : K[X] × K[X] × K[X])
-    (hs : normalFormValid P Q s) (x : K[X])
-    (hx : s.1 * taylor 1 x - taylor (-1) s.2.1 * x = s.2.2) :
-    verify P Q (taylor (-1) s.2.1 * x) s.2.2 = true :=
-  normalForm_verify_solution_of_ratio P Q hQ s hs.1.2.2 hs.2.2 x hx
-
 variable [CommRing K] [IsDomain K] [CharZero K] [DecidableEq K]
 variable {L : Type} [CommRing L] [IsDomain L] [CharZero L] [Algebra K L]
 variable (backend : TermBackend K L)
@@ -71,9 +64,9 @@ variable (backend : TermBackend K L)
 /-- A run without a descent error is complete for rational functions over `L`. -/
 theorem gosperTerm_complete (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
-    (result : Option (Result L))
+    (result : Result L)
     (hrun : gosperTerm backend P Q = .ok result) :
-    (∃ c, result = some c ∧ (∀ value ∈ c.residual, value = 0)) ↔
+    result.residual = 0 ↔
       Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
   have htransport : Gosper.HasHypergeometricAntidifference (toRatFunc P Q) ↔
       Gosper.HasHypergeometricAntidifference
@@ -99,14 +92,10 @@ theorem gosperTerm_complete (hbackend : backend.Valid)
     exact hi.comp hbackend.descend.injective
   have hcomplete := gosperSolve_complete backend.solver hbackend.solver
     A (taylor (-1) B) C (IsScalarTower.toAlgHom K L (FractionRing L))
-    hKi hA hBshift hvalid.1.2.2
-  have hz (v : L) : IsScalarTower.toAlgHom K L (FractionRing L) v = 0 ↔ v = 0 := by
-    constructor
-    · intro h
-      exact hi (by simpa using h)
-    · intro h
-      simp [h]
-  simp only [hz] at hcomplete
+    hKi hA hBshift
+  have hmap : Function.Injective
+      (IsScalarTower.toAlgHom K L (FractionRing L)).toRingHom := hi
+  simp only [Polynomial.map_eq_zero_iff hmap] at hcomplete
   rw [← hsolve, hcomplete]
   have hPf : P.map (algebraMap L (FractionRing L)) ≠ 0 :=
     fun h => hP ((Polynomial.map_injective _ hi) (by simpa using h))
@@ -114,48 +103,41 @@ theorem gosperTerm_complete (hbackend : backend.Valid)
     fun h => hQ ((Polynomial.map_injective _ hi) (by simpa using h))
   simpa using (normalForm_hypergeometric_iff_polynomial _ _ hPf hQf _ hvalid).symm
 
-/-- `ok none` means nonsummability, rather than a failed coefficient descent. -/
-theorem gosperTerm_none_not_summable (hbackend : backend.Valid)
-    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
-    (h : gosperTerm backend P Q = .ok none) :
-    ¬Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
-  simpa using (gosperTerm_complete backend hbackend P Q hP hQ none h).not
-
-/-- For a returned result, the retained residual vanishes exactly when the input is summable. -/
+/-- For a returned result, the residual vanishes exactly when the input is summable. -/
 theorem gosperTerm_result_complete (hbackend : backend.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (c : Result L)
-    (h : gosperTerm backend P Q = .ok (some c)) :
-    (∀ value ∈ c.residual, value = 0) ↔
+    (h : gosperTerm backend P Q = .ok c) :
+    c.residual = 0 ↔
       Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
-  simpa using gosperTerm_complete backend hbackend P Q hP hQ (some c) h
+  simpa using gosperTerm_complete backend hbackend P Q hP hQ c h
 
-/-- Without a descent error, `none` proves nonsummability and a candidate's residual
-exactly characterizes summability. A vanishing residual verifies that candidate. -/
+/-- The actual residual is zero exactly when the input is hypergeometrically summable. -/
+theorem gosperTerm_residual_complete (hbackend : backend.Valid)
+    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (r : Result L)
+    (hrun : gosperTerm backend P Q = .ok r) :
+    r.residual = 0 ↔ Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
+  exact gosperTerm_result_complete backend hbackend P Q hP hQ r hrun
+
+/-- Without a descent error, the residual exactly characterizes summability.
+A vanishing residual verifies the returned candidate. -/
 theorem gosperTerm_spec [DecidableEq L] (hbackend : backend.Valid)
-    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Option (Result L))
+    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Result L)
     (hrun : gosperTerm backend P Q = .ok result) :
-    match result with
-    | none => ¬Gosper.HasHypergeometricAntidifference (toRatFunc P Q)
-    | some c =>
-        ((∀ value ∈ c.residual, value = 0) ↔
-          Gosper.HasHypergeometricAntidifference (toRatFunc P Q)) ∧
-        ((∀ value ∈ c.residual, value = 0) → verify P Q c.numerator c.denominator = true) := by
-  cases result with
-  | none =>
-      exact gosperTerm_none_not_summable backend hbackend P Q hP hQ hrun
-  | some c =>
-      exact ⟨gosperTerm_result_complete backend hbackend P Q hP hQ c hrun,
-        gosperTerm_verified backend hbackend P Q hP hQ c hrun⟩
+    (result.residual = 0 ↔
+      Gosper.HasHypergeometricAntidifference (toRatFunc P Q)) ∧
+    (result.residual = 0 →
+      verify P Q result.numerator result.denominator = true) := by
+  exact ⟨gosperTerm_complete backend hbackend P Q hP hQ result hrun,
+    gosperTerm_verified backend hbackend P Q hP hQ result hrun⟩
 
 /-- Valid backends agree on summability when neither run returns a descent error. -/
 theorem gosperTerm_success_iff (hbackend : backend.Valid)
     (other : TermBackend K L) (hother : other.Valid)
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0)
-    (result otherResult : Option (Result L))
+    (result otherResult : Result L)
     (hrun : gosperTerm backend P Q = .ok result)
     (hotherRun : gosperTerm other P Q = .ok otherResult) :
-    (∃ c, result = some c ∧ (∀ value ∈ c.residual, value = 0)) ↔
-      ∃ c, otherResult = some c ∧ (∀ value ∈ c.residual, value = 0) := by
+    result.residual = 0 ↔ otherResult.residual = 0 := by
   rw [gosperTerm_complete backend hbackend P Q hP hQ result hrun,
     gosperTerm_complete other hother P Q hP hQ otherResult hotherRun]
 
@@ -170,12 +152,12 @@ theorem reference_gosperTerm_complete (descendCoeff : L → Option K)
       ((rrefK A).map (algebraMap K (FractionRing K))).Valid
         (A.map (algebraMap K (FractionRing K))))
     (hdesc : CoefficientDescentValid descendCoeff)
-    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Option (Result L))
+    (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Result L)
     (hrun : gosperTerm
       { normalization := normalization
         solver := referenceLinearBackend integerRatio rrefK
         descend := descendCoeff } P Q = .ok result) :
-    (∃ c, result = some c ∧ (∀ value ∈ c.residual, value = 0)) ↔
+    result.residual = 0 ↔
       Gosper.HasHypergeometricAntidifference (toRatFunc P Q) :=
   gosperTerm_complete
     { normalization := normalization
