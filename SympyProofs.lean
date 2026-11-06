@@ -9,3 +9,4 @@ import SympyProofs.LambertW
 import SympyProofs.RiemannZeta
 import SympyProofs.Geometry
 import SympyProofs.Sum
+import SympyProofs.RealCubeRoot
