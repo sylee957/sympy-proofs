@@ -11,6 +11,11 @@ support conditions that characterize the resulting generalized inverse.
 * `Matrix.IsReflexiveGeneralizedInverse A G`, defined in `GeneralizedInverse.Basic`,
   states the two generalized-inverse identities for arbitrary finite matrix indices
   over a semiring, independently of RREF.
+* `Matrix.existsUnique_reflexiveGeneralizedInverse_of_isCompl` gives the general
+  existence and uniqueness theorem over a commutative ring: if the domain is
+  `ker A ⊕ T` and the codomain is `range A ⊕ S`, there is exactly one reflexive
+  generalized inverse with range `T` and kernel `S`. The decompositions use
+  Mathlib's `IsCompl`.
 * `Matrix.existsUnique_canonicalGeneralizedInverse` specifies membership in the
   range and kernel using universally quantified equivalences. A vector belongs
   precisely when it vanishes at the last nonzero coordinates of vectors in the
@@ -32,6 +37,9 @@ support conditions that characterize the resulting generalized inverse.
   canonical characterization.
   `generalizedInverse_range_eq` and `generalizedInverse_ker_eq` identify the output's
   range and kernel with the independently specified subspaces.
+  `generalizedInverse_isCompl` proves the direct-sum decompositions with those
+  subspaces. `generalizedInverse_eq_iff` characterizes equality with the computed
+  result by reflexivity and the prescribed coordinate range and kernel.
   `generalizedInverse_unique_of_range_eq_of_ker_eq` proves uniqueness among
   reflexive inverses with the computed range and kernel;
   `generalizedInverse_algorithm_unique` lifts this to equality of implementations

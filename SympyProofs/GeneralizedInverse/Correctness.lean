@@ -114,6 +114,16 @@ theorem generalizedInverse_reflexive (A : Vector (Vector F n) m) :
   rw [generalizedInverse_eq_certificate]
   simpa using (RrefAlgorithm.certificate _ _).inverse_reflexive F (toMatrix A) h.certificate_valid
 
+/-- The algorithm supplies the direct-sum decompositions
+`Fⁿ = ker A ⊕ range G` and `Fᵐ = range A ⊕ ker G`, where `G` is its output. -/
+theorem generalizedInverse_isCompl (A : Vector (Vector F n) m) :
+    IsCompl (LinearMap.ker (toMatrix A).mulVecLin)
+      (LinearMap.range (toMatrix (generalizedInverse A)).mulVecLin) ∧
+    IsCompl (LinearMap.range (toMatrix A).mulVecLin)
+      (LinearMap.ker (toMatrix (generalizedInverse A)).mulVecLin) :=
+  ⟨(generalizedInverse_reflexive A).isCompl_ker_range,
+    (generalizedInverse_reflexive A).isCompl_range_ker⟩
+
 /-- The computed inverse has the range prescribed by the input matrix alone. -/
 theorem generalizedInverse_range_eq (A : Vector (Vector F n) m) :
     LinearMap.range (toMatrix (generalizedInverse A)).mulVecLin =
@@ -143,6 +153,29 @@ theorem generalizedInverse_unique_of_range_eq_of_ker_eq
       LinearMap.ker (toMatrix (generalizedInverse A)).mulVecLin) :
     G = toMatrix (generalizedInverse A) :=
   hG.eq_of_range_eq_of_ker_eq (generalizedInverse_reflexive A) hrange hker
+
+/-- A matrix is the algorithm's output exactly when it is a reflexive generalized
+inverse with the canonical coordinate range and kernel specified by the input.
+These subspaces are the complements in `generalizedInverse_isCompl`, by
+`generalizedInverse_range_eq` and `generalizedInverse_ker_eq`. -/
+theorem generalizedInverse_eq_iff (A : Vector (Vector F n) m)
+    (G : Matrix (Fin n) (Fin m) F) :
+    G = toMatrix (generalizedInverse A) ↔
+      Matrix.IsReflexiveGeneralizedInverse (toMatrix A) G ∧
+        LinearMap.range G.mulVecLin =
+          Submodule.pi {j | ∃ x ∈ LinearMap.ker (toMatrix A).mulVecLin,
+            IsGreatest (Function.support x) j} (fun _ => ⊥) ∧
+        LinearMap.ker G.mulVecLin =
+          Submodule.pi {k | ∃ x ∈ LinearMap.range (toMatrix A).mulVecLin,
+            IsGreatest (Function.support x) k} (fun _ => ⊥) := by
+  constructor
+  · rintro rfl
+    exact ⟨generalizedInverse_reflexive A, generalizedInverse_range_eq A,
+      generalizedInverse_ker_eq A⟩
+  · rintro ⟨hG, hrange, hker⟩
+    exact generalizedInverse_unique_of_range_eq_of_ker_eq A G hG
+      (hrange.trans (generalizedInverse_range_eq A).symm)
+      (hker.trans (generalizedInverse_ker_eq A).symm)
 
 /-- Any implementation returning reflexive generalized inverses with the same
 ranges and kernels is equal to `generalizedInverse` as a function. -/
