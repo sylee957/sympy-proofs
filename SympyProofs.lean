@@ -2,6 +2,7 @@ import SympyProofs.BinomialMean
 import SympyProofs.Binomial
 import SympyProofs.MoorePenrose
 import SympyProofs.Rref
+import SympyProofs.GeneralizedInverse
 import SympyProofs.RouthHurwitz
 import SympyProofs.JordanKrylov
 import SympyProofs.LambertW
