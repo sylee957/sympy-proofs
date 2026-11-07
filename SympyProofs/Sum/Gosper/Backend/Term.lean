@@ -18,10 +18,6 @@ structure TermBackend (K L : Type*) [CommRing K] [IsDomain K] [CommRing L] [IsDo
   resultant : L[X][X] → L[X][X] → L[X]
   naturalRoots : L[X] → Finset ℕ
   integerRatio : K → K → Option ℤ
-  zeros : (m n : ℕ) → Matrix (Fin m) (Fin n) K
-  setElement : {m n : ℕ} → Matrix (Fin m) (Fin n) K →
-    Fin m → Fin n → K → Matrix (Fin m) (Fin n) K
-  rref : {m n : ℕ} → Matrix (Fin m) (Fin n) K → RrefResult K m n
   descend : L → Option K
 
 /-- Correctness contracts for normalization, solving, and coefficient descent. -/
@@ -37,13 +33,6 @@ structure TermBackend.Valid {K R : Type*} [CommRing K] [IsDomain K]
     j ∈ backend.naturalRoots p ↔ p.eval (j : R) = 0
   integerRatio_eq_some : ∀ a b, b ≠ 0 → ∀ z : ℤ,
     backend.integerRatio a b = some z ↔ a = (z : K) * b
-  zeros_eq : ∀ m n, backend.zeros m n = 0
-  setElement_apply : ∀ {m n} (M : Matrix (Fin m) (Fin n) K) i j value i' j',
-    backend.setElement M i j value i' j' =
-      if i' = i ∧ j' = j then value else M i' j'
-  rref_valid : ∀ {m n} (M : Matrix (Fin m) (Fin n) K),
-    ((backend.rref M).map (algebraMap K (FractionRing K))).Valid
-      (M.map (algebraMap K (FractionRing K)))
   descend : ∀ c a, backend.descend c = some a ↔ algebraMap K R a = c
 
 /-- Exact coefficient descent ensures that the coefficient map is injective. -/

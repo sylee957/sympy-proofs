@@ -22,7 +22,7 @@ finite sums follow from `Gosper.certificate_sum` and the product-sum theorems.
 
 `Algorithm.gosperTerm backend P Q` normalizes the forward ratio `P/Q`
 directly over an integral domain `L`. `TermBackend K L` supplies normalization
-operations over `L`, linear elimination over the constant domain `K`, and
+operations over `L`, integer-ratio recognition over `K`, and
 optional coefficient descent from `L` to `K`. Normalization keeps nonmonic
 polynomials and uses gcd and exact division. It constructs the shift resultant
 and extracts natural roots using supplied arithmetic operations.
@@ -31,12 +31,15 @@ the fraction field.
 
 `Algorithm.gosperSolve backend A B C` starts from the normalized equation
 `A*x(X+1) - B*x = C`. Its degree bound uses an integer-ratio test over `K`.
-The matrix entries lie in `K`; `C` and the output
-lie in a commutative `K`-algebra. Fraction-free reduction of `[M | I]` records
-row operations and pivot coefficients. Its nonzero scalar
+The coefficient matrix is stored as a vector of vectors over `K`; `C` and the output
+lie in a commutative `K`-algebra. The loops in `gosperSolve` apply row operations to
+the right-hand side and then back-substitute, choosing zero for free variables.
+Pivot tests inspect only `K`. The nonzero scalar
 denominator is retained in the candidate, so no division in the parameter ring
 or parameter-coefficient equality test is needed during linear solving.
 The output also retains the polynomial residual numerator sharing that denominator.
+Elimination correctness and compatibility with coefficient maps are proved directly;
+the backend does not supply a linear solver.
 The solver always returns a result. A negative degree bound gives a zero
 candidate and retains the entire input as the remainder.
 

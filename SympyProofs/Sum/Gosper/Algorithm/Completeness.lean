@@ -141,32 +141,18 @@ theorem gosperTerm_success_iff (hbackend : backend.Valid)
   rw [gosperTerm_complete backend hbackend P Q hP hQ result hrun,
     gosperTerm_complete other hother P Q hP hQ otherResult hotherRun]
 
-/-- Replacing the solver of a valid backend with reference matrix operations preserves completeness. -/
+/-- Replacing integer-ratio recognition with another valid implementation preserves completeness. -/
 theorem reference_gosperTerm_complete (hbackend : backend.Valid)
     (integerRatio : K → K → Option ℤ)
-    (rrefK : RrefOperation K)
     (hintegerRatio : ∀ a b, b ≠ 0 → ∀ z : ℤ,
       integerRatio a b = some z ↔ a = (z : K) * b)
-    (hrrefK : ∀ {m n} (A : Matrix (Fin m) (Fin n) K),
-      ((rrefK A).map (algebraMap K (FractionRing K))).Valid
-        (A.map (algebraMap K (FractionRing K))))
     (P Q : L[X]) (hP : P ≠ 0) (hQ : Q ≠ 0) (result : Result L)
     (hrun : gosperTerm
-      { backend with
-        integerRatio := integerRatio
-        zeros := fun _ _ => 0
-        setElement := fun M i j value => Function.update M i (Function.update (M i) j value)
-        rref := rrefK } P Q = .ok result) :
+      { backend with integerRatio := integerRatio }
+      P Q = .ok result) :
     result.residual = 0 ↔
       Gosper.HasHypergeometricAntidifference (toRatFunc P Q) := by
   apply gosperTerm_complete _ ?_ P Q hP hQ result hrun
-  refine { hbackend with
-    integerRatio_eq_some := hintegerRatio
-    zeros_eq := fun _ _ => rfl
-    setElement_apply := ?_
-    rref_valid := hrrefK }
-  intro m n M i j value i' j'
-  by_cases hi : i' = i <;> by_cases hj : j' = j <;>
-    simp [Function.update, hi, hj]
+  exact { hbackend with integerRatio_eq_some := hintegerRatio }
 
 end Gosper.Algorithm

@@ -2,7 +2,8 @@ module
 
 public import SympyProofs.Sum.Gosper.Algorithm.CoefficientSystem
 public import SympyProofs.Sum.Gosper.Algorithm.Degree
-public import SympyProofs.Sum.Gosper.Backend.LinearAlgebra
+public import SympyProofs.Sum.Gosper.Backend.Elimination
+public import SympyProofs.Sum.Gosper.Backend.Linear
 
 /-! Fraction-free normalized solving and specialization of its polynomial remainder. -/
 
@@ -29,25 +30,12 @@ variable {K : Type} [CommRing K]
 variable {R S : Type} [CommRing R] [CommRing S] [Algebra K R] [Algebra K S]
 variable {E : Type} [Field E] [Algebra K E]
 
-private theorem matrix_mulVec_map {m n : ℕ} (f : R →ₐ[K] S)
-    (M : Matrix (Fin m) (Fin n) K) (b : Fin n → R) :
-    f ∘ (M.map (algebraMap K R)).mulVec b =
-      (M.map (algebraMap K S)).mulVec (f ∘ b) := by
-  ext i
-  simp [Matrix.mulVec, dotProduct, map_sum, map_mul]
-
-private theorem rawLeftSolution_map {m n : ℕ} (q : RrefResult K m (n + m))
-    (f : R →ₐ[K] S) (values : Fin m → R) :
-    f ∘ q.rawLeftSolution values = q.rawLeftSolution (f ∘ values) := by
-  ext j
-  simp [RrefResult.rawLeftSolution, map_sum, apply_ite]
-
 variable [IsDomain K] [DecidableEq K]
 variable {W : Type} [CommRing W] [IsDomain W] [Algebra K W]
 
 set_option backward.isDefEq.respectTransparency false in
-/-- The imperative solver records raw pivot values and keeps the common denominator. -/
-theorem gosperSolve_eq (backend : TermBackend K W) (hbackend : backend.Valid)
+/-- Direct elimination returns the coefficient candidate and its common denominator. -/
+theorem gosperSolve_eq (backend : TermBackend K W) (_hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) :
     gosperSolve backend A B C =
       let d := degreeBound backend A B C
@@ -57,32 +45,18 @@ theorem gosperSolve_eq (backend : TermBackend K W) (hbackend : backend.Valid)
       else
         let M := coefficientSystem A B C d.toNat
         let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1) C
-        let r := backend.rref (augmentedIdentity M)
-        let y := (r.rightMatrix.map (algebraMap K R)).mulVec b
+        let solution := eliminationModel M b
         { numerator := B.map (algebraMap K R) *
-            ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (r.rawLeftSolution y j)
-          denominator := Polynomial.C (algebraMap K R r.denominator) * C
-          residual := Polynomial.C (algebraMap K R r.denominator) * C -
+            ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)
+          denominator := Polynomial.C (algebraMap K R solution.1) * C
+          residual := Polynomial.C (algebraMap K R solution.1) * C -
             (A.map (algebraMap K R) * taylor 1
-                (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (r.rawLeftSolution y j)) -
+                (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) -
               B.map (algebraMap K R) *
-                ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (r.rawLeftSolution y j)) } := by
-  let d := degreeBound backend A B C
-  have hM := backend.fill_identity_augmented_eq hbackend (coefficientSystem A B C d.toNat)
-  simp only [Id.run, bind, pure, coefficientSystem, forwardOperator_apply] at hM
-  dsimp only [d] at hM
-  have htransform {m n : ℕ} (r : RrefResult K m (n + m)) (values : Fin m → R) :=
-    r.transform_rhs_ring_vector_eq values
-  simp only [Id.run, bind, pure] at htransform
-  have hcoefficients {m n : ℕ} (M : Matrix (Fin m) (Fin (n + m)) K)
-      (values : Fin m → R) :=
-    (backend.rref M).extract_raw_coefficients_eq (hbackend.rref_valid M).ordered values
-  simp only [Id.run, bind, pure] at hcoefficients
-  have hget {m : ℕ} (values : Fin m → R) (i : Fin m) :
-      (Vector.ofFn values)[i.val] = values i := by simp
-  simp only [gosperSolve, Id.run, bind, pure, toFn]
-  simp only [htransform, hcoefficients, hget]
-  rw [hM]
+                ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) } := by
+  simp only [gosperSolve, eliminationModel, eliminationRun, directDot,
+    Id.run, bind, pure, toFn,
+    Vector.getElem_ofFn]
   rfl
 
 omit [Algebra K W] in
@@ -107,10 +81,7 @@ theorem gosperSolve_denominator (backend : TermBackend K W) (hbackend : backend.
     exact ⟨1, one_ne_zero, by simp⟩
   cases hrun.symm
   refine ⟨_, ?_, rfl⟩
-  have hn := (hbackend.rref_valid (augmentedIdentity
-    (coefficientSystem A B C (degreeBound backend A B C).toNat))).denominator_ne_zero
-  intro hz
-  exact hn (by simp [RrefResult.map, hz])
+  exact eliminationModel_denominator_ne_zero _ _
 
 /-- Every run supplies a polynomial reduction, whether or not the
 polynomial remainder vanishes. -/
@@ -129,10 +100,7 @@ theorem gosperSolve_reduction_data (backend : TermBackend K W) (hbackend : backe
     exact ⟨1, one_ne_zero, 0, by simp⟩
   cases hrun.symm
   refine ⟨_, ?_, _, rfl, rfl, rfl⟩
-  have hn := (hbackend.rref_valid (augmentedIdentity
-    (coefficientSystem A B C (degreeBound backend A B C).toNat))).denominator_ne_zero
-  intro hz
-  exact hn (by simp [RrefResult.map, hz])
+  exact eliminationModel_denominator_ne_zero _ _
 
 /-- Evaluate the output while retaining the original matrix and degree bounds. -/
 theorem gosperSolve_output_map (backend : TermBackend K W) (hbackend : backend.Valid)
@@ -143,37 +111,26 @@ theorem gosperSolve_output_map (backend : TermBackend K W) (hbackend : backend.V
     let M := coefficientSystem A B C d.toNat
     let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
       (C.map f.toRingHom)
-    let q := backend.rref (augmentedIdentity M)
-    let y := (q.rightMatrix.map (algebraMap K S)).mulVec b
+    let solution := eliminationModel M b
     0 ≤ d ∧ r.map f.toRingHom =
       { numerator := B.map (algebraMap K S) *
-          ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (q.rawLeftSolution y j)
-        denominator := Polynomial.C (algebraMap K S q.denominator) * C.map f.toRingHom
-        residual := Polynomial.C (algebraMap K S q.denominator) * C.map f.toRingHom -
+          ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)
+        denominator := Polynomial.C (algebraMap K S solution.1) * C.map f.toRingHom
+        residual := Polynomial.C (algebraMap K S solution.1) * C.map f.toRingHom -
           (A.map (algebraMap K S) * taylor 1
-              (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (q.rawLeftSolution y j)) -
+              (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) -
             B.map (algebraMap K S) *
-              ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (q.rawLeftSolution y j)) } := by
-  have hvec {m n : ℕ} (M : Matrix (Fin m) (Fin n) K) :
-      f ∘ (M.map (algebraMap K R)).mulVec (toFn n C) =
-        (M.map (algebraMap K S)).mulVec (toFn n (C.map f.toRingHom)) := by
-    have hc : toFn n (C.map f.toRingHom) = f ∘ toFn n C := by ext i; simp [toFn]
-    rw [hc]
-    exact matrix_mulVec_map f M _
+              ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) } := by
+  have hc (m : ℕ) : toFn m (C.map f.toRingHom) = f ∘ toFn m C := by
+    ext i
+    simp [toFn]
   rw [gosperSolve_eq backend hbackend] at hrun
   dsimp only at hrun ⊢
   simp only [not_lt.mpr hd, ↓reduceIte] at hrun
   cases hrun.symm
   refine ⟨hd, ?_⟩
+  simp only [hc, eliminationModel_map f]
   simp [Result.map, Polynomial.map_sum, Polynomial.map_map]
-  let q := backend.rref (augmentedIdentity (coefficientSystem A B C
-    (degreeBound backend A B C).toNat))
-  have hr := (rawLeftSolution_map q f _).trans
-    (congrArg q.rawLeftSolution (hvec q.rightMatrix))
-  have hpoint := fun j => congrFun hr j
-  dsimp only [q, Function.comp_apply] at hpoint
-  simp only [hpoint]
-  exact ⟨rfl, rfl⟩
 
 set_option backward.isDefEq.respectTransparency false in
 /-- Rerunning commutes with a parameter map that preserves the input degree. -/
@@ -205,62 +162,6 @@ theorem domain_solution_degree_le [CharZero K] {T : Type*} [Semiring T]
     (he : A.map (algebraMap K E) * taylor 1 x - B.map (algebraMap K E) * x = C) :
     (x.natDegree : ℤ) ≤ degreeBound backend A B C₀ :=
   solution_degree_le_extension_bounded backend hbackend A B C₀ C x hKE hdegree hA hB hx he
-
-/-- The evaluated polynomial remainder vanishes exactly when the retained
-matrix candidate solves the original coefficient system. -/
-private theorem gosperSolve_residual_iff_system
-    (backend : TermBackend K W) (hbackend : backend.Valid)
-    (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
-    (hKE : Function.Injective (algebraMap K E)) (r : Result R)
-    (hrun : gosperSolve backend A B C = r)
-    (hd : 0 ≤ degreeBound backend A B C) :
-    let d := degreeBound backend A B C
-    let M := coefficientSystem A B C d.toNat
-    let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
-      (C.map f.toRingHom)
-    let q := (backend.rref (augmentedIdentity M)).map (algebraMap K E)
-    r.residual.map f.toRingHom = 0 ↔
-      (M.map (algebraMap K E)).mulVec (q.inverse.mulVec b) = b := by
-  classical
-  obtain ⟨_, he⟩ := gosperSolve_output_map backend hbackend A B C f r hrun hd
-  let d := degreeBound backend A B C
-  let M := coefficientSystem A B C d.toNat
-  let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
-    (C.map f.toRingHom)
-  let q₀ := backend.rref (augmentedIdentity M)
-  let q := q₀.map (algebraMap K E)
-  have hq := backend.rref_valid_augmentedIdentity hbackend M (algebraMap K E) hKE
-  have hδ : algebraMap K E q₀.denominator ≠ 0 := hq.denominator_ne_zero
-  let x := ofFn (d.toNat + 1) (q.inverse.mulVec b)
-  have hpoly : (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val
-      (q₀.rawLeftSolution ((q₀.rightMatrix.map (algebraMap K E)).mulVec b) j)) =
-      Polynomial.C (algebraMap K E q₀.denominator) * x := by
-    dsimp only [x]
-    rw [ofFn_eq_sum_monomial, Finset.mul_sum]
-    apply Finset.sum_congr rfl
-    intro j _
-    rw [q₀.rawLeftSolution_eq_denominator_mul_inverse (algebraMap K E) hδ b]
-    simp [C_mul_monomial, q]
-  have hres : r.residual.map f.toRingHom =
-      Polynomial.C (algebraMap K E q₀.denominator) *
-        (C.map f.toRingHom - forwardOperator (A.map (algebraMap K E))
-          (B.map (algebraMap K E)) x) := by
-    have hr := congrArg Result.residual he
-    change r.residual.map f.toRingHom =
-      Polynomial.C (algebraMap K E q₀.denominator) * C.map f.toRingHom -
-        (A.map (algebraMap K E) * taylor 1
-            (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val
-              (q₀.rawLeftSolution ((q₀.rightMatrix.map (algebraMap K E)).mulVec b) j)) -
-          B.map (algebraMap K E) *
-            ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val
-              (q₀.rawLeftSolution ((q₀.rightMatrix.map (algebraMap K E)).mulVec b) j)) at hr
-    rw [hr, hpoly]
-    simp only [forwardOperator_apply, taylor_mul, taylor_C]
-    ring
-  dsimp only
-  rw [hres, mul_eq_zero, Polynomial.C_eq_zero, or_iff_right hδ, sub_eq_zero]
-  exact eq_comm.trans (coefficientSystem_correct_extension_bounded A B (C.map f.toRingHom)
-    d.toNat C.natDegree Polynomial.natDegree_map_le _).symm
 
 /-- A vanishing evaluated remainder certifies a scaled normalized equation; the common
 scale lies in `K` and remains nonzero in every faithful target field. -/
@@ -307,46 +208,70 @@ theorem gosperSolve_specialize_complete [CharZero K]
       ∃ x : E[X], A.map (algebraMap K E) * taylor 1 x -
         B.map (algebraMap K E) * x = C.map f.toRingHom := by
   classical
-  by_cases hd : degreeBound backend A B C < 0
-  · rw [gosperSolve_of_degreeBound_neg backend A B C hd] at hrun
-    cases hrun.symm
-    constructor
-    · intro hC
-      exact ⟨0, by simpa using hC.symm⟩
-    · rintro ⟨x, hx⟩
+  constructor
+  · intro hzero
+    obtain ⟨δ, hδ, x, _, _, hx⟩ :=
+      gosperSolve_sound backend hbackend A B C f hKE r hrun hzero
+    have hδ' : algebraMap K E δ ≠ 0 := by
+      intro hz
+      exact hδ (hKE (hz.trans (map_zero _).symm))
+    refine ⟨Polynomial.C ((algebraMap K E δ)⁻¹) * x, ?_⟩
+    calc
+      _ = Polynomial.C ((algebraMap K E δ)⁻¹) *
+          (A.map (algebraMap K E) * taylor 1 x - B.map (algebraMap K E) * x) := by
+        simp only [taylor_mul, taylor_C]
+        ring
+      _ = Polynomial.C ((algebraMap K E δ)⁻¹) *
+          (Polynomial.C (algebraMap K E δ) * C.map f.toRingHom) := by rw [hx]
+      _ = C.map f.toRingHom := by
+        rw [← mul_assoc, ← Polynomial.C_mul, inv_mul_cancel₀ hδ', Polynomial.C_1, one_mul]
+  · rintro ⟨x, hx⟩
+    by_cases hd : degreeBound backend A B C < 0
+    · rw [gosperSolve_of_degreeBound_neg backend A B C hd] at hrun
+      cases hrun.symm
       by_cases hx0 : x = 0
       · simpa [hx0] using hx.symm
       · have hdn := domain_solution_degree_le backend hbackend A B C
           (C.map f.toRingHom) x hKE Polynomial.natDegree_map_le hA hB hx0 hx
         omega
-  have hd := not_lt.mp hd
-  let d := degreeBound backend A B C
-  let M := coefficientSystem A B C d.toNat
-  let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
-    (C.map f.toRingHom)
-  let q := (backend.rref (augmentedIdentity M)).map (algebraMap K E)
-  have hq := backend.rref_valid_augmentedIdentity hbackend M (algebraMap K E) hKE
-  have hi := gosperSolve_residual_iff_system backend hbackend A B C f hKE r hrun hd
-  dsimp only at hi
-  rw [hi]
-  constructor
-  · intro hs
-    exact ⟨ofFn (d.toNat + 1) (q.inverse.mulVec b),
-      (coefficientSystem_correct_extension_bounded A B (C.map f.toRingHom)
-        d.toNat C.natDegree Polynomial.natDegree_map_le _).mp hs⟩
-  · rintro ⟨x, hx⟩
+    have hd := not_lt.mp hd
+    let d := degreeBound backend A B C
+    let M := coefficientSystem A B C d.toNat
+    let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
+      (C.map f.toRingHom)
+    let solution := eliminationModel M b
     have hdn : x.natDegree ≤ d.toNat := by
       by_cases hx0 : x = 0
       · simp [hx0]
-      · have hd := domain_solution_degree_le backend hbackend A B C (C.map f.toRingHom) x hKE
-          Polynomial.natDegree_map_le hA hB hx0 hx
+      · have hbound := domain_solution_degree_le backend hbackend A B C (C.map f.toRingHom)
+          x hKE Polynomial.natDegree_map_le hA hB hx0 hx
         omega
-    apply (q.inverse_solve_iff (M.map (algebraMap K E)) hq b).mpr
-    refine ⟨toFn (d.toNat + 1) x,
-      (coefficientSystem_correct_extension_bounded A B (C.map f.toRingHom)
-        d.toNat C.natDegree Polynomial.natDegree_map_le _).mpr ?_⟩
-    rw [ofFn_comp_toFn_eq_id_of_natDegree_lt (by omega)]
-    exact hx
+    have hsystem : ∃ v, (M.map (algebraMap K E)).mulVec v = b := by
+      refine ⟨toFn (d.toNat + 1) x,
+        (coefficientSystem_correct_extension_bounded A B (C.map f.toRingHom)
+          d.toNat C.natDegree Polynomial.natDegree_map_le _).mpr ?_⟩
+      rw [ofFn_comp_toFn_eq_id_of_natDegree_lt (by omega)]
+      exact hx
+    have hscaled := eliminationModel_complete M b hsystem
+    have hpoly : forwardOperator (A.map (algebraMap K E)) (B.map (algebraMap K E))
+        (ofFn (d.toNat + 1) solution.2) =
+        Polynomial.C (algebraMap K E solution.1) * C.map f.toRingHom := by
+      apply (coefficientSystem_correct_extension_bounded A B
+        (Polynomial.C (algebraMap K E solution.1) * C.map f.toRingHom)
+        d.toNat C.natDegree
+        ((natDegree_C_mul_le _ _).trans Polynomial.natDegree_map_le) solution.2).mp
+      change (M.map (algebraMap K E)).mulVec solution.2 = _
+      rw [hscaled]
+      ext i
+      simp [solution, b, toFn, Pi.smul_apply, smul_eq_mul]
+    obtain ⟨_, he⟩ := gosperSolve_output_map backend hbackend A B C f r hrun hd
+    have hres := congrArg Result.residual he
+    change r.residual.map f.toRingHom =
+      Polynomial.C (algebraMap K E solution.1) * C.map f.toRingHom -
+        forwardOperator (A.map (algebraMap K E)) (B.map (algebraMap K E))
+          (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) at hres
+    rw [← ofFn_eq_sum_monomial, hpoly, sub_self] at hres
+    exact hres
 
 /-- A nonzero specialized right-hand side has no polynomial solution when the
 signed degree bound is negative. -/

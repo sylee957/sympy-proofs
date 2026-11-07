@@ -25,9 +25,6 @@ noncomputable def TermBackend.transport (backend : TermBackend K R) (e : R ≃�
       (q.map (Polynomial.mapRingHom e.symm.toRingHom))).map e.toRingHom
   naturalRoots p := backend.naturalRoots (p.map e.symm.toRingHom)
   integerRatio := backend.integerRatio
-  zeros := backend.zeros
-  setElement := backend.setElement
-  rref := backend.rref
   descend c := backend.descend (e.symm c)
 
 omit [IsDomain K] in
@@ -111,9 +108,6 @@ theorem TermBackend.transport_valid (backend : TermBackend K R) (hbackend : back
     rw [he]
     exact (map_eq_zero_iff e.symm.toRingHom e.symm.injective)
   integerRatio_eq_some := hbackend.integerRatio_eq_some
-  zeros_eq := hbackend.zeros_eq
-  setElement_apply := hbackend.setElement_apply
-  rref_valid := hbackend.rref_valid
   descend c a := by
     change backend.descend (e.symm c) = some a ↔ algebraMap K S a = c
     rw [hbackend.descend]

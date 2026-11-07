@@ -1,7 +1,7 @@
 module
 
 public import SympyProofs.Sum.Gosper.Algorithm.Certificate
-public import SympyProofs.Sum.Gosper.Backend.Inverse
+public import SympyProofs.Sum.Gosper.Backend.Elimination
 public import SympyProofs.Sum.Gosper.Backend.Normalization
 public import SympyProofs.Sum.Gosper.Backend.Resultant
 public import SympyProofs.Sum.Gosper.Normalization
@@ -99,38 +99,56 @@ def gosperSolve {K W : Type} [CommRing K] [IsDomain K] [DecidableEq K]
       numerator := 0
       denominator := C
       residual := C }
-  let n := d.toNat + 1
-  let m := max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1
-  -- Augment the coefficient matrix by the identity, independently of the right-hand side.
-  let mut M := backend.zeros m (n + m)
-  for i in List.finRange m do
-    for j in List.finRange n do
-      let monomial : K[X] := X ^ (j : ℕ)
-      let coeff := (A * taylor 1 monomial - B * monomial).coeff i
-      M := backend.setElement M i (j.castAdd m) coeff
-    M := backend.setElement M i (Fin.natAdd n i) 1
-  let r := backend.rref M
-  let mut transformed := Vector.replicate m (0 : L)
-  for i in List.finRange m do
-    let mut value := (0 : L)
-    for k in List.finRange m do
-      value := value + algebraMap K L (r.matrix i (Fin.natAdd n k)) * C.coeff k
-    transformed := transformed.set i.val value
-  -- Read pivot coefficients; the residual is computed in the original polynomial equation.
-  let mut coefficients := Vector.replicate n (0 : L)
-  for ⟨(pivot, row), hp⟩ in r.pivots.zipIdx.attach do
-    let row : Fin m := ⟨row, lt_of_lt_of_le (List.mem_zipIdx' hp).1 r.length_le⟩
-    if h : pivot.val < n then
-      let pivot : Fin n := ⟨pivot.val, h⟩
-      coefficients := coefficients.set pivot.val transformed[row.val]
-  let x := ∑ j : Fin n, Polynomial.monomial j.val coefficients[j.val]
-  let U := B.map (algebraMap K L) * x
-  let V := Polynomial.C (algebraMap K L r.denominator) * C
-  let residual := V - (A.map (algebraMap K L) * taylor 1 x - U)
-  return {
-    numerator := U
-    denominator := V
-    residual := residual }
+  else
+    let n := d.toNat + 1
+    let m := max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1
+    -- Each column is the image of one monomial under the polynomial equation.
+    let columns : Vector K[X] n := Vector.ofFn fun j : Fin n =>
+      A * taylor 1 (X ^ j.val) - B * X ^ j.val
+    let mut M : Vector (Vector K n) m := Vector.ofFn fun i : Fin m =>
+      Vector.ofFn fun j : Fin n => columns[j.val].coeff i.val
+    let mut rhs : Vector L m := Vector.ofFn fun i : Fin m => C.coeff i.val
+    let mut pivots : List (Fin n × K × Vector K n × L) := []
+    -- Eliminate columns using pivots from K, retaining each pivot equation.
+    for col in List.finRange n do
+      let mut pivot : Option (Fin m) := none
+      for i in List.finRange m do
+        if M[i.val][col.val] ≠ 0 then
+          pivot := some i
+          break
+      if let some i := pivot then
+        let row := M[i.val]
+        let p := row[col.val]
+        let value := rhs[i.val]
+        pivots := (col, p, row, value) :: pivots
+        for i in List.finRange m do
+          let source := M[i.val]
+          let a := source[col.val]
+          rhs := rhs.set i.val
+            (algebraMap K L p * rhs[i.val] - algebraMap K L a * value)
+          let mut updated := source
+          for k in List.finRange n do
+            updated := updated.set k.val (p * source[k.val] - a * row[k.val])
+          M := M.set i.val updated
+    -- The stored equations are already ordered for back-substitution.
+    let mut δ := (1 : K)
+    let mut coefficients : Vector L n := Vector.replicate n (0 : L)
+    for (col, p, row, pivotRhs) in pivots do
+      let mut value := (0 : L)
+      for k in List.finRange n do
+        value := value + algebraMap K L row[k.val] * coefficients[k.val]
+      value := algebraMap K L δ * pivotRhs - value
+      coefficients := coefficients.map fun a => algebraMap K L p * a
+      coefficients := coefficients.set col.val (coefficients[col.val] + value)
+      δ := p * δ
+    let x := ∑ j : Fin n, Polynomial.monomial j.val coefficients[j.val]
+    let U := B.map (algebraMap K L) * x
+    let V := Polynomial.C (algebraMap K L δ) * C
+    let residual := V - (A.map (algebraMap K L) * taylor 1 x - U)
+    return {
+      numerator := U
+      denominator := V
+      residual := residual }
 
 /-- The normalized polynomial that could not be represented in the constant domain. -/
 inductive DescentFailure where

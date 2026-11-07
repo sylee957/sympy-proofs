@@ -4,74 +4,13 @@ public import SympyProofs.Sum.Gosper.Backend.Linear
 public import SympyProofs.Sum.Gosper.Backend.Inverse
 public import SympyProofs.Sum.Gosper.Backend.Residual
 
-/-! Correctness of matrix construction and solution extraction through backend operations. -/
+/-! Correctness of solution extraction from standalone RREF results. -/
 
 @[expose] public section
 
 namespace Gosper.Algorithm
 
 variable {K : Type*} [Field K] {m n : ℕ}
-
-/-- Writing each coefficient constructs the matrix independently of any right-hand side. -/
-theorem TermBackend.fill_matrix_eq {L : Type*} [CommRing L] [IsDomain L] [Algebra K L]
-    (backend : TermBackend K L) (h : backend.Valid)
-    (A : Matrix (Fin m) (Fin n) K) :
-    (Id.run do
-      let mut M := backend.zeros m n
-      for i in List.finRange m do
-        for j in List.finRange n do
-          M := backend.setElement M i j (A i j)
-      return M) = A := by
-  let entries := (List.finRange m).flatMap fun i =>
-    (List.finRange n).map fun j => (i, j)
-  have he : (Id.run do
-      let mut M := backend.zeros m n
-      for i in List.finRange m do
-        for j in List.finRange n do
-          M := backend.setElement M i j (A i j)
-      return M) =
-      entries.foldl (fun M pos => backend.setElement M pos.1 pos.2 (A pos.1 pos.2))
-        (backend.zeros m n) := by
-    simp [entries, List.foldl_flatMap, List.foldl_map]
-  rw [he]
-  ext i j
-  rw [backend.setElement_foldl_apply h]
-  have hm : (i, j) ∈ entries := by simp [entries]
-  simp [hm]
-
-/-- Writing every coefficient column and then the right-hand side constructs `[A | b]`. -/
-theorem TermBackend.fill_augmented_eq {L : Type*} [CommRing L] [IsDomain L] [Algebra K L]
-    (backend : TermBackend K L) (h : backend.Valid)
-    (A : Matrix (Fin m) (Fin n) K) (b : Fin m → K) :
-    (Id.run do
-      let mut M := backend.zeros m (n + 1)
-      for i in List.finRange m do
-        for j in List.finRange n do
-          M := backend.setElement M i j.castSucc (A i j)
-        M := backend.setElement M i (Fin.last n) (b i)
-      return M) = augmented A b := by
-  let entries := (List.finRange m).flatMap fun i =>
-    ((List.finRange n).map fun j => (i, j.castSucc)) ++ [(i, Fin.last n)]
-  have he : (Id.run do
-      let mut M := backend.zeros m (n + 1)
-      for i in List.finRange m do
-        for j in List.finRange n do
-          M := backend.setElement M i j.castSucc (A i j)
-        M := backend.setElement M i (Fin.last n) (b i)
-      return M) =
-      entries.foldl (fun M pos => backend.setElement M pos.1 pos.2 (augmented A b pos.1 pos.2))
-        (backend.zeros m (n + 1)) := by
-    simp [entries, List.foldl_flatMap, List.foldl_append, List.foldl_map, augmented]
-  rw [he]
-  ext i j
-  rw [backend.setElement_foldl_apply h]
-  have hm : (i, j) ∈ entries := by
-    apply List.mem_flatMap.mpr
-    refine ⟨i, List.mem_finRange i, ?_⟩
-    refine Fin.lastCases ?_ (fun j => ?_) j
-    · simp
-    · simp
-  simp [hm]
 
 /-- Read the augmented column once and reconstruct the polynomial from its pivot rows. -/
 theorem RrefResult.reconstruct_eq [DecidableEq K]
