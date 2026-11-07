@@ -282,10 +282,21 @@ theorem winding_filled_polygon_isLeast {m n : ℕ} [NeZero m] [NeZero n]
     Polygon.windingFilledRegion_eq_filledRegion, Polygon.windingFilledRegion_eq_filledRegion]
   exact filled_polygon_isLeast p q
 
+/-- The sign-product formula computes the distance between the regions
+defined by odd winding number. -/
 theorem winding_filled_polygon_distance {m n : ℕ} [NeZero m] [NeZero n]
     (p : Polygon Point2D m) (q : Polygon Point2D n) :
     distance (Polygon.windingFilledRegion p) (Polygon.windingFilledRegion q) =
-      windingPolygonDistance p q := (winding_filled_polygon_isLeast p q).csInf_eq
+      filledPolygonDistance p q := by
+  rw [Polygon.windingFilledRegion_eq_filledRegion, Polygon.windingFilledRegion_eq_filledRegion]
+  exact filled_polygon_distance p q
+
+/-- The equivalent distance expression using winding-number parity. -/
+theorem winding_filled_polygon_distance_eq_winding {m n : ℕ} [NeZero m] [NeZero n]
+    (p : Polygon Point2D m) (q : Polygon Point2D n) :
+    distance (Polygon.windingFilledRegion p) (Polygon.windingFilledRegion q) =
+      windingPolygonDistance p q := by
+  rw [winding_filled_polygon_distance, windingPolygonDistance_eq_filledPolygonDistance]
 
 /-- Strict containment is detected even when the boundaries do not meet. -/
 theorem filledPolygonDistance_nested :
