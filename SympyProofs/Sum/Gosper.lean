@@ -32,13 +32,14 @@ the fraction field.
 `Algorithm.gosperSolve backend A B C` starts from the normalized equation
 `A*x(X+1) - B*x = C`. Its degree bound uses an integer-ratio test over `K`.
 The coefficient matrix is stored as a vector of vectors over `K`; `C` and the output
-lie in a commutative `K`-algebra. The loops in `gosperSolve` apply row operations to
-the right-hand side and then back-substitute, choosing zero for free variables.
-Pivot tests inspect only `K`. The nonzero scalar
-denominator is retained in the candidate, so no division in the parameter ring
-or parameter-coefficient equality test is needed during linear solving.
+lie in a commutative `K`-algebra. Bareiss elimination divides matrix and
+right-hand-side updates exactly by the previous pivot, then back-substitutes,
+choosing zero for free variables. Pivot tests inspect only `K`; divisions in the
+parameter domain are by constants from `K`. The nonzero scalar denominator is
+retained in the candidate. No parameter-coefficient equality test is needed.
 The output also retains the polynomial residual numerator sharing that denominator.
-Elimination correctness and compatibility with coefficient maps are proved directly;
+Exactness of the divisions, elimination correctness, and compatibility with coefficient maps
+are proved directly from the division laws and injectivity on constants;
 the backend does not supply a linear solver.
 The solver always returns a result. A negative degree bound gives a zero
 candidate and retains the entire input as the remainder.

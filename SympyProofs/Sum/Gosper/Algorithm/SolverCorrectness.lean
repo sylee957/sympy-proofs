@@ -3,7 +3,8 @@ module
 public import SympyProofs.Sum.Gosper.Algorithm.CoefficientSystem
 public import SympyProofs.Sum.Gosper.Algorithm.Degree
 public import SympyProofs.Sum.Gosper.Algorithm.Horner
-public import SympyProofs.Sum.Gosper.Backend.Elimination
+public import SympyProofs.Sum.Gosper.Backend.BareissInvariant
+public import SympyProofs.Sum.Gosper.Backend.BareissLoop
 public import SympyProofs.Sum.Gosper.Backend.Linear
 
 /-! Fraction-free normalized solving and specialization of its polynomial remainder. -/
@@ -31,7 +32,7 @@ variable {K : Type} [CommRing K]
 variable {R S : Type} [CommRing R] [CommRing S] [Algebra K R] [Algebra K S]
 variable {E : Type} [Field E] [Algebra K E]
 
-variable [IsDomain K] [DecidableEq K]
+variable [IsDomain K] [DecidableEq K] [Div K] [Div R] [Div S]
 variable {W : Type} [CommRing W] [IsDomain W] [Algebra K W]
 
 omit [Algebra K W] in
@@ -46,7 +47,7 @@ private theorem gosperSolve_fused_eq (backend : TermBackend K W)
         let M := Vector.ofFn fun i => Vector.ofFn ((coefficientSystem A B C d.toNat) i)
         let b := Vector.ofFn fun i : Fin (max C.natDegree
           (max A.natDegree B.natDegree + d.toNat) + 1) => C.coeff i.val
-        let steps := ((List.finRange (d.toNat + 1)).foldl eliminationForwardStep (M, b, [])).2.2
+        let steps := ((List.finRange (d.toNat + 1)).foldl bareissForwardStep (M, b, [], 1)).2.2.1
         let result := fusedBackSub steps (A.map (algebraMap K R)) (B.map (algebraMap K R))
         let V := Polynomial.C (algebraMap K R result.1) * C
         { numerator := result.2.2.1, denominator := V
@@ -59,17 +60,17 @@ private theorem gosperSolve_fused_eq (backend : TermBackend K W)
         let M := Vector.ofFn fun i => Vector.ofFn ((coefficientSystem A B C d.toNat) i)
         let b := Vector.ofFn fun i : Fin (max C.natDegree
           (max A.natDegree B.natDegree + d.toNat) + 1) => C.coeff i.val
-        let steps := (eliminationForwardRun (List.finRange (d.toNat + 1)) M b []).2.2
+        let steps := (bareissForwardRun (List.finRange (d.toNat + 1)) M b [] 1).2.2.1
         let result := fusedBackSub steps (A.map (algebraMap K R)) (B.map (algebraMap K R))
         let V := Polynomial.C (algebraMap K R result.1) * C
         { numerator := result.2.2.1, denominator := V
           residual := V - (result.2.2.2 - result.2.2.1) } := by
-      simp only [gosperSolve, eliminationForwardRun, fusedBackSub, directDot, Vector.getElem_ofFn]
+      simp only [gosperSolve, bareissForwardRun, fusedBackSub, directDot, Vector.getElem_ofFn]
       rfl
-    _ = _ := by simp only [eliminationForwardRun_eq]
+    _ = _ := by simp only [bareissForwardRun_eq]
 
 set_option backward.isDefEq.respectTransparency false in
-/-- Direct elimination returns the coefficient candidate and its common denominator. -/
+/-- Bareiss elimination returns the coefficient candidate and its common denominator. -/
 theorem gosperSolve_eq (backend : TermBackend K W) (_hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) :
     gosperSolve backend A B C =
@@ -80,7 +81,7 @@ theorem gosperSolve_eq (backend : TermBackend K W) (_hbackend : backend.Valid)
       else
         let M := coefficientSystem A B C d.toNat
         let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1) C
-        let solution := eliminationModel M b
+        let solution := bareissModel M b
         { numerator := B.map (algebraMap K R) *
             ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)
           denominator := Polynomial.C (algebraMap K R solution.1) * C
@@ -93,9 +94,9 @@ theorem gosperSolve_eq (backend : TermBackend K W) (_hbackend : backend.Valid)
   dsimp only
   split_ifs
   · rfl
-  · rw [fusedBackSub_eq _ _ _ (eliminationForward_pivots_descending _ _)]
-    simp only [elimination_forward_backward, List.foldl_nil,
-      eliminationModel, eliminationRun_eq_columns]
+  · rw [fusedBackSub_eq _ _ _ (bareissForward_pivots_descending _ _ 1)]
+    simp only [bareiss_forward_backward, List.foldl_nil,
+      bareissModel]
     rfl
 
 omit [Algebra K W] in
@@ -120,7 +121,7 @@ theorem gosperSolve_denominator (backend : TermBackend K W) (hbackend : backend.
     exact ⟨1, one_ne_zero, by simp⟩
   cases hrun.symm
   refine ⟨_, ?_, rfl⟩
-  exact eliminationModel_denominator_ne_zero _ _
+  exact bareissModel_denominator_ne_zero _ _
 
 /-- Every run supplies a polynomial reduction, whether or not the
 polynomial remainder vanishes. -/
@@ -139,10 +140,13 @@ theorem gosperSolve_reduction_data (backend : TermBackend K W) (hbackend : backe
     exact ⟨1, one_ne_zero, 0, by simp⟩
   cases hrun.symm
   refine ⟨_, ?_, _, rfl, rfl, rfl⟩
-  exact eliminationModel_denominator_ne_zero _ _
+  exact bareissModel_denominator_ne_zero _ _
 
 /-- Evaluate the output while retaining the original matrix and degree bounds. -/
-theorem gosperSolve_output_map (backend : TermBackend K W) (hbackend : backend.Valid)
+theorem gosperSolve_output_map [MulDivCancelClass K]
+    [IsDomain R] [MulDivCancelClass R]
+    [IsDomain S] [MulDivCancelClass S] [Module.IsTorsionFree K S]
+    (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] S) (r : Result R)
     (hrun : gosperSolve backend A B C = r)
     (hd : 0 ≤ degreeBound backend A B C) :
@@ -150,7 +154,7 @@ theorem gosperSolve_output_map (backend : TermBackend K W) (hbackend : backend.V
     let M := coefficientSystem A B C d.toNat
     let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
       (C.map f.toRingHom)
-    let solution := eliminationModel M b
+    let solution := bareissModel M b
     0 ≤ d ∧ r.map f.toRingHom =
       { numerator := B.map (algebraMap K S) *
           ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)
@@ -160,6 +164,10 @@ theorem gosperSolve_output_map (backend : TermBackend K W) (hbackend : backend.V
               (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) -
             B.map (algebraMap K S) *
               ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) } := by
+  let : FaithfulSMul K R := (faithfulSMul_iff_algebraMap_injective K R).mpr (by
+    intro a b h
+    apply FaithfulSMul.algebraMap_injective K S
+    simpa only [AlgHom.commutes] using congrArg f h)
   have hc (m : ℕ) : toFn m (C.map f.toRingHom) = f ∘ toFn m C := by
     ext i
     simp [toFn]
@@ -168,12 +176,16 @@ theorem gosperSolve_output_map (backend : TermBackend K W) (hbackend : backend.V
   simp only [not_lt.mpr hd, ↓reduceIte] at hrun
   cases hrun.symm
   refine ⟨hd, ?_⟩
-  simp only [hc, eliminationModel_map f]
+  simp only [hc]
+  rw [bareissModel_map f _ _ (bareiss_exactDivisions _ _ _)]
   simp [Result.map, Polynomial.map_sum, Polynomial.map_map]
 
 set_option backward.isDefEq.respectTransparency false in
 /-- Rerunning commutes with a parameter map that preserves the input degree. -/
-theorem gosperSolve_map (backend : TermBackend K W) (hbackend : backend.Valid)
+theorem gosperSolve_map [MulDivCancelClass K]
+    [IsDomain R] [MulDivCancelClass R]
+    [IsDomain S] [MulDivCancelClass S] [Module.IsTorsionFree K S]
+    (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] S)
     (hdegree : (C.map f.toRingHom).natDegree = C.natDegree) :
     gosperSolve backend A B (C.map f.toRingHom) =
@@ -192,6 +204,7 @@ theorem gosperSolve_map (backend : TermBackend K W) (hbackend : backend.Valid)
     delta coefficientSystem
     rw [hdegree]
 
+omit [Div K] in
 /-- The degree bound computed over the coefficient domain controls solutions
 in every faithful field target. -/
 theorem domain_solution_degree_le [CharZero K] {T : Type*} [Semiring T]
@@ -238,7 +251,8 @@ theorem gosperSolve_specialize_sound (backend : TermBackend K W) (hbackend : bac
 
 /-- The vanishing remainder criterion is complete even when evaluation lowers the degree or
 annihilates the entire right-hand side. -/
-theorem gosperSolve_specialize_complete [CharZero K]
+theorem gosperSolve_specialize_complete [CharZero K] [MulDivCancelClass K]
+    [IsDomain R] [MulDivCancelClass R]
     (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
     (hKE : Function.Injective (algebraMap K E)) (r : Result R)
@@ -247,6 +261,7 @@ theorem gosperSolve_specialize_complete [CharZero K]
       ∃ x : E[X], A.map (algebraMap K E) * taylor 1 x -
         B.map (algebraMap K E) * x = C.map f.toRingHom := by
   classical
+  let : FaithfulSMul K E := (faithfulSMul_iff_algebraMap_injective K E).mpr hKE
   constructor
   · intro hzero
     obtain ⟨δ, hδ, x, _, _, hx⟩ :=
@@ -278,7 +293,7 @@ theorem gosperSolve_specialize_complete [CharZero K]
     let M := coefficientSystem A B C d.toNat
     let b := toFn (max C.natDegree (max A.natDegree B.natDegree + d.toNat) + 1)
       (C.map f.toRingHom)
-    let solution := eliminationModel M b
+    let solution := bareissModel M b
     have hdn : x.natDegree ≤ d.toNat := by
       by_cases hx0 : x = 0
       · simp [hx0]
@@ -291,7 +306,7 @@ theorem gosperSolve_specialize_complete [CharZero K]
           d.toNat C.natDegree Polynomial.natDegree_map_le _).mpr ?_⟩
       rw [ofFn_comp_toFn_eq_id_of_natDegree_lt (by omega)]
       exact hx
-    have hscaled := eliminationModel_complete M b hsystem
+    have hscaled := bareissModel_complete M b (bareiss_exactDivisions _ _ _) hsystem
     have hpoly : forwardOperator (A.map (algebraMap K E)) (B.map (algebraMap K E))
         (ofFn (d.toNat + 1) solution.2) =
         Polynomial.C (algebraMap K E solution.1) * C.map f.toRingHom := by
@@ -312,6 +327,7 @@ theorem gosperSolve_specialize_complete [CharZero K]
     rw [← ofFn_eq_sum_monomial, hpoly, sub_self] at hres
     exact hres
 
+omit [Div K] [Div R] in
 /-- A nonzero specialized right-hand side has no polynomial solution when the
 signed degree bound is negative. -/
 theorem degreeBound_neg_not_solvable [CharZero K]
@@ -328,7 +344,8 @@ theorem degreeBound_neg_not_solvable [CharZero K]
 
 /-- The total solver's polynomial remainder vanishes precisely when the normalized equation
 has a polynomial solution in the target field. -/
-theorem gosperSolve_complete [CharZero K]
+theorem gosperSolve_complete [CharZero K] [MulDivCancelClass K]
+    [IsDomain R] [MulDivCancelClass R]
     (backend : TermBackend K W) (hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) (f : R →ₐ[K] E)
     (hKE : Function.Injective (algebraMap K E)) (hA : A ≠ 0) (hB : B ≠ 0) :

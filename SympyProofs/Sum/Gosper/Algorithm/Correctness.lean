@@ -195,8 +195,8 @@ theorem forward_iff_hypergeometric {R : Type*} [CommRing R] [IsDomain R]
       Gosper.HasHypergeometricAntidifference ρ :=
   (Gosper.hypergeometric_iff_forward ρ hρ).symm
 
-variable {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
-variable {L : Type} [CommRing L] [IsDomain L] [Algebra K L]
+variable {K : Type} [CommRing K] [IsDomain K] [DecidableEq K] [Div K]
+variable {L : Type} [CommRing L] [IsDomain L] [Algebra K L] [Div L]
 variable (backend : TermBackend K L)
 
 private theorem gosperTerm_eq (P Q : L[X]) :

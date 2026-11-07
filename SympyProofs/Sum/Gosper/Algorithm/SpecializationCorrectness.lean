@@ -15,8 +15,8 @@ attribute [local instance 2000] Ring.toIntAlgebra
 
 open Polynomial IsLocalization
 
-variable {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
-variable {L : Type} [CommRing L] [IsDomain L] [Algebra K L]
+variable {K : Type} [CommRing K] [IsDomain K] [DecidableEq K] [Div K]
+variable {L : Type} [CommRing L] [IsDomain L] [Algebra K L] [Div L]
 variable (backend : TermBackend K L)
 
 /-- The polynomial reduction survives every coefficient homomorphism. -/

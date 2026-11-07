@@ -57,8 +57,10 @@ theorem normalForm_hypergeometric_iff_polynomial [Field K] [CharZero K]
     refine ⟨taylor 1 x, ?_⟩
     simpa [Gosper.operator_apply, taylor_taylor] using hx
 
-variable [CommRing K] [IsDomain K] [CharZero K] [DecidableEq K]
-variable {L : Type} [CommRing L] [IsDomain L] [CharZero L] [Algebra K L]
+variable [CommRing K] [IsDomain K] [CharZero K] [DecidableEq K] [Div K]
+variable [MulDivCancelClass K]
+variable {L : Type} [CommRing L] [IsDomain L] [CharZero L] [Algebra K L] [Div L]
+variable [MulDivCancelClass L]
 variable (backend : TermBackend K L)
 
 /-- A run without a descent error is complete for rational functions over `L`. -/

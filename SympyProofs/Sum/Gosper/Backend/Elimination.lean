@@ -2,9 +2,9 @@ module
 
 public import Mathlib
 
-/-! Vector reference model for the fraction-free elimination in `gosperSolve`.
-The solver's inline elimination and polynomial back substitution are proved
-equivalent to this model. -/
+/-! Division-free row operations and scaled back substitution.
+The Bareiss model reuses these operations before exact division, together with
+the pivot-search and loop lemmas. -/
 
 @[expose] public section
 
@@ -56,8 +56,7 @@ def eliminationBackStep (step : EliminationStep K L n) (result : K × Vector L n
   (step.2.1 * result.1,
     coefficients.set step.1 (coefficients[step.1.val] + value))
 
-/-- Recursive proof model for a list of remaining columns. The executable
-algorithm uses the equivalent forward and backward loops below. -/
+/-- Division-free reference model for a list of remaining columns. -/
 def eliminationColumns [DecidableEq K] (columns : List (Fin n))
     (A : Vector (Vector K n) m) (b : Vector L m) : K × Vector L n :=
   match columns with
@@ -79,7 +78,7 @@ def eliminationForwardStep [DecidableEq K]
       (c, state.1[r.val][c.val], state.1[r.val], state.2.1[r.val]) :: state.2.2)
   else state
 
-/-- Vector reference implementation used in the solver correctness proofs. -/
+/-- Division-free vector reference implementation. -/
 def eliminationRun [DecidableEq K] (A : Vector (Vector K n) m) (b : Vector L m) :
     K × Vector L n := Id.run do
   let mut A := A

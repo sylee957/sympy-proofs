@@ -15,8 +15,9 @@ attribute [local instance 2000] Ring.toIntAlgebra
 
 open Polynomial IsLocalization
 
-variable {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
-variable {L : Type} [CommRing L] [IsDomain L] [Algebra K L]
+variable {K : Type} [CommRing K] [IsDomain K] [DecidableEq K] [Div K]
+variable {L : Type} [CommRing L] [IsDomain L] [Algebra K L] [Div L]
+variable [MulDivCancelClass K] [MulDivCancelClass L]
 variable (backend : TermBackend K L)
 
 variable {E : Type} [Field E] [Algebra K E]

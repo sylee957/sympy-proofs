@@ -84,14 +84,14 @@ def Result.map {R S : Type*} [CommRing R] [CommRing S]
   denominator := r.denominator.map f
   residual := r.residual.map f
 
-/-- Solve over the constant domain `K` without dividing parameter coefficients.
+/-- Solve over the constant domain `K`, using exact division by previous pivots.
 The returned multiplier is `B*F/(δ*C)`, with `δ` the nonzero elimination denominator.
 The residual numerator is `δ*C - (A*F(X+1) - B*F)`.
 The residual is returned without testing whether it vanishes in `L`.
 A negative degree bound returns zero multiplier and the whole input as remainder. -/
-def gosperSolve {K W : Type} [CommRing K] [IsDomain K] [DecidableEq K]
+def gosperSolve {K W : Type} [CommRing K] [IsDomain K] [DecidableEq K] [Div K]
     [CommRing W] [IsDomain W] (backend : TermBackend K W)
-    {L : Type} [CommRing L] [Algebra K L]
+    {L : Type} [CommRing L] [Algebra K L] [Div L]
     (A B : K[X]) (C : L[X]) : Result L := Id.run do
   let d := degreeBound backend A B C
   if d < 0 then
@@ -109,7 +109,8 @@ def gosperSolve {K W : Type} [CommRing K] [IsDomain K] [DecidableEq K]
       Vector.ofFn fun j : Fin n => columns[j.val].coeff i.val
     let mut rhs : Vector L m := Vector.ofFn fun i : Fin m => C.coeff i.val
     let mut pivots : List (Fin n × K × Vector K n × L) := []
-    -- Eliminate columns using pivots from K, retaining each pivot equation.
+    let mut previousPivot := (1 : K)
+    -- Bareiss elimination divides exactly by the previous successful pivot.
     for col in List.finRange n do
       let mut pivot : Option (Fin m) := none
       for i in List.finRange m do
@@ -125,11 +126,14 @@ def gosperSolve {K W : Type} [CommRing K] [IsDomain K] [DecidableEq K]
           let source := M[i.val]
           let a := source[col.val]
           rhs := rhs.set i.val
-            (algebraMap K L p * rhs[i.val] - algebraMap K L a * value)
+            ((algebraMap K L p * rhs[i.val] - algebraMap K L a * value) /
+              algebraMap K L previousPivot)
           let mut updated := source
           for k in List.finRange n do
-            updated := updated.set k.val (p * source[k.val] - a * row[k.val])
+            updated := updated.set k.val
+              ((p * source[k.val] - a * row[k.val]) / previousPivot)
           M := M.set i.val updated
+        previousPivot := p
     -- Back-substitute in descending pivot order and reconstruct both polynomials.
     let A := A.map (algebraMap K L)
     let B := B.map (algebraMap K L)
@@ -170,8 +174,8 @@ inductive DescentFailure where
 and solve with the parameter polynomial `C` over `L`.
 An error identifies failed coefficient descent; every successful descent returns
 a reduction. Correctness contracts appear only in the theorems. -/
-def gosperTerm {K : Type} [CommRing K] [IsDomain K] [DecidableEq K]
-    {L : Type} [CommRing L] [IsDomain L] [Algebra K L]
+def gosperTerm {K : Type} [CommRing K] [IsDomain K] [DecidableEq K] [Div K]
+    {L : Type} [CommRing L] [IsDomain L] [Algebra K L] [Div L]
     (backend : TermBackend K L) (P Q : L[X]) : Except DescentFailure (Result L) := do
   let (A, B, C) := gosperNormal backend P Q
   let some A := descendPolynomial backend.descend A | throw .A

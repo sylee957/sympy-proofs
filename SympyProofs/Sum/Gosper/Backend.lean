@@ -4,6 +4,8 @@ public import SympyProofs.Sum.Gosper.Backend.Factorization
 public import SympyProofs.Sum.Gosper.Backend.Rref
 public import SympyProofs.Sum.Gosper.Backend.Term
 public import SympyProofs.Sum.Gosper.Backend.Elimination
+public import SympyProofs.Sum.Gosper.Backend.BareissInvariant
+public import SympyProofs.Sum.Gosper.Backend.BareissLoop
 public import SympyProofs.Sum.Gosper.Backend.Transport
 public import SympyProofs.Sum.Gosper.Backend.Descent
 public import SympyProofs.Sum.Gosper.Backend.Linear
