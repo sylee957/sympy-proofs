@@ -4,8 +4,6 @@ public import SympyProofs.LinearAlgebra.MatrixLogarithm.PrincipalEndomorphism
 public import SympyProofs.LinearAlgebra.MatrixLogarithm.Logarithm
 public import Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs
 
-import Mathlib.Analysis.Matrix.Normed
-
 /-!
 # The principal matrix logarithm
 
@@ -23,16 +21,6 @@ open Module
 open scoped Matrix
 
 variable {n : Type*} [Fintype n] [DecidableEq n]
-
-set_option backward.isDefEq.respectTransparency false in
-theorem toLin_exp (A : Matrix n n ℂ) :
-    Matrix.toLinAlgEquiv' (exp A) = endExp (Matrix.toLinAlgEquiv' A) := by
-  open scoped Matrix.Norms.Operator in
-    let e := (Matrix.toLinAlgEquiv' : Matrix n n ℂ ≃ₐ[ℂ] End ℂ (n → ℂ)).trans
-      (End.toContinuousLinearMap (n → ℂ))
-    apply (End.toContinuousLinearMap (n → ℂ)).injective
-    simpa only [endExp, AlgEquiv.apply_symm_apply, e, AlgEquiv.trans_apply, exp] using
-      NormedSpace.map_exp e e.toLinearMap.continuous_of_finiteDimensional A
 
 /-- The spectrum avoids `(-∞, 0]`, including zero. -/
 def HasSlitSpectrum (A : Matrix n n ℂ) : Prop := spectrum ℂ A ⊆ Complex.slitPlane

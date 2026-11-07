@@ -8,6 +8,8 @@ import SympyProofs.LinearAlgebra.MatrixLogarithm.HalfOpenEndomorphism
 import SympyProofs.LinearAlgebra.MatrixLogarithm.PrincipalEndomorphism
 import SympyProofs.LinearAlgebra.MatrixLogarithm.PrincipalLogarithm
 import SympyProofs.LinearAlgebra.MatrixLogarithm.HalfOpenLogarithm
+import SympyProofs.LinearAlgebra.MatrixLogarithm.Jordan
+import SympyProofs.LinearAlgebra.MatrixLogarithm.Hermite
 
 /-!
 # Matrix logarithms
@@ -26,6 +28,10 @@ Public entry point for the reusable principal-logarithm infrastructure:
 * `PrincipalLogarithm`: the matrix theorem and transpose/adjoint/conjugation laws.
 * `HalfOpenLogarithm`: the matrix theorem for the half-open strip and its
   agreement with the open-strip logarithm wherever both are defined.
+* `Jordan`: explicit finite logarithms of scalar-plus-nilpotent matrices and
+  Jordan blocks.
+* `Hermite`: the reduced interpolation polynomial for the half-open logarithm,
+  with degree bound, uniqueness, and principal-logarithm compatibility.
 
 `existsUnique_principalLogarithm` proves that `σ(A) ∩ (-∞, 0] = ∅` implies
 existence and uniqueness of `L` with `exp L = A` and `σ(L)` in the open strip

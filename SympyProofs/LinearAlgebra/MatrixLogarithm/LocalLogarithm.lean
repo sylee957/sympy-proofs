@@ -18,28 +18,9 @@ open Module Polynomial
 
 variable {V : Type*} [NormedAddCommGroup V] [NormedSpace ℂ V]
 
-section ScalarExponential
-
-variable [FiniteDimensional ℂ V]
-
-theorem endExp_scalar_add (z : ℂ) (f : End ℂ V) :
-    endExp (z • 1 + f) = Complex.exp z • endExp f := by
-  rw [endExp_add_of_commute _ _ (by
-    simpa only [Commute, SemiconjBy, Algebra.algebraMap_eq_smul_one] using Algebra.commutes z f),
-    endExp_smul_one, smul_mul_assoc, one_mul]
-
-end ScalarExponential
-
 section NilpotentLogarithm
 
 variable [NormedSpace ℚ V] [IsScalarTower ℚ ℂ V] [FiniteDimensional ℂ V]
-
-theorem endExp_eq_of_shift_nilpotent (f : End ℂ V) (z : ℂ)
-    (hn : IsNilpotent (f - z • 1)) :
-    endExp f = Complex.exp z • IsNilpotent.exp (f - z • 1) := by
-  have h := endExp_scalar_add z (f - z • 1)
-  rw [add_sub_cancel, endExp_eq_of_nilpotent hn] at h
-  exact h
 
 theorem endExp_localLogPolynomial (f : End ℂ V) (z : ℂ) (d : ℕ)
     (hz : z ≠ 0) (hn : (f - z • 1) ^ d = 0) :

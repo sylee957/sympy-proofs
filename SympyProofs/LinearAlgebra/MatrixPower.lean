@@ -6,12 +6,24 @@ import SympyProofs.LinearAlgebra.MatrixPower.General
 import SympyProofs.LinearAlgebra.MatrixPower.Compatibility
 import SympyProofs.LinearAlgebra.MatrixPower.Singular
 import SympyProofs.LinearAlgebra.MatrixPower.Hermitian
+import SympyProofs.LinearAlgebra.MatrixPower.MatrixExponent
+import SympyProofs.LinearAlgebra.MatrixPower.Jordan
+import SympyProofs.LinearAlgebra.MatrixPower.Hermite
 
 /-!
 # Matrix powers
 
 Public entry point for complex matrix powers and their identities:
 
+* `MatrixExponent`: `principalMatrixPow A B` and `halfOpenMatrixPow A B`, with
+  matrix exponents in the order `exp (log A * B)`.
+* `Hermite`: exact polynomial representations for scalar and matrix exponents,
+  reduced modulo minimal polynomials, without choosing a Jordan basis. For an
+  invertible base and arbitrary matrix exponent, `hermiteMatrixPow A B` evaluates
+  a logarithm polynomial at `A`, multiplies by `B`, and evaluates an exponential
+  polynomial at that product. `matrixPowFromPolynomials` accepts explicit data.
+* `Jordan`: direct finite-polynomial scalar powers and finite-logarithm matrix
+  powers of explicit Jordan blocks, with compatibility and basis-change proofs.
 * `General`: `matrixCpow A z`, defined by primary functional calculus for every
   finite complex matrix, including singular and nondiagonalizable matrices.
 * `Compatibility`: change of basis, diagonalization, roots, and the ordinary
@@ -36,6 +48,13 @@ exponents. `MatrixPowerDefined A z` records the admissible domain; outside it,
 the value is a totalization convention and need not satisfy root/inverse laws.
 The older logarithm-based functions retain their `1` fallback outside their
 respective domains; use the compatibility theorems with their hypotheses.
+
+`cpowHermitePolynomial A z` represents `matrixCpow A z` even for singular `A`.
+The matrix-exponent construction requires invertibility for its correctness
+theorems. Hermite polynomial selection is noncomputable, and its coefficients
+can contain exact scalar logarithms and exponentials. This provides a finite
+algebraic specification and polynomial certificates, not an executable symbolic
+factorization algorithm or a claim about computational complexity.
 
 `halfOpenCpow_eq_exp_of_isHalfOpenLogarithm` proves that every logarithm with
 spectrum in `-π < im z ≤ π` gives the same power. This fixes the logarithm branch;

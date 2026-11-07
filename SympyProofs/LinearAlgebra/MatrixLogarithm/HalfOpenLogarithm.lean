@@ -132,4 +132,17 @@ theorem halfOpenLog_neg_one :
     rintro _ ⟨i, rfl⟩
     simpa only [Complex.log_neg_one] using log_mem_halfOpenStrip (-1)
 
+/-- The selected logarithm transforms with the base under a change of basis. -/
+theorem halfOpenLog_units_conj (P : (Matrix n n ℂ)ˣ) (A : Matrix n n ℂ) (hA : IsUnit A) :
+    halfOpenLog ((P : Matrix n n ℂ) * A * (↑(P⁻¹) : Matrix n n ℂ)) =
+      (P : Matrix n n ℂ) * halfOpenLog A * (↑(P⁻¹) : Matrix n n ℂ) := by
+  symm
+  apply halfOpenLog_unique _ _ ((P.isUnit.mul hA).mul P⁻¹.isUnit)
+  constructor
+  · change NormedSpace.exp _ = _
+    rw [Matrix.exp_units_conj]
+    change (P : Matrix n n ℂ) * exp (halfOpenLog A) * (↑(P⁻¹) : Matrix n n ℂ) = _
+    rw [exp_halfOpenLog A hA]
+  · simpa only [spectrum.units_conjugate] using spectrum_halfOpenLog A hA
+
 end SympyProofs.MatrixExponential
