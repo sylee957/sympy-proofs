@@ -1,0 +1,28 @@
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.BasisAnnihilators
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.BasisAnnihilatorsCorrectness
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanDecomposition
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanDecompositionCorrectness
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanChains
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanChainsLemmas
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanChainsCorrectness
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.ReduceKrylovGenerators
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.ReduceKrylovGeneratorsCorrectness
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.RefinedJordanKrylovBasis
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.RefinedJordanKrylovBasisCorrectness
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanKrylovBasis
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanKrylovBasisCorrectness
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanKrylovBasisInvariant
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanKrylovBasisLemmas
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanKrylovBasisLoop
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanKrylovBasisOuter
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanKrylovElimination
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.JordanKrylovEliminationCorrectness
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.Operations
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.PrimaryGenerating
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.PrimaryGeneratingCorrectness
+import SympyProofs.LinearAlgebra.JordanKrylov.Algorithms.PrimaryGeneratingLemmas
+
+/-!
+Jordan–Krylov algorithms, their operation interfaces, and correctness proofs.
+This layer builds on `SympyProofs.JordanKrylov.Mathematics`.
+-/

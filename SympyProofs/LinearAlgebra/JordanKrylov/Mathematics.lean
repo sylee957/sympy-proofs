@@ -1,0 +1,33 @@
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.BasisChainDecomposition
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.BasisExistence
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.BasisMinimalPolynomial
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.ChainPolynomial
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.ChainSpace
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.ChainSpaceIndependence
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.Definition
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.EigenvectorPolynomial
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.Existence
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.GeneralizedEigenvectors
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.IndependentExtension
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.JordanChain
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.JordanChainRecurrence
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.JordanKrylovBasis
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.KernelChain
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.KrylovDecomposition
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.KrylovGeneratingSet
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.KrylovPolynomial
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.KrylovSpace
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.MinimalAnnihilatingPolynomial
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.PrimaryCyclicDecomposition
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.PrimaryGeneratingSet
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.PrimaryKernelDimension
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.RankMultiplicity
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.RankPartition
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.RankSum
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.VectorPolynomial
+import SympyProofs.LinearAlgebra.JordanKrylov.Mathematics.VectorRank
+
+/-!
+Mathematical definitions and theorems for Jordan–Krylov decomposition.
+This layer is independent of the algorithm implementations.
+-/
