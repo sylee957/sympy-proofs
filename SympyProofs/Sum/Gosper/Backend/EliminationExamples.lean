@@ -3,13 +3,13 @@ module
 public import Mathlib
 meta import Mathlib
 
-/-! Executable checks for the inline vector elimination over integer coefficients.
-The test harness copies the elimination loops from `gosperSolve`; right-hand
-sides use rational algebras, including one with zero divisors. -/
+/-! Executable checks for the vector elimination reference model over integer coefficients.
+The polynomial back substitution in `gosperSolve` is proved equivalent to this model.
+Right-hand sides use rational algebras, including one with zero divisors. -/
 
 namespace Gosper.Algorithm.EliminationExamples
 
-/-- A test-only harness for the exact loops in `gosperSolve`. -/
+/-- A test-only harness for the vector elimination reference model. -/
 private def runInline {K L : Type} [CommRing K] [DecidableEq K]
     [CommRing L] [Algebra K L] {m n : ℕ}
     (A : Matrix (Fin m) (Fin n) K) (b : Fin m → L) : K × (Fin n → L) := Id.run do
@@ -102,7 +102,7 @@ def identity_moderate : Bool := decide (
     let b : Fin 12 → ℚ := fun i => (i.val : ℚ) + 1
     runInline (1 : Matrix (Fin 12) (Fin 12) ℤ) b = (1, b))
 
--- These checks run the executable implementation. A mismatch is a build error.
+-- These checks run the vector reference implementation. A mismatch is a build error.
 #eval show IO Unit from do
   let checks := [
     ("zero_rows", zero_rows),

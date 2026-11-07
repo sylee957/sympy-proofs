@@ -2,6 +2,7 @@ module
 
 public import SympyProofs.Sum.Gosper.Algorithm.CoefficientSystem
 public import SympyProofs.Sum.Gosper.Algorithm.Degree
+public import SympyProofs.Sum.Gosper.Algorithm.Horner
 public import SympyProofs.Sum.Gosper.Backend.Elimination
 public import SympyProofs.Sum.Gosper.Backend.Linear
 
@@ -33,6 +34,40 @@ variable {E : Type} [Field E] [Algebra K E]
 variable [IsDomain K] [DecidableEq K]
 variable {W : Type} [CommRing W] [IsDomain W] [Algebra K W]
 
+omit [Algebra K W] in
+set_option backward.isDefEq.respectTransparency false in
+private theorem gosperSolve_fused_eq (backend : TermBackend K W)
+    (A B : K[X]) (C : R[X]) :
+    gosperSolve backend A B C =
+      let d := degreeBound backend A B C
+      if d < 0 then
+        { numerator := 0, denominator := C, residual := C }
+      else
+        let M := Vector.ofFn fun i => Vector.ofFn ((coefficientSystem A B C d.toNat) i)
+        let b := Vector.ofFn fun i : Fin (max C.natDegree
+          (max A.natDegree B.natDegree + d.toNat) + 1) => C.coeff i.val
+        let steps := ((List.finRange (d.toNat + 1)).foldl eliminationForwardStep (M, b, [])).2.2
+        let result := fusedBackSub steps (A.map (algebraMap K R)) (B.map (algebraMap K R))
+        let V := Polynomial.C (algebraMap K R result.1) * C
+        { numerator := result.2.2.1, denominator := V
+          residual := V - (result.2.2.2 - result.2.2.1) } := by
+  calc
+    gosperSolve backend A B C = let d := degreeBound backend A B C
+      if d < 0 then
+        { numerator := 0, denominator := C, residual := C }
+      else
+        let M := Vector.ofFn fun i => Vector.ofFn ((coefficientSystem A B C d.toNat) i)
+        let b := Vector.ofFn fun i : Fin (max C.natDegree
+          (max A.natDegree B.natDegree + d.toNat) + 1) => C.coeff i.val
+        let steps := (eliminationForwardRun (List.finRange (d.toNat + 1)) M b []).2.2
+        let result := fusedBackSub steps (A.map (algebraMap K R)) (B.map (algebraMap K R))
+        let V := Polynomial.C (algebraMap K R result.1) * C
+        { numerator := result.2.2.1, denominator := V
+          residual := V - (result.2.2.2 - result.2.2.1) } := by
+      simp only [gosperSolve, eliminationForwardRun, fusedBackSub, directDot, Vector.getElem_ofFn]
+      rfl
+    _ = _ := by simp only [eliminationForwardRun_eq]
+
 set_option backward.isDefEq.respectTransparency false in
 /-- Direct elimination returns the coefficient candidate and its common denominator. -/
 theorem gosperSolve_eq (backend : TermBackend K W) (_hbackend : backend.Valid)
@@ -54,10 +89,14 @@ theorem gosperSolve_eq (backend : TermBackend K W) (_hbackend : backend.Valid)
                 (∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) -
               B.map (algebraMap K R) *
                 ∑ j : Fin (d.toNat + 1), Polynomial.monomial j.val (solution.2 j)) } := by
-  simp only [gosperSolve, eliminationModel, eliminationRun, directDot,
-    Id.run, bind, pure, toFn,
-    Vector.getElem_ofFn]
-  rfl
+  rw [gosperSolve_fused_eq]
+  dsimp only
+  split_ifs
+  · rfl
+  · rw [fusedBackSub_eq _ _ _ (eliminationForward_pivots_descending _ _)]
+    simp only [elimination_forward_backward, List.foldl_nil,
+      eliminationModel, eliminationRun_eq_columns]
+    rfl
 
 omit [Algebra K W] in
 /-- A negative degree bound returns the complete right-hand side as a remainder. -/

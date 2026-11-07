@@ -2,8 +2,9 @@ module
 
 public import Mathlib
 
-/-! Proof model for the fraction-free vector elimination in `gosperSolve`.
-The solver itself contains its forward and backward loops inline. -/
+/-! Vector reference model for the fraction-free elimination in `gosperSolve`.
+The solver's inline elimination and polynomial back substitution are proved
+equivalent to this model. -/
 
 @[expose] public section
 
@@ -78,7 +79,7 @@ def eliminationForwardStep [DecidableEq K]
       (c, state.1[r.val][c.val], state.1[r.val], state.2.1[r.val]) :: state.2.2)
   else state
 
-/-- Proof-only executable expression matching the loops in `gosperSolve`. -/
+/-- Vector reference implementation used in the solver correctness proofs. -/
 def eliminationRun [DecidableEq K] (A : Vector (Vector K n) m) (b : Vector L m) :
     K × Vector L n := Id.run do
   let mut A := A
@@ -450,5 +451,99 @@ theorem eliminationModel_map [DecidableEq K] [CommRing S] [Algebra K S]
   · funext j
     simpa [eliminationModel, eliminationRun_eq_columns] using
       congrArg (fun result : K × Vector S n => result.2[j.val]) hm
+
+/-- Processing increasing columns prepends pivots in strictly decreasing order.
+The existing pivot stack must precede all remaining columns. -/
+theorem eliminationForward_pivots_descending_of_pairwise [DecidableEq K]
+    (columns : List (Fin n)) (A : Vector (Vector K n) m) (b : Vector L m)
+    (steps : List (EliminationStep K L n))
+    (hcolumns : columns.Pairwise (fun c d => c.val < d.val))
+    (hsteps : steps.Pairwise (fun s t => t.1.val < s.1.val))
+    (hbefore : ∀ c ∈ columns, ∀ step ∈ steps, step.1.val < c.val) :
+    ((columns.foldl eliminationForwardStep (A, b, steps)).2.2).Pairwise
+      (fun s t => t.1.val < s.1.val) := by
+  induction columns generalizing A b steps with
+  | nil => exact hsteps
+  | cons c cs ih =>
+    obtain ⟨hc, hcs⟩ := List.pairwise_cons.mp hcolumns
+    simp only [List.foldl_cons, eliminationForwardStep]
+    split_ifs with hp
+    · apply ih _ _ _ hcs
+      · apply List.pairwise_cons.mpr
+        exact ⟨fun step hs => hbefore c (by simp) step hs, hsteps⟩
+      · intro d hd step hs
+        rcases List.mem_cons.mp hs with hstep | hstep
+        · subst step
+          exact hc d hd
+        · exact hbefore d (List.mem_cons_of_mem c hd) step hstep
+    · apply ih _ _ _ hcs hsteps
+      intro d hd step hs
+      exact hbefore d (List.mem_cons_of_mem c hd) step hs
+
+/-- Forward elimination stores pivot columns in strict descending order, ready
+for back substitution and Horner reconstruction through the column gaps. -/
+theorem eliminationForward_pivots_descending [DecidableEq K]
+    (A : Vector (Vector K n) m) (b : Vector L m) :
+    (((List.finRange n).foldl eliminationForwardStep (A, b, [])).2.2).Pairwise
+      (fun s t => t.1.val < s.1.val) := by
+  apply eliminationForward_pivots_descending_of_pairwise
+  · exact List.pairwise_lt_finRange n
+  · exact List.Pairwise.nil
+  · simp
+
+end Gosper.Algorithm
+
+namespace Gosper.Algorithm
+
+variable {K L : Type} [CommRing K] [CommRing L] [Algebra K L]
+variable {m n : ℕ} [DecidableEq K]
+
+/-- Proof-only forward phase; the implementation retains its inline loop. -/
+def eliminationForwardRun (columns : List (Fin n)) (A : Vector (Vector K n) m)
+    (b : Vector L m) (steps : List (EliminationStep K L n)) :
+    Vector (Vector K n) m × Vector L m × List (EliminationStep K L n) := Id.run do
+  let mut A := A
+  let mut b := b
+  let mut steps := steps
+  for c in columns do
+    let pivot : Option (Fin m) := Id.run do
+      let mut pivot : Option (Fin m) := none
+      for r in List.finRange m do
+        if A[r.val][c.val] ≠ 0 then
+          pivot := some r
+          break
+      return pivot
+    if let some r := pivot then
+      let row := A[r.val]
+      let p := row[c.val]
+      let rhs := b[r.val]
+      steps := (c, p, row, rhs) :: steps
+      for i in List.finRange m do
+        let source := A[i.val]
+        let a := source[c.val]
+        b := b.set i.val (algebraMap K L p * b[i.val] - algebraMap K L a * rhs)
+        let updated := Id.run do
+          let mut updated := source
+          for j in List.finRange n do
+            updated := updated.set j.val (p * source[j.val] - a * row[j.val])
+          return updated
+        A := A.set i.val updated
+  return (A, b, steps)
+
+theorem eliminationForwardRun_eq (columns : List (Fin n)) (A : Vector (Vector K n) m)
+    (b : Vector L m) (steps : List (EliminationStep K L n)) :
+    eliminationForwardRun columns A b steps = columns.foldl eliminationForwardStep (A, b, steps) := by
+  have hrun (v : Vector K n) : (pure v : Id (Vector K n)).run = v := rfl
+  simp only [eliminationForwardRun, bind_pure, elimination_fill_eq, pure_bind,
+    List.forIn_pure_yield_eq_foldl, hrun, elimination_rows_rhs_foldl]
+  change (forIn (m := Id) columns (A, b, steps) _) = _
+  trans (forIn columns (A, b, steps) (fun c state =>
+    pure (ForInStep.yield (eliminationForwardStep state c))) : Id _)
+  · congr 1
+    funext c state
+    rw [elimination_pivotLoop_eq]
+    simp only [eliminationForwardStep]
+    split_ifs <;> rfl
+  · exact List.forIn_pure_yield_eq_foldl _ _
 
 end Gosper.Algorithm

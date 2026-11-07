@@ -85,8 +85,8 @@ def Result.map {R S : Type*} [CommRing R] [CommRing S]
   residual := r.residual.map f
 
 /-- Solve over the constant domain `K` without dividing parameter coefficients.
-The returned multiplier is `B*x/(d*C)`, with `d` the nonzero elimination denominator.
-The residual numerator is `d*C - (A*x(X+1) - B*x)`.
+The returned multiplier is `B*F/(δ*C)`, with `δ` the nonzero elimination denominator.
+The residual numerator is `δ*C - (A*F(X+1) - B*F)`.
 The residual is returned without testing whether it vanishes in `L`.
 A negative degree bound returns zero multiplier and the whole input as remainder. -/
 def gosperSolve {K W : Type} [CommRing K] [IsDomain K] [DecidableEq K]
@@ -130,25 +130,35 @@ def gosperSolve {K W : Type} [CommRing K] [IsDomain K] [DecidableEq K]
           for k in List.finRange n do
             updated := updated.set k.val (p * source[k.val] - a * row[k.val])
           M := M.set i.val updated
-    -- The stored equations are already ordered for back-substitution.
+    -- Back-substitute in descending pivot order and reconstruct both polynomials.
+    let A := A.map (algebraMap K L)
+    let B := B.map (algebraMap K L)
     let mut δ := (1 : K)
-    let mut coefficients : Vector L n := Vector.replicate n (0 : L)
-    for (col, p, row, pivotRhs) in pivots do
-      let mut value := (0 : L)
+    let mut F : L[X] := 0
+    let mut degreeOffset := n
+    let mut U : L[X] := 0
+    let mut shiftedTerm : L[X] := 0
+    for (degree, pivot, pivotRow, pivotRhs) in pivots do
+      let mut correction := (0 : L)
       for k in List.finRange n do
-        value := value + algebraMap K L row[k.val] * coefficients[k.val]
-      value := algebraMap K L δ * pivotRhs - value
-      coefficients := coefficients.map fun a => algebraMap K L p * a
-      coefficients := coefficients.set col.val (coefficients[col.val] + value)
-      δ := p * δ
-    let x := ∑ j : Fin n, Polynomial.monomial j.val coefficients[j.val]
-    let U := B.map (algebraMap K L) * x
+        correction := correction + algebraMap K L pivotRow[k.val] * F.coeff k.val
+      correction := algebraMap K L δ * pivotRhs - correction
+      let pivotFactor := Polynomial.C (algebraMap K L pivot)
+      F := pivotFactor * F + Polynomial.monomial degree.val correction
+      δ := pivot * δ
+      let gap := degreeOffset - degree.val
+      let correctionTerm := Polynomial.C correction
+      U := pivotFactor * X ^ gap * U + correctionTerm * B
+      shiftedTerm := pivotFactor * (X + 1) ^ gap * shiftedTerm + correctionTerm * A
+      degreeOffset := degree.val
+    U := X ^ degreeOffset * U
+    shiftedTerm := (X + 1) ^ degreeOffset * shiftedTerm
     let V := Polynomial.C (algebraMap K L δ) * C
-    let residual := V - (A.map (algebraMap K L) * taylor 1 x - U)
+    let R := V - (shiftedTerm - U)
     return {
       numerator := U
       denominator := V
-      residual := residual }
+      residual := R }
 
 /-- The normalized polynomial that could not be represented in the constant domain. -/
 inductive DescentFailure where
