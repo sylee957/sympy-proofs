@@ -8,3 +8,6 @@ public import SympyProofs.Geometry.EllipseNormals
 public import SympyProofs.Geometry.FocusDirectrixParabola
 public import SympyProofs.Geometry.Polygon
 public import SympyProofs.Geometry.PolygonPolygonDistance
+public import SympyProofs.Geometry.PolygonInterior
+public import SympyProofs.Geometry.PolygonWinding
+public import SympyProofs.Geometry.FilledPolygonDistance
