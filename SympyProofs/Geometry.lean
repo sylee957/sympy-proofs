@@ -6,3 +6,5 @@ public import SympyProofs.Geometry.ComplexPlaneDistance
 public import SympyProofs.Geometry.PointConicDistance
 public import SympyProofs.Geometry.EllipseNormals
 public import SympyProofs.Geometry.FocusDirectrixParabola
+public import SympyProofs.Geometry.Polygon
+public import SympyProofs.Geometry.PolygonPolygonDistance
