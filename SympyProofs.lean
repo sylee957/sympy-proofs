@@ -1,6 +1,7 @@
 import SympyProofs.BinomialMean
 import SympyProofs.Binomial
 import SympyProofs.LinearAlgebra
+import SympyProofs.PythonSlice
 import SympyProofs.RouthHurwitz
 import SympyProofs.LambertW
 import SympyProofs.RiemannZeta
