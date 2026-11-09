@@ -4,6 +4,7 @@ public import SympyProofs.PythonSlice.Range
 public import SympyProofs.PythonSlice.Basic
 public import SympyProofs.PythonSlice.Sampling
 public import SympyProofs.PythonSlice.Canonical
+public import SympyProofs.PythonSlice.Composition
 
 /-!
 # Python slicing
@@ -17,6 +18,8 @@ length, in the namespace `SympyProofs.PythonSlice`.
   their combined correspondence, and the concrete array interface.
 * `PythonSlice/Canonical.lean`: non-optional encoded bounds with idempotent
   normalization, preserving sampling and decoding to the original range bounds.
+* `PythonSlice/Composition.lean`: compose canonical slices, preserving elements,
+  lengths and sampling, with canonicalization and rebuilding identities.
 
 `sample` and `sampleArray` are executable definitions with no proof arguments.
 Their correctness assumptions belong to the theorems; zero stride returns an
