@@ -242,24 +242,44 @@ theorem sampleArray_compose {α : Type*} (v : Array α) (r q : RawSlice)
   simp only [Option.some.injEq, RawSlice.formulaIndex, hnat] at hget
   exact hget
 
-/-- The explicit composition formula stores encoded affine endpoints.
-Clipping is deferred to sampling; no sign needs to be known. -/
-theorem RawSlice.compose_eq_formula (r q : RawSlice) (n : ℕ) :
-    let m := (r.dimensionBySign n).toNat
-    let A := r.firstBySign n
-    let C := q.firstBySign m
-    let D := q.lastBySign m
-    let s := r.stride
-    let u := s * q.stride
-    let δ := fun x : ℤ => (x.sign ^ 2 - x.sign) / 2
-    let P := A + C*s
-    let Q := A + D*s
-    RawSlice.compose n r q = { start := P - n*δ P, stop := Q - n*δ Q, step := u } := by
-  rfl
-
 /-- The same operation for stored canonical triples. -/
 def CanonicalSlice.compose (n : ℕ) (r q : CanonicalSlice) : CanonicalSlice :=
   RawSlice.compose n r.toRawSlice q.toRawSlice
+
+/-- The formula for two explicit slice triples, in the order used by SymPy's
+`compose_slices`. Normalization and length are expanded as local formulas. -/
+theorem CanonicalSlice.compose_eq_formula (n : ℕ) (s1 s2 : CanonicalSlice) :
+    let delta := fun x : ℤ => (x.sign ^ 2 - x.sign) / 2
+    let decode_bound := fun bound n : ℤ => bound + n * delta bound
+    let normalize_bound := fun n step bound : ℤ =>
+      let p := delta step
+      max (-p) (min (n - p) (decode_bound bound n))
+    let slice_shape_1d := fun (n : ℤ) (sl : CanonicalSlice) =>
+      let A := normalize_bound n sl.step sl.start
+      let B := normalize_bound n sl.step sl.stop
+      max 0 ⌈((B : ℚ) - A) / sl.step⌉
+    let start1 := s1.start
+    let step1 := s1.step
+    let start2 := s2.start
+    let stop2 := s2.stop
+    let step2 := s2.step
+    let L1 := slice_shape_1d n s1
+    let A1 := normalize_bound n step1 start1
+    let A2 := normalize_bound L1 step2 start2
+    let B2 := normalize_bound L1 step2 stop2
+    let A_comp := A1 + A2 * step1
+    let B_comp := A1 + B2 * step1
+    let step_comp := step1 * step2
+    let A_comp := A_comp - (n : ℤ) * delta A_comp
+    let B_comp := B_comp - (n : ℤ) * delta B_comp
+    CanonicalSlice.compose n s1 s2 =
+      { start := A_comp, stop := B_comp, step := step_comp } := by
+  dsimp only
+  unfold CanonicalSlice.compose RawSlice.compose
+  rw [RawSlice.canonical_eq_formula]
+  simp only [CanonicalSlice.toRawSlice, RawSlice.dimensionBySign, RawSlice.firstBySign,
+    RawSlice.lastBySign, RawSlice.stride, Option.getD_some, normalizeBySign, encodeBound]
+  rw [Int.toNat_of_nonneg (le_max_left 0 _)]
 
 /-- Canonicalizing both arguments before composition leaves the composed triple unchanged. -/
 theorem RawSlice.compose_canonical (r q : RawSlice) (n : ℕ) :
