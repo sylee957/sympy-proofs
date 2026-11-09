@@ -11,9 +11,9 @@ against the outer length `m`. If their range parameters are `(A, B, s)` and
 `(A + C*s, A + D*s, s*t)`.
 
 The transformed endpoints can lie outside the source even when both slices are
-valid. Encode them before passing them through normalization, which clips them
-for the product stride. The resulting canonical raw arguments preserve the
-ordered sample.
+valid. Encode them as explicit raw arguments; canonicalization preserves these
+arguments, and sampling clips them for the product stride. The resulting slice
+preserves the ordered sample.
 -/
 
 @[expose] public section
@@ -141,17 +141,6 @@ def RawSlice.compose (n : ℕ) (r q : RawSlice) : CanonicalSlice :=
     (RawSlice.compose n r q).step = r.stride * q.stride := by
   simp [RawSlice.compose, RawSlice.stride]
 
-/-- Canonicalization preserves the ordered range of source indices. -/
-theorem RawSlice.canonical_range (r : RawSlice) (n : ℕ) (hs : r.stride ≠ 0) :
-    intRange ((r.canonical n).toRawSlice.first n) ((r.canonical n).toRawSlice.last n)
-      (r.canonical n).toRawSlice.stride (by simpa using hs) =
-      intRange (r.first n) (r.last n) r.stride hs := by
-  have hc : (r.canonical n).toRawSlice.stride ≠ 0 := by simpa using hs
-  simp only [RawSlice.first_eq_sign _ n hc, RawSlice.last_eq_sign _ n hc,
-    r.canonical_first n hs, r.canonical_last n hs,
-    CanonicalSlice.toRawSlice_stride, RawSlice.canonical_step,
-    r.first_eq_sign n hs, r.last_eq_sign n hs]
-
 private theorem RawSlice.composed_index_bounds (r q : RawSlice) (n : ℕ)
     (hs : r.stride ≠ 0) (ht : q.stride ≠ 0) {j : ℤ}
     (hj : j ∈ intRange (q.first (r.dimensionBySign n).toNat)
@@ -253,8 +242,8 @@ theorem sampleArray_compose {α : Type*} (v : Array α) (r q : RawSlice)
   simp only [Option.some.injEq, RawSlice.formulaIndex, hnat] at hget
   exact hget
 
-/-- The explicit composition formula: affine endpoints, clipping for the product
-stride, then encoding as reusable raw arguments. No sign needs to be known. -/
+/-- The explicit composition formula stores encoded affine endpoints.
+Clipping is deferred to sampling; no sign needs to be known. -/
 theorem RawSlice.compose_eq_formula (r q : RawSlice) (n : ℕ) :
     let m := (r.dimensionBySign n).toNat
     let A := r.firstBySign n
@@ -263,21 +252,9 @@ theorem RawSlice.compose_eq_formula (r q : RawSlice) (n : ℕ) :
     let s := r.stride
     let u := s * q.stride
     let δ := fun x : ℤ => (x.sign ^ 2 - x.sign) / 2
-    let K := fun x : ℤ => max (-δ u) (min ((n : ℤ) - δ u) x)
-    let P := K (A + C*s)
-    let Q := K (A + D*s)
+    let P := A + C*s
+    let Q := A + D*s
     RawSlice.compose n r q = { start := P - n*δ P, stop := Q - n*δ Q, step := u } := by
-  dsimp only
-  unfold RawSlice.compose
-  rw [RawSlice.canonical_eq_formula]
-  change
-    CanonicalSlice.mk
-      (encodeBound n (normalizeBySign n (r.stride*q.stride)
-        (encodeBound n (r.firstBySign n + q.firstBySign (r.dimensionBySign n).toNat*r.stride))))
-      (encodeBound n (normalizeBySign n (r.stride*q.stride)
-        (encodeBound n (r.firstBySign n + q.lastBySign (r.dimensionBySign n).toNat*r.stride))))
-      (r.stride*q.stride) = _
-  simp only [normalizeBySign, decode_encodeBound]
   rfl
 
 /-- The same operation for stored canonical triples. -/
@@ -285,20 +262,16 @@ def CanonicalSlice.compose (n : ℕ) (r q : CanonicalSlice) : CanonicalSlice :=
   RawSlice.compose n r.toRawSlice q.toRawSlice
 
 /-- Canonicalizing both arguments before composition leaves the composed triple unchanged. -/
-theorem RawSlice.compose_canonical (r q : RawSlice) (n : ℕ)
-    (hs : r.stride ≠ 0) (ht : q.stride ≠ 0) :
+theorem RawSlice.compose_canonical (r q : RawSlice) (n : ℕ) :
     CanonicalSlice.compose n (r.canonical n) (q.canonical (r.dimensionBySign n).toNat) =
       RawSlice.compose n r q := by
-  simp only [CanonicalSlice.compose, RawSlice.compose, r.canonical_dimension n hs,
-    r.canonical_first n hs, q.canonical_first _ ht, q.canonical_last _ ht,
+  simp only [CanonicalSlice.compose, RawSlice.compose, r.canonical_dimension n,
+    r.canonical_first n, q.canonical_first, q.canonical_last,
     CanonicalSlice.toRawSlice_stride, RawSlice.canonical_step]
 
 /-- A flattened slice is still fixed by rebuilding through canonicalization. -/
-theorem RawSlice.compose_idempotent (r q : RawSlice) (n : ℕ)
-    (hs : r.stride ≠ 0) (ht : q.stride ≠ 0) :
+theorem RawSlice.compose_idempotent (r q : RawSlice) (n : ℕ) :
     (RawSlice.compose n r q).toRawSlice.canonical n = RawSlice.compose n r q := by
-  unfold RawSlice.compose
-  apply RawSlice.canonical_idempotent
-  exact mul_ne_zero hs ht
+  exact CanonicalSlice.toRawSlice_canonical _ n
 
 end SympyProofs.PythonSlice

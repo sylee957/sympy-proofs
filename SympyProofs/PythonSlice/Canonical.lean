@@ -3,19 +3,18 @@ module
 public import SympyProofs.PythonSlice.Sampling
 
 /-!
-# Slice bounds safe to pass through normalization again
+# Slice arguments with explicit defaults
 
-For a normalized range bound `x`, store `E(n,x) = x - n * δ(x)`, where
-`δ(x) = (sign(x)^2 - sign(x))/2`. In particular, the reverse boundary `-1`
-is stored as `-n-1`, which Python normalizes back to `-1`.
+`RawSlice.canonical` resolves omitted arguments and preserves every supplied
+integer. With `s = step.getD 1` and `p = (sign(s)^2 - sign(s))/2`, the defaults
+are `p*(n-1)` for start and `n-p*(2*n+1)` for stop. In particular, an omitted
+reverse stop becomes the raw bound `-n-1`, which normalizes to `-1`.
 
-`RawSlice.canonical` stores `(E(n,A), E(n,B), s)`, with `A,B,s` given by the
-existing normalization formulas. Its `CanonicalSlice` result has integer fields
-with no optional values. It preserves sampling and is idempotent when passed
-back as explicit raw arguments using `CanonicalSlice.toRawSlice`.
-These are canonical *raw slice* bounds, not the bounds of the resulting range.
-Decode them with `D(n,x) = x + n * δ(x)` before computing `A + k*s` or
-`max(0, ceil((B-A)/s))`. Both formulas and proofs include `n = 0`.
+This is an idempotent representation of raw arguments, not a unique triple for
+every equivalent slice. Computing elements and lengths still requires relative
+index adjustment and clipping. The sampling theorems display that complete
+formula and include `n = 0`. Composition uses `encodeBound` to turn its computed
+range endpoints into reusable raw arguments.
 -/
 
 @[expose] public section
@@ -39,22 +38,7 @@ theorem normalizeBySign_encodeBound (n : ℕ) (s x : ℤ)
     normalizeBySign n s (encodeBound n x) = x := by
   rw [normalizeBySign, decode_encodeBound, min_eq_right h.2, max_eq_right h.1]
 
-private theorem RawSlice.sign_bounds (r : RawSlice) (n : ℕ) (hs : r.stride ≠ 0) :
-    -((r.stride.sign ^ 2 - r.stride.sign) / 2) ≤ r.firstBySign n ∧
-      r.firstBySign n ≤ (n : ℤ) - (r.stride.sign ^ 2 - r.stride.sign) / 2 ∧
-      -((r.stride.sign ^ 2 - r.stride.sign) / 2) ≤ r.lastBySign n ∧
-      r.lastBySign n ≤ (n : ℤ) - (r.stride.sign ^ 2 - r.stride.sign) / 2 := by
-  have hb := r.inBounds n
-  rw [r.first_eq_sign n hs, r.last_eq_sign n hs] at hb
-  by_cases hp : 0 < r.stride
-  · have hn : ¬r.stride < 0 := by omega
-    simpa [InBounds, hp, sign_indicator_eq_if, hn] using hb
-  · have hn : r.stride < 0 := by omega
-    simp only [InBounds, hp, ite_false] at hb
-    simp only [sign_indicator_eq_if, hn, ite_true]
-    omega
-
-/-- Fully specified encoded slice arguments; all omissions have been resolved. -/
+/-- Fully specified raw slice arguments; all omissions have been resolved. -/
 structure CanonicalSlice where
   start : ℤ
   stop : ℤ
@@ -70,23 +54,16 @@ def CanonicalSlice.toRawSlice (c : CanonicalSlice) : RawSlice :=
 def RawSlice.canonical (r : RawSlice) (n : ℕ) : CanonicalSlice := Id.run do
   let step := r.step.getD 1
   let p := (step.sign ^ 2 - step.sign) / 2
-  let mut start : ℤ := p * ((n : ℤ) - 1)
-  if let some x := r.start then
-    start := x + (n : ℤ) * ((x.sign ^ 2 - x.sign) / 2)
-    start := max (-p) (min ((n : ℤ) - p) start)
-  let mut stop : ℤ := (1 - p) * (n : ℤ) - p
-  if let some x := r.stop then
-    stop := x + (n : ℤ) * ((x.sign ^ 2 - x.sign) / 2)
-    stop := max (-p) (min ((n : ℤ) - p) stop)
-  start := start - (n : ℤ) * ((start.sign ^ 2 - start.sign) / 2)
-  stop := stop - (n : ℤ) * ((stop.sign ^ 2 - stop.sign) / 2)
+  let start := if let some x := r.start then x else p * ((n : ℤ) - 1)
+  let stop := if let some x := r.stop then x else (n : ℤ) - p * (2 * n + 1)
   return { start, stop, step }
 
-/-- The sequential computation agrees with the normalized and encoded formulas. -/
+/-- Only omitted arguments are replaced by sign-dependent defaults. -/
 theorem RawSlice.canonical_eq_formula (r : RawSlice) (n : ℕ) :
+    let p := (r.stride.sign ^ 2 - r.stride.sign) / 2
     r.canonical n =
-      { start := encodeBound n (r.firstBySign n)
-        stop := encodeBound n (r.lastBySign n)
+      { start := r.start.getD (p * ((n : ℤ) - 1))
+        stop := r.stop.getD ((n : ℤ) - p * (2 * n + 1))
         step := r.stride } := by
   rcases r with ⟨start, stop, step⟩
   cases start <;> cases stop <;> rfl
@@ -95,31 +72,62 @@ theorem RawSlice.canonical_eq_formula (r : RawSlice) (n : ℕ) :
     (r.canonical n).step = r.stride := by
   rw [r.canonical_eq_formula n]
 
-@[simp] theorem RawSlice.canonical_first (r : RawSlice) (n : ℕ) (hs : r.stride ≠ 0) :
+@[simp] theorem RawSlice.canonical_start_of_some (r : RawSlice) (n : ℕ)
+    {x : ℤ} (h : r.start = some x) : (r.canonical n).start = x := by
+  simp [canonical_eq_formula, h]
+
+@[simp] theorem RawSlice.canonical_stop_of_some (r : RawSlice) (n : ℕ)
+    {x : ℤ} (h : r.stop = some x) : (r.canonical n).stop = x := by
+  simp [canonical_eq_formula, h]
+
+/-- Every fully explicit triple is fixed, even when its bounds lie outside the source. -/
+@[simp] theorem CanonicalSlice.toRawSlice_canonical (c : CanonicalSlice) (n : ℕ) :
+    c.toRawSlice.canonical n = c := by
+  cases c
+  rfl
+
+@[simp] theorem RawSlice.canonical_first (r : RawSlice) (n : ℕ) :
     (r.canonical n).toRawSlice.firstBySign n = r.firstBySign n := by
   rw [r.canonical_eq_formula n]
-  change normalizeBySign n r.stride (encodeBound n (r.firstBySign n)) = _
-  have hb := r.sign_bounds n hs
-  exact normalizeBySign_encodeBound n r.stride _ ⟨hb.1, hb.2.1⟩
+  cases h : r.start with
+  | some x => simp [CanonicalSlice.toRawSlice, firstBySign, stride, h]
+  | none =>
+    simp only [CanonicalSlice.toRawSlice, firstBySign, stride, Option.getD_some, h,
+      Option.getD_none]
+    simp only [normalizeBySign, sign_indicator_eq_if]
+    split_ifs <;> omega
 
-@[simp] theorem RawSlice.canonical_last (r : RawSlice) (n : ℕ) (hs : r.stride ≠ 0) :
+@[simp] theorem RawSlice.canonical_last (r : RawSlice) (n : ℕ) :
     (r.canonical n).toRawSlice.lastBySign n = r.lastBySign n := by
   rw [r.canonical_eq_formula n]
-  change normalizeBySign n r.stride (encodeBound n (r.lastBySign n)) = _
-  have hb := r.sign_bounds n hs
-  exact normalizeBySign_encodeBound n r.stride _ hb.2.2
+  cases h : r.stop with
+  | some x => simp [CanonicalSlice.toRawSlice, lastBySign, stride, h]
+  | none =>
+    simp only [CanonicalSlice.toRawSlice, lastBySign, stride, Option.getD_some, h,
+      Option.getD_none]
+    simp only [normalizeBySign, sign_indicator_eq_if]
+    split_ifs <;> omega
 
 /-- Rebuilding canonical raw arguments preserves the complete stored triple. -/
-theorem RawSlice.canonical_idempotent (r : RawSlice) (n : ℕ) (hs : r.stride ≠ 0) :
+theorem RawSlice.canonical_idempotent (r : RawSlice) (n : ℕ) :
     (r.canonical n).toRawSlice.canonical n = r.canonical n := by
-  rw [canonical_eq_formula, r.canonical_first n hs, r.canonical_last n hs,
-    CanonicalSlice.toRawSlice_stride, canonical_step]
-  exact (r.canonical_eq_formula n).symm
+  exact CanonicalSlice.toRawSlice_canonical _ n
 
-@[simp] theorem RawSlice.canonical_dimension (r : RawSlice) (n : ℕ) (hs : r.stride ≠ 0) :
+@[simp] theorem RawSlice.canonical_dimension (r : RawSlice) (n : ℕ) :
     (r.canonical n).toRawSlice.dimensionBySign n = r.dimensionBySign n := by
-  simp only [dimensionBySign, r.canonical_first n hs, r.canonical_last n hs,
+  simp only [dimensionBySign, r.canonical_first n, r.canonical_last n,
     CanonicalSlice.toRawSlice_stride, canonical_step]
+
+/-- Resolving defaults preserves the ordered range of source indices. -/
+theorem RawSlice.canonical_range (r : RawSlice) (n : ℕ) (hs : r.stride ≠ 0) :
+    intRange ((r.canonical n).toRawSlice.first n) ((r.canonical n).toRawSlice.last n)
+      (r.canonical n).toRawSlice.stride (by simpa using hs) =
+      intRange (r.first n) (r.last n) r.stride hs := by
+  have hc : (r.canonical n).toRawSlice.stride ≠ 0 := by simpa using hs
+  simp only [RawSlice.first_eq_sign _ n hc, RawSlice.last_eq_sign _ n hc,
+    r.canonical_first n, r.canonical_last n,
+    CanonicalSlice.toRawSlice_stride, RawSlice.canonical_step,
+    r.first_eq_sign n hs, r.last_eq_sign n hs]
 
 /-- Canonical raw arguments produce exactly the same ordered source entries. -/
 theorem sample_canonical {α : Type*} {n : ℕ} (v : Fin n → α)
@@ -131,48 +139,59 @@ theorem sample_canonical {α : Type*} {n : ℕ} (v : Fin n → α)
     simpa only [CanonicalSlice.toRawSlice_stride, r.canonical_step n] using hs
   have ha : (r.canonical n).toRawSlice.first n = r.first n := by
     rw [(r.canonical n).toRawSlice.first_eq_sign n hc,
-      r.canonical_first n hs, r.first_eq_sign n hs]
+      r.canonical_first n, r.first_eq_sign n hs]
   have hb : (r.canonical n).toRawSlice.last n = r.last n := by
     rw [(r.canonical n).toRawSlice.last_eq_sign n hc,
-      r.canonical_last n hs, r.last_eq_sign n hs]
+      r.canonical_last n, r.last_eq_sign n hs]
   change sample v (r.canonical n).toRawSlice.start (r.canonical n).toRawSlice.stop
     (r.canonical n).toRawSlice.step = sample v r.start r.stop r.step
   rw [sample_eq_pmap v (r.canonical n).toRawSlice hc, sample_eq_pmap v r hs]
   simp only [ha, hb, CanonicalSlice.toRawSlice_stride, RawSlice.canonical_step]
 
-/-- Length uses decoded bounds, not the stored sentinel `-n-1`. -/
+/-- Length uses relative-index adjustment and clipping of the stored raw bounds. -/
 theorem sampling_canonical_length {α : Type*} (n : ℕ) (v : Fin n → α)
     (r : RawSlice) (hs : r.stride ≠ 0) :
     let c := r.canonical n
-    let A : ℤ := c.start + (n : ℤ) * ((c.start.sign ^ 2 - c.start.sign) / 2)
-    let B : ℤ := c.stop + (n : ℤ) * ((c.stop.sign ^ 2 - c.stop.sign) / 2)
-    ((sample v r.start r.stop r.step).size : ℤ) = max 0 ⌈((B : ℚ) - A) / c.step⌉ := by
-  rw [r.canonical_eq_formula n]
+    let s := c.step
+    let δ := fun x : ℤ => (x.sign ^ 2 - x.sign) / 2
+    let p := δ s
+    let C := fun x : ℤ => max (-p) (min ((n : ℤ) - p) (x + (n : ℤ) * δ x))
+    let A := C c.start
+    let B := C c.stop
+    ((sample v r.start r.stop r.step).size : ℤ) = max 0 ⌈((B : ℚ) - A) / s⌉ := by
   dsimp only
-  rw [decode_encodeBound, decode_encodeBound]
+  change ((sample v r.start r.stop r.step).size : ℤ) =
+    (r.canonical n).toRawSlice.dimensionBySign n
+  rw [r.canonical_dimension n]
   exact sample_length v r hs
 
-/-- Decode the canonical bounds to recover each affine source index and its bounds. -/
+/-- Normalize the stored raw bounds to recover each affine source index and its bounds. -/
 theorem sampling_canonical_element {α : Type*} (n : ℕ) (v : Fin n → α)
     (r : RawSlice) (hs : r.stride ≠ 0) :
     let c := r.canonical n
-    let A : ℤ := c.start + (n : ℤ) * ((c.start.sign ^ 2 - c.start.sign) / 2)
-    let B : ℤ := c.stop + (n : ℤ) * ((c.stop.sign ^ 2 - c.stop.sign) / 2)
     let s := c.step
+    let δ := fun x : ℤ => (x.sign ^ 2 - x.sign) / 2
+    let p := δ s
+    let C := fun x : ℤ => max (-p) (min ((n : ℤ) - p) (x + (n : ℤ) * δ x))
+    let A := C c.start
+    let B := C c.stop
     let L : ℤ := max 0 ⌈((B : ℚ) - A) / s⌉
     ∀ k : Fin L.toNat,
       let i := A + (k.val : ℤ) * s
       (0 ≤ i ∧ i < n) ∧
         (sample v r.start r.stop r.step)[k.val]? = (Array.ofFn v)[i.toNat]? := by
-  rw [r.canonical_eq_formula n]
   dsimp only
+  change ∀ k : Fin ((r.canonical n).toRawSlice.dimensionBySign n).toNat,
+    let i := (r.canonical n).toRawSlice.firstBySign n +
+      (k.val : ℤ) * (r.canonical n).toRawSlice.stride
+    (0 ≤ i ∧ i < n) ∧
+      (sample v r.start r.stop r.step)[k.val]? = (Array.ofFn v)[i.toNat]?
+  rw [r.canonical_dimension n]
+  simp only [r.canonical_first n, CanonicalSlice.toRawSlice_stride, RawSlice.canonical_step]
   intro k
-  let k' : Fin (r.dimensionBySign n).toNat := ⟨k.val, by
-    simpa only [decode_encodeBound, RawSlice.dimensionBySign] using k.isLt⟩
-  simp only [decode_encodeBound]
-  refine ⟨r.formula_bounds n hs k', ?_⟩
-  rw [sample_getElem v r hs k']
-  let index := r.formulaIndex n hs k'
+  refine ⟨r.formula_bounds n hs k, ?_⟩
+  rw [sample_getElem v r hs k]
+  let index := r.formulaIndex n hs k
   change some (v index) = (Array.ofFn v)[index.val]?
   simp [index.isLt]
 

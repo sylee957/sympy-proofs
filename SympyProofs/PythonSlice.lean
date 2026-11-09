@@ -16,8 +16,8 @@ length, in the namespace `SympyProofs.PythonSlice`.
 * `PythonSlice/Basic.lean`: raw slices, normalization, bounds and sign formulas.
 * `PythonSlice/Sampling.lean`: sampling values, separate element and length proofs,
   their combined correspondence, and the concrete array interface.
-* `PythonSlice/Canonical.lean`: non-optional encoded bounds with idempotent
-  normalization, preserving sampling and decoding to the original range bounds.
+* `PythonSlice/Canonical.lean`: resolve omitted arguments while preserving explicit
+  bounds, with idempotence, sampling correctness, and normalized element and length formulas.
 * `PythonSlice/Composition.lean`: compose canonical slices, preserving elements,
   lengths and sampling, with canonicalization and rebuilding identities.
 
