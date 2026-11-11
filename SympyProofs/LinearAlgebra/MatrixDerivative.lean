@@ -3,16 +3,22 @@ module
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Add
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Mul
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Pow
+public import SympyProofs.LinearAlgebra.MatrixDerivative.Trace
+public import SympyProofs.LinearAlgebra.MatrixDerivative.Kronecker
+public import SympyProofs.LinearAlgebra.MatrixDerivative.Hadamard
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Inverse
 public import SympyProofs.LinearAlgebra.MatrixDerivative.ZPow
 
 /-! Scalar differentiation of finite real and complex matrices.
 
 * `Basic` identifies `HasDerivAt` with entrywise scalar differentiation and proves
-  the affine matrix derivative and differentiation under the trace.
+  the affine matrix derivative.
 * `Add` proves the matrix sum rule.
 * `Mul` proves the ordered product rule for rectangular matrices.
 * `Pow` proves the noncommutative natural-power rule.
+* `Trace` proves that taking the trace commutes with scalar differentiation.
+* `Kronecker` proves the ordered product rule for Kronecker products.
+* `Hadamard` proves the product rule for entrywise Hadamard products.
 * `Norms` proves the equivalent first-order remainder criterion for every
   vector-space norm on finite matrices, independently of submultiplicativity.
 * `Inverse` proves `(M⁻¹)' = -M⁻¹ * M' * M⁻¹` at invertible matrices, including a

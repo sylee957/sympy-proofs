@@ -1,6 +1,7 @@
 module
 
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Norms
+public import SympyProofs.LinearAlgebra.MatrixDerivative.Trace
 public import Mathlib.LinearAlgebra.Matrix.NonsingularInverse
 
 import Mathlib.Analysis.Calculus.FDeriv.Mul

@@ -48,18 +48,4 @@ theorem hasDerivAt_affine (X Z : Matrix n n 𝕜) (t : 𝕜) :
   simpa only [Matrix.add_apply, Matrix.smul_apply, smul_eq_mul, one_mul, id_eq] using
     ((hasDerivAt_id t).mul_const (X i j)).add_const (Z i j)
 
-variable [Fintype n]
-
-/-- Taking the trace commutes with differentiation by a scalar. -/
-theorem hasDerivAt_trace {M : 𝕜 → Matrix n n 𝕜} {M' : Matrix n n 𝕜} {t : 𝕜}
-    (hM : HasDerivAt M M' t) :
-    HasDerivAt (fun s => Matrix.trace (M s)) (Matrix.trace M') t := by
-  change HasDerivAt (fun s => ∑ i, M s i i) (∑ i, M' i i) t
-  exact HasDerivAt.fun_sum (fun i _ => hasDerivAt_iff_entrywise.mp hM i i)
-
-theorem deriv_trace {M : 𝕜 → Matrix n n 𝕜} {M' : Matrix n n 𝕜} {t : 𝕜}
-    (hM : HasDerivAt M M' t) :
-    deriv (fun s => Matrix.trace (M s)) t = Matrix.trace M' :=
-  (hasDerivAt_trace hM).deriv
-
 end SympyProofs.MatrixDerivative
