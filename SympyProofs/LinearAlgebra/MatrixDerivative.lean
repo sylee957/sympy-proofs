@@ -4,6 +4,8 @@ public import SympyProofs.LinearAlgebra.MatrixDerivative.Add
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Mul
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Pow
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Trace
+public import SympyProofs.LinearAlgebra.MatrixDerivative.Determinant
+public import SympyProofs.LinearAlgebra.MatrixDerivative.Permanent
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Kronecker
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Hadamard
 public import SympyProofs.LinearAlgebra.MatrixDerivative.Transpose
@@ -21,6 +23,9 @@ public import SympyProofs.LinearAlgebra.MatrixDerivative.ZPow
 * `Mul` proves the ordered product rule for rectangular matrices.
 * `Pow` proves the noncommutative natural-power rule.
 * `Trace` proves that taking the trace commutes with scalar differentiation.
+* `Determinant` proves the column replacement rule and Jacobi's adjugate formula,
+  as well as its inverse formulation at nonsingular matrices.
+* `Permanent` proves the column replacement rule for square-matrix permanents.
 * `Kronecker` proves the ordered product rule for Kronecker products.
 * `Hadamard` proves the product rule for entrywise Hadamard products.
 * `Transpose` proves that transposition commutes with scalar differentiation.
