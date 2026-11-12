@@ -25,7 +25,8 @@ public import SympyProofs.LinearAlgebra.MatrixDerivative.ZPow
 * `Trace` proves that taking the trace commutes with scalar differentiation.
 * `Determinant` proves the column replacement rule and Jacobi's adjugate formula,
   as well as its inverse formulation at nonsingular matrices.
-* `Permanent` proves the column replacement rule for square-matrix permanents.
+* `Permanent` proves the trace formula and column replacement rule for square-matrix
+  permanents, using the algebraic definitions in `LinearAlgebra.Permanent`.
 * `Kronecker` proves the ordered product rule for Kronecker products.
 * `Hadamard` proves the product rule for entrywise Hadamard products.
 * `Transpose` proves that transposition commutes with scalar differentiation.

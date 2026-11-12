@@ -5,12 +5,13 @@ import SympyProofs.LinearAlgebra.MatrixExponential
 import SympyProofs.LinearAlgebra.MatrixLogarithm
 import SympyProofs.LinearAlgebra.MatrixPower
 import SympyProofs.LinearAlgebra.MoorePenrose
+import SympyProofs.LinearAlgebra.Permanent
 import SympyProofs.LinearAlgebra.Rref
 
 /-!
 # Linear algebra
 
 Public entry point for generalized inverses, Jordan–Krylov theory and algorithms,
-matrix derivatives, exponentials, logarithms and powers, Moore–Penrose pseudoinverses, and
-reduced row echelon forms.
+matrix derivatives, exponentials, logarithms and powers, Moore–Penrose pseudoinverses,
+permanents and their minors and adjugates, and reduced row echelon forms.
 -/
