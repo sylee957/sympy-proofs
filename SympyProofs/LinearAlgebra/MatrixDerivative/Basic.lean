@@ -9,8 +9,9 @@ public import Mathlib.Topology.Instances.Matrix
 
 import Mathlib.Analysis.Matrix.Normed
 
-/-! Scalar derivatives of real or complex matrix-valued functions, characterized
-entrywise. The statements use the usual matrix topology and do not export a
+/-! Scalar derivatives of matrix-valued functions with a real or complex parameter,
+characterized entrywise. The entries may lie in any normed space over the parameter
+field. The statements use the usual matrix topology and do not export a
 choice of matrix norm. Norm independence for finite matrices is in `Norms`. -/
 
 @[expose] public section
@@ -22,8 +23,8 @@ variable {𝕜 m n : Type*} [RCLike 𝕜]
 /-- A matrix has scalar derivative `D` exactly when each entry has the
 corresponding entry of `D` as its scalar derivative. Neither index type needs
 to be finite: this uses the product topology on matrices. -/
-theorem hasDerivAt_iff_entrywise {M : 𝕜 → Matrix m n 𝕜}
-    {D : Matrix m n 𝕜} {t : 𝕜} :
+theorem hasDerivAt_iff_entrywise {E : Type*} [NormedAddCommGroup E] [NormedSpace 𝕜 E]
+    {M : 𝕜 → Matrix m n E} {D : Matrix m n E} {t : 𝕜} :
     HasDerivAt M D t ↔ ∀ i j, HasDerivAt (fun s => M s i j) (D i j) t := by
   change HasDerivAt (fun s i j => M s i j) (fun i j => D i j) t ↔ _
   simp only [HasDerivAt, HasDerivAtFilter, hasFDerivAtFilter_iff_isLittleOTVS,
@@ -32,7 +33,8 @@ theorem hasDerivAt_iff_entrywise {M : 𝕜 → Matrix m n 𝕜}
 
 /-- If all entries are differentiable, `deriv` is computed entrywise. -/
 theorem deriv_eq_entrywise [Fintype m] [Fintype n]
-    {M : 𝕜 → Matrix m n 𝕜} {t : 𝕜}
+    {E : Type*} [NormedAddCommGroup E] [NormedSpace 𝕜 E]
+    {M : 𝕜 → Matrix m n E} {t : 𝕜}
     (hM : ∀ i j, DifferentiableAt 𝕜 (fun s => M s i j) t) :
     deriv M t = fun i j => deriv (fun s => M s i j) t := by
   have hd : HasDerivAt M (fun i j => deriv (fun s => M s i j) t) t :=
