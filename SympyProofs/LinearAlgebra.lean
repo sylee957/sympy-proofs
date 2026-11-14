@@ -6,6 +6,7 @@ import SympyProofs.LinearAlgebra.MatrixLogarithm
 import SympyProofs.LinearAlgebra.MatrixPower
 import SympyProofs.LinearAlgebra.MatrixTrace
 import SympyProofs.LinearAlgebra.MoorePenrose
+import SympyProofs.LinearAlgebra.NeumannSeries
 import SympyProofs.LinearAlgebra.Permanent
 import SympyProofs.LinearAlgebra.Rref
 
@@ -14,5 +15,6 @@ import SympyProofs.LinearAlgebra.Rref
 
 Public entry point for generalized inverses, Jordan–Krylov theory and algorithms,
 matrix derivatives, exponentials, logarithms, powers and traces, Moore–Penrose pseudoinverses,
+Neumann series and polynomial convergence conditions,
 permanents and their minors and adjugates, and reduced row echelon forms.
 -/
