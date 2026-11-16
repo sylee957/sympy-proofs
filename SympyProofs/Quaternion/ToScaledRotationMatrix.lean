@@ -8,8 +8,7 @@ public import Mathlib.LinearAlgebra.Matrix.Determinant.Basic
 
 `toScaledRotationMatrix q` is the matrix of `v ↦ q v q*` for an arbitrary quaternion
 `q = a + b i + c j + d k`. Its entries are homogeneous quadratic polynomials in the
-components, and no division by the norm takes place, unlike in SymPy's
-`Quaternion.to_rotation_matrix`.
+components, and no division by the norm takes place.
 
 * `mul_ofVector_mul_star_eq`:
   `q * ofVector v * star q = ofVector (toScaledRotationMatrix q *ᵥ v)`, for every `q`.

@@ -6,14 +6,14 @@ public import SympyProofs.Quaternion.RepresentedMatrices
 /-!
 # A unit quaternion from a rotation matrix
 
-`fromRotationMatrix` is a replacement for SymPy's `Quaternion.from_rotation_matrix` on
-rotation matrices, with no exceptional cases.
+`fromRotationMatrix M` is a unit quaternion for every rotation matrix `M`, given by a single
+formula with no exceptional cases.
 
-SymPy's formula takes `a = √(4a²) / 2 ≥ 0` and attaches `sign (4ab)`, `sign (4ac)`,
-`sign (4ad)` to the other three square roots, where the ten products `4 qᵢ qⱼ` are linear
-in the entries of the matrix. This gives `0` whenever `a = 0`, that is for rotations by `π`
-(sympy/sympy#31130). Here each vanishing sign is replaced by the sign of the next product
-in the same row of `4 q qᵀ`, through `leadingSign` of `FromRotationMatrix/LeadingSign.lean`.
+The ten products `4 qᵢ qⱼ` are linear in the entries of the matrix. The usual formula takes
+`a = √(4a²) / 2 ≥ 0` and attaches `sign (4ab)`, `sign (4ac)`, `sign (4ad)` to the other
+three square roots. This gives `0` whenever `a = 0`, that is for rotations by `π`. Here each
+vanishing sign is replaced by the sign of the next product in the same row of `4 q qᵀ`,
+through `leadingSign` of `FromRotationMatrix/LeadingSign.lean`.
 
 The formula computes the solution of the specification `RepresentsRotation`:
 
@@ -30,7 +30,7 @@ Round trips with `toRotationMatrix` of `ToRotationMatrix.lean`:
 * `fromRotationMatrix_toRotationMatrix`: a unit quaternion is recovered up to sign, and
   exactly if it is sign-normalized.
 
-The version for scaled rotations, with SymPy's factor `det(M) ^ (1/3)`, is
+The version for scaled rotations, with the factor `det(M) ^ (1/3)`, is
 `fromScaledRotationMatrix` of `FromRotationMatrix/ScaledSign.lean`.
 -/
 
@@ -42,9 +42,8 @@ open Matrix Quaternion
 
 /-! ## The formula -/
 
-/-- `Quaternion.from_rotation_matrix` for a rotation matrix, with `sign` replaced by
-`leadingSign`: each square root takes the sign of the first nonzero product relating it to
-an earlier component, and `+1` if there is none. -/
+/-- A unit quaternion for a rotation matrix: each square root takes the sign of the first
+nonzero product relating it to an earlier component, and `+1` if there is none. -/
 noncomputable def fromRotationMatrix (M : Matrix (Fin 3) (Fin 3) ℝ) : ℍ[ℝ] :=
   -- The absolute values of the four components, from `4a²`, `4b²`, `4c²`, `4d²`.
   let absA := √(1 + M 0 0 + M 1 1 + M 2 2) / 2

@@ -8,8 +8,8 @@ public import Mathlib.Tactic
 /-!
 # The rotation matrix of a unit quaternion
 
-`toRotationMatrix q` is SymPy's `Quaternion.to_rotation_matrix` for a unit quaternion
-`q = a + b i + c j + d k`.
+`toRotationMatrix q` is the rotation matrix of a unit quaternion
+`q = a + b i + c j + d k`, written out in its components.
 
 For `M = toRotationMatrix q` with `q` a unit quaternion, all ten products `4 qᵢ qⱼ` are
 linear in the entries of `M`:
@@ -30,7 +30,7 @@ namespace SympyQuaternion
 
 open Matrix Quaternion
 
-/-- The rotation matrix of a unit quaternion, as in `Quaternion.to_rotation_matrix`. -/
+/-- The rotation matrix of a unit quaternion. -/
 def toRotationMatrix (q : ℍ[ℝ]) : Matrix (Fin 3) (Fin 3) ℝ :=
   let a := q.re
   let b := q.imI

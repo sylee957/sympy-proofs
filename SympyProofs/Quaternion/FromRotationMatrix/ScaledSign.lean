@@ -7,15 +7,15 @@ public import Mathlib.Analysis.SpecialFunctions.Pow.Real
 /-!
 # A quaternion from a scaled rotation matrix
 
-`fromScaledRotationMatrix` is a replacement for SymPy's `Quaternion.from_rotation_matrix`
-with no exceptional cases, including its scaling factor `det(M) ^ (1/3)`. On rotation
-matrices it is `fromRotationMatrix` of `FromRotationMatrix/Sign.lean`.
+`fromScaledRotationMatrix M` is a quaternion for every scaled rotation matrix `M`, given by
+a single formula with no exceptional cases. It uses the scaling factor `det(M) ^ (1/3)`, and
+on rotation matrices it is `fromRotationMatrix` of `FromRotationMatrix/Sign.lean`.
 
-SymPy's formula takes `a = √(4a²) / 2 ≥ 0` and attaches `sign (4ab)`, `sign (4ac)`,
-`sign (4ad)` to the other three square roots, where the ten products `4 qᵢ qⱼ` are linear
-in the entries of the matrix and in `det(M) ^ (1/3)`. This gives `0` whenever `a = 0`, that
-is for rotations by `π` (sympy/sympy#31130). Here each vanishing sign is replaced by the
-sign of the next product in the same row of `4 q qᵀ`, through `leadingSign` of
+The ten products `4 qᵢ qⱼ` are linear in the entries of the matrix and in the scaling
+factor. The usual formula takes `a = √(4a²) / 2 ≥ 0` and attaches `sign (4ab)`,
+`sign (4ac)`, `sign (4ad)` to the other three square roots. This gives `0` whenever `a = 0`,
+that is for rotations by `π`. Here each vanishing sign is replaced by the sign of the next
+product in the same row of `4 q qᵀ`, through `leadingSign` of
 `FromRotationMatrix/LeadingSign.lean`.
 
 The formula computes the solution of the specification wherever one exists:
@@ -55,9 +55,8 @@ open Matrix Quaternion
 
 /-! ## The formula -/
 
-/-- `Quaternion.from_rotation_matrix` with its scaling factor and with `sign` replaced by
-`leadingSign`: each square root takes the sign of the first nonzero product relating it to
-an earlier component, and `+1` if there is none. -/
+/-- A quaternion for a scaled rotation matrix: each square root takes the sign of the first
+nonzero product relating it to an earlier component, and `+1` if there is none. -/
 noncomputable def fromScaledRotationMatrix (M : Matrix (Fin 3) (Fin 3) ℝ) : ℍ[ℝ] :=
   let scale := M.det ^ ((1 : ℝ) / 3)
   -- The absolute values of the four components, from `4a²`, `4b²`, `4c²`, `4d²`.

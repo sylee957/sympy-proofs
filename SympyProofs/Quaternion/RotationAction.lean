@@ -6,9 +6,9 @@ public import SympyProofs.Quaternion.RepresentsRotation
 /-!
 # The rotation matrix as the conjugation action of a unit quaternion
 
-A unit quaternion `q` acts on pure quaternions by `v ↦ q v q⁻¹ = q v q*`, as in SymPy's
-`Quaternion.rotate_point`. `toRotationMatrix q` is the matrix of this action, which
-connects the explicit formula to the specification `RepresentsRotation`:
+A unit quaternion `q` acts on pure quaternions by `v ↦ q v q⁻¹ = q v q*`.
+`toRotationMatrix q` is the matrix of this action, which connects the explicit formula to
+the specification `RepresentsRotation`:
 
 * `mul_ofVector_mul_star`: `q * ofVector v * star q = ofVector (toRotationMatrix q *ᵥ v)`;
 * `representsRotation_iff`: `RepresentsRotation q M ↔ normSq q = 1 ∧ toRotationMatrix q = M`,

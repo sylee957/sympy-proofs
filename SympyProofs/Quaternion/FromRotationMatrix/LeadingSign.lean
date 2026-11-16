@@ -8,7 +8,7 @@ public import Mathlib.Tactic
 # The sign of the first nonzero entry of a list
 
 `leadingSign xs` is the sign of the first nonzero entry of `xs`, and `1` if there is none.
-It replaces the plain `sign` of SymPy's `Quaternion.from_rotation_matrix`, which returns
+In a conversion from a rotation matrix it takes the place of a plain `sign`, which returns
 `0` and so loses a component whenever its argument vanishes.
 
 * `leadingSign_nil`, `leadingSign_cons`, `leadingSign_cons_zero`,

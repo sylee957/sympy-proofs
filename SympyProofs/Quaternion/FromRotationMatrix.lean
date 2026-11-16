@@ -20,10 +20,9 @@ and `RepresentsScaledRotation`.
 | Shepperd | `fromRotationMatrixShepperd` | `Shepperd.lean` | rotation |
 | Scaled Cayley | `fromScaledRotationMatrixCayley` | `ScaledCayley.lean` | scaled rotation |
 
-* **Sign.** SymPy's `Quaternion.from_rotation_matrix` with `sign` replaced by `leadingSign`
-  of `LeadingSign.lean`: absolute values from the diagonal of `4 q qᵀ`, signs from the first
-  nonzero product with an earlier component.
-* **Scaled sign.** The same with SymPy's scaling factor `det(M) ^ (1/3)`.
+* **Sign.** Absolute values from the diagonal of `4 q qᵀ`, and signs from the first nonzero
+  product with an earlier component, by `leadingSign` of `LeadingSign.lean`.
+* **Scaled sign.** The same with the scaling factor `det(M) ^ (1/3)`.
 * **Shepperd.** The row of `4 q qᵀ` with the largest diagonal entry, divided by twice the
   square root of that entry.
 * **Scaled Cayley.** Absolute values from the lengths of the rows of `4 q qᵀ`, with the
