@@ -1,7 +1,7 @@
 module
 
 public import SympyProofs.Quaternion.ToScaledRotationMatrix
-public import SympyProofs.Quaternion.FromRotationMatrix
+public import SympyProofs.Quaternion.FromRotationMatrix.Sign
 public import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 /-!
@@ -9,14 +9,14 @@ public import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 `fromScaledRotationMatrix` is a replacement for SymPy's `Quaternion.from_rotation_matrix`
 with no exceptional cases, including its scaling factor `det(M) ^ (1/3)`. On rotation
-matrices it is `fromRotationMatrix` of `FromRotationMatrix.lean`.
+matrices it is `fromRotationMatrix` of `FromRotationMatrix/Sign.lean`.
 
 SymPy's formula takes `a = √(4a²) / 2 ≥ 0` and attaches `sign (4ab)`, `sign (4ac)`,
 `sign (4ad)` to the other three square roots, where the ten products `4 qᵢ qⱼ` are linear
 in the entries of the matrix and in `det(M) ^ (1/3)`. This gives `0` whenever `a = 0`, that
 is for rotations by `π` (sympy/sympy#31130). Here each vanishing sign is replaced by the
 sign of the next product in the same row of `4 q qᵀ`, through `leadingSign` of
-`LeadingSign.lean`.
+`FromRotationMatrix/LeadingSign.lean`.
 
 The formula computes the solution of the specification wherever one exists:
 
@@ -26,8 +26,12 @@ The formula computes the solution of the specification wherever one exists:
   value does.
 * `fromScaledRotationMatrix_isSignNormalized`: if moreover `M ≠ 0`, the value is
   sign-normalized.
-* `eq_fromScaledRotationMatrix_iff`: so it is the only sign-normalized quaternion
-  representing `M`.
+* `eq_fromScaledRotationMatrix_iff`: so among sign-normalized quaternions it is the only
+  one representing `M`.
+* `eq_fromScaledRotationMatrix_zero_iff`: for the zero matrix it is the only quaternion
+  representing it.
+* `fromScaledRotationMatrix_unique`: any function meeting the specification on represented
+  matrices, the zero matrix included, agrees with it there.
 
 Round trips with `toScaledRotationMatrix` of `ToScaledRotationMatrix.lean`:
 
@@ -145,16 +149,36 @@ theorem fromScaledRotationMatrix_isSignNormalized {q : ℍ[ℝ]} {M : Matrix (Fi
   · rw [← h.neg.eq_fromScaledRotationMatrix n]
     exact n
 
-/-- For a represented matrix `M ≠ 0`, `fromScaledRotationMatrix M` is characterized by the
-specification: it is the sign-normalized quaternion representing `M`. -/
+/-- For a represented matrix, a sign-normalized quaternion is `fromScaledRotationMatrix M`
+exactly when it represents `M`. -/
 theorem eq_fromScaledRotationMatrix_iff {p q : ℍ[ℝ]} {M : Matrix (Fin 3) (Fin 3) ℝ}
-    (h : RepresentsScaledRotation p M) (hM : M ≠ 0) :
-    q = fromScaledRotationMatrix M ↔ RepresentsScaledRotation q M ∧ IsSignNormalized q := by
+    (h : RepresentsScaledRotation p M) (n : IsSignNormalized q) :
+    q = fromScaledRotationMatrix M ↔ RepresentsScaledRotation q M := by
   constructor
   · rintro rfl
-    exact ⟨fromScaledRotationMatrix_represents h, fromScaledRotationMatrix_isSignNormalized h hM⟩
-  · rintro ⟨hq, n⟩
+    exact fromScaledRotationMatrix_represents h
+  · intro hq
     exact hq.eq_fromScaledRotationMatrix n
+
+/-- For the zero matrix, `fromScaledRotationMatrix 0` is the only quaternion representing
+it. No sign rule is involved. -/
+theorem eq_fromScaledRotationMatrix_zero_iff {q : ℍ[ℝ]} :
+    q = fromScaledRotationMatrix 0 ↔ RepresentsScaledRotation q 0 := by
+  rw [fromScaledRotationMatrix_zero]
+  exact representsScaledRotation_zero_iff.symm
+
+/-- Any function that meets the specification on represented matrices agrees with
+`fromScaledRotationMatrix` on all of them, the zero matrix included. -/
+theorem fromScaledRotationMatrix_unique {f : Matrix (Fin 3) (Fin 3) ℝ → ℍ[ℝ]}
+    (hf : ∀ M p, RepresentsScaledRotation p M →
+      RepresentsScaledRotation (f M) M ∧ (M ≠ 0 → IsSignNormalized (f M)))
+    {p : ℍ[ℝ]} {M : Matrix (Fin 3) (Fin 3) ℝ} (h : RepresentsScaledRotation p M) :
+    f M = fromScaledRotationMatrix M := by
+  obtain ⟨hr, hn⟩ := hf M p h
+  by_cases hM : M = 0
+  · subst hM
+    exact eq_fromScaledRotationMatrix_zero_iff.2 hr
+  · exact (eq_fromScaledRotationMatrix_iff h (hn hM)).2 hr
 
 /-! ## Round trips with `toScaledRotationMatrix` -/
 
