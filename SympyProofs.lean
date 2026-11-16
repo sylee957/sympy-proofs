@@ -9,3 +9,4 @@ import SympyProofs.Geometry
 import SympyProofs.Sum
 import SympyProofs.RealCubeRoot
 import SympyProofs.Calculus
+import SympyProofs.Quaternion
