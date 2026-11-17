@@ -8,6 +8,7 @@ public import SympyProofs.LinearAlgebra.NeumannSeries.Polynomial
 public import SympyProofs.LinearAlgebra.NeumannSeries.Rational
 public import SympyProofs.LinearAlgebra.NeumannSeries.Complex
 public import SympyProofs.LinearAlgebra.NeumannSeries.ComplexPolynomial
+public import SympyProofs.LinearAlgebra.NeumannSeries.Spectrum
 
 /-!
 # Matrix Neumann series: exact polynomial convergence conditions
@@ -37,6 +38,11 @@ doubling the matrix dimension. `complex_polynomial_convergence_iff` and
 `complex_rational_polynomial_convergence_iff` express it as real polynomial signs
 in the parameters of `X` and `Y`; the rational case uses a common real polynomial
 denominator.
+
+Polynomial weights do not change the condition: `summable_pow_mul_pow_iff_summable_pow`
+shows that `∑ k ^ p * A ^ k` converges exactly when `∑ A ^ k` does. In spectral terms,
+`summable_complex_pow_mul_pow_iff_spectrum` and `summable_pow_mul_pow_iff_spectrum` state
+that this happens exactly when every complex eigenvalue has modulus less than one.
 
 These theorems formalize mathematical convergence conditions, not SymPy's Python
 implementation.
