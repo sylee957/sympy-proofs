@@ -9,6 +9,7 @@ public import SympyProofs.LinearAlgebra.NeumannSeries.Rational
 public import SympyProofs.LinearAlgebra.NeumannSeries.Complex
 public import SympyProofs.LinearAlgebra.NeumannSeries.ComplexPolynomial
 public import SympyProofs.LinearAlgebra.NeumannSeries.Spectrum
+public import SympyProofs.LinearAlgebra.NeumannSeries.Weighted
 
 /-!
 # Matrix Neumann series: exact polynomial convergence conditions
@@ -43,6 +44,13 @@ Polynomial weights do not change the condition: `summable_pow_mul_pow_iff_summab
 shows that `∑ k ^ p * A ^ k` converges exactly when `∑ A ^ k` does. In spectral terms,
 `summable_complex_pow_mul_pow_iff_spectrum` and `summable_pow_mul_pow_iff_spectrum` state
 that this happens exactly when every complex eigenvalue has modulus less than one.
+
+The weighted sums have closed forms whenever the series converges. `hasSum_choose_mul_pow`
+gives `∑ (k + j).choose j * A ^ k = (I - A)⁻¹ ^ (j + 1)`, and `hasSum_pow_mul_pow` gives
+`∑ k ^ p * A ^ k = ∑ j ≤ p, S(p, j) * j! * A ^ j * (I - A)⁻¹ ^ (j + 1)` with `S(p, j)` the
+Stirling numbers of the second kind. The first cases are `hasSum_natCast_mul_pow`,
+`∑ k * A ^ k = A * (I - A)⁻¹ ^ 2`, and `hasSum_sq_mul_pow`,
+`∑ k ^ 2 * A ^ k = A * (I + A) * (I - A)⁻¹ ^ 3`.
 
 These theorems formalize mathematical convergence conditions, not SymPy's Python
 implementation.
