@@ -8,5 +8,6 @@ import SympyProofs.RiemannZeta
 import SympyProofs.Geometry
 import SympyProofs.Sum
 import SympyProofs.RealCubeRoot
+import SympyProofs.Probability
 import SympyProofs.Calculus
 import SympyProofs.Quaternion
