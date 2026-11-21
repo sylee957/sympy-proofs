@@ -21,9 +21,8 @@ four.
 
 `PathMeasure` constructs a measure on the space of paths, and so shows that every
 generator has a time-homogeneous Markov process with its transition probabilities. It
-also shows that this measure is the only one for a given initial distribution, and
-that the limiting laws of all the processes of a generator are exactly its stationary
-distributions.
+also shows that this measure is the only one for a given initial distribution, and it
+reads the stationary and the limiting distribution of a generator on its processes.
 
 `Limit` lists the ways to compute the limit of a chain from a given start, each
 in the same form: a system of linear equations and a theorem that its solution is the

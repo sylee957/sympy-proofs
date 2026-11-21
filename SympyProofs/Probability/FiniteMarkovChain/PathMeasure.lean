@@ -41,9 +41,7 @@ distribution. Each is a mixture of the laws from the single states, they match t
 initial distributions one to one, and together they determine the generator.
 
 `Limit` reads the matrix notions of `LongRun` as statements about all the processes of
-one generator. A stationary distribution is the stationary law of some process, and
-the limiting law of some process. A limiting distribution is the limiting law of every
-process, and it exists exactly when some state can be reached from every state. The
-statements mention no measure on paths. The proofs use `chainLaw` to produce a process
-with a given start.
+one generator. A stationary distribution is the stationary law of some process, and a
+limiting distribution is the limiting law of every process. The statements mention no
+measure on paths. The proofs use `chainLaw` to produce a process with a given start.
 -/

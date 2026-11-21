@@ -15,20 +15,20 @@ the processes of `Q`.
 * `w` is a stationary distribution of `Q` exactly when some process of `Q` has the
   stationary law `w`, by `isStationaryDistribution_iff_exists_isStationaryLaw`. The
   process is the one that starts from `w`.
-* `w` is a stationary distribution of `Q` exactly when some process of `Q` has the
-  limiting law `w`, by `isStationaryDistribution_iff_exists_isLimitingLaw`. So the
-  limiting laws that occur are exactly the stationary distributions.
 * `w` is the limiting distribution of `Q` exactly when every process of `Q` has the
   limiting law `w`, by `isLimitingDistribution_iff_forall_isLimitingLaw`.
-* All processes have the same limiting law exactly when some state can be reached from
-  every state, by `exists_reachable_iff_exists_forall_isLimitingLaw`.
+
+Each matrix notion is matched with the process notion of the same kind: stationary with
+stationary, limiting with limiting. The first says "some process" and the second
+"every process", because a stationary distribution fixes the start and a limiting
+distribution does not depend on it.
 
 The statements speak about a process on any probability space, as a `Process ι`, and
 mention no measure on paths. The proofs need that processes exist, with every start.
 That is why the file is in this folder: the process is the coordinate process under
 `chainLaw Q p`.
 
-The matrix statements behind the last three are in `LongRun.MatrixLimiting`.
+The matrix notions and the links between them are in `LongRun`.
 -/
 
 @[expose] public section
@@ -65,20 +65,6 @@ theorem isStationaryDistribution_iff_exists_isStationaryLaw (hQ : IsGenerator Q)
   · rintro ⟨S, hm, ht, hw⟩
     exact hw.isStationaryDistribution hm.measurable hQ ht
 
-/-- The limiting laws of the processes of a generator are exactly its stationary
-distributions. -/
-theorem isStationaryDistribution_iff_exists_isLimitingLaw (hQ : IsGenerator Q)
-    (w : ι → ℝ) :
-    IsStationaryDistribution Q w ↔
-      ∃ S : Process ι, IsHomogeneousMarkovProcess S.X S.P ∧ HasTransition Q S.X S.P ∧
-        IsLimitingLaw S.X S.P w := by
-  constructor
-  · intro hw
-    obtain ⟨S, hm, ht, hs⟩ := (isStationaryDistribution_iff_exists_isStationaryLaw hQ w).1 hw
-    exact ⟨S, hm, ht, hs.isLimitingLaw⟩
-  · rintro ⟨S, hm, ht, hw⟩
-    exact hw.isStationaryDistribution hm.measurable hQ ht
-
 /-- The limiting distribution of a generator is the limiting law of every one of its
 processes, and a row that is the limiting law of every process is the limiting
 distribution. -/
@@ -104,15 +90,5 @@ theorem isLimitingDistribution_iff_forall_isLimitingLaw (hQ : IsGenerator Q) (w 
     have h1 := tendsto_pi_nhds.1 hf j
     simp only [single_one_vecMul] at h1
     exact h1
-
-/-- All processes of a generator have the same limiting law exactly when some state can
-be reached from every state. -/
-theorem exists_reachable_iff_exists_forall_isLimitingLaw [Nonempty ι]
-    (hQ : IsGenerator Q) :
-    (∃ j₀, ∀ i, Reachable Q i j₀) ↔
-      ∃ w : ι → ℝ, ∀ S : Process ι, IsHomogeneousMarkovProcess S.X S.P →
-        HasTransition Q S.X S.P → IsLimitingLaw S.X S.P w := by
-  rw [← exists_isLimitingDistribution_iff hQ]
-  exact exists_congr fun w => isLimitingDistribution_iff_forall_isLimitingLaw hQ w
 
 end SympyProofs.FiniteMarkovChain
