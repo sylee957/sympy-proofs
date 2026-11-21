@@ -1,11 +1,11 @@
 module
 
-public import SympyProofs.Probability.FiniteMarkovChain.Matrix.Limit
+public import SympyProofs.Probability.FiniteMarkovChain.LongRun.Convergence
 
 /-!
 # The limit matrix
 
-This file is about matrices only. `Matrix.Limit` proves that the transition matrices of
+This file is about matrices only. `Convergence` proves that the transition matrices of
 a generator converge as time grows. `limitMatrix Q` is a name for that limit. Its entry
 at `i j` is the long-run probability of being in state `j` for a chain that starts in
 state `i`.
@@ -28,7 +28,7 @@ statement about it assumes that `Q` is a generator, and then the limit exists, b
 * When some state can be reached from every state, all of its rows are the one
   stationary distribution, by `limitMatrix_row_of_reachable`.
 
-`Matrix.LimitEquation` shows how to compute it by solving a linear system.
+`LimitEquation` shows how to compute it by solving a linear system.
 -/
 
 @[expose] public section

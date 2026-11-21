@@ -15,7 +15,8 @@ probability of a possibly null history is required.
 For a generator, the coordinate process under the law of the chain is a
 time-homogeneous Markov process whose transition probabilities are the transition
 matrices. These are `chainLaw_isHomogeneousMarkovProcess` and
-`chainLaw_hasTransition`.
+`chainLaw_hasTransition`. So the law of the state at time `t` is the row `p` times the
+transition matrix, which is `chainLaw_real_coordinate`.
 
 The sampling law is stated for an increasing list of times. The Markov property in
 `Process.MarkovProperty` is stated for a finite set of earlier times.
@@ -263,5 +264,17 @@ theorem chainLaw_isHomogeneousMarkovProcess (hQ : IsGenerator Q) (p : PMF ι) :
     IsHomogeneousMarkovProcess coordinate (chainLaw Q p) :=
   (chainLaw_hasTransition hQ p).isHomogeneousMarkovProcess measurable_coordinate
     (chainLaw_markovPropertyProduct hQ p)
+
+open scoped Matrix in
+/-- Under the law of the chain from `p`, the law of the state at time `t` is the row `p`
+times the transition matrix. -/
+theorem chainLaw_real_coordinate (hQ : IsGenerator Q) (p : PMF ι) (t : ℝ≥0) (j : ι) :
+    (chainLaw Q p).real {ω | coordinate t ω = j} =
+      ((fun i => (p i).toReal) ᵥ* transition Q t) j := by
+  have h := (chainLaw_hasTransition hQ p).measureReal_time measurable_coordinate hQ t j
+  rw [show (fun i => (p i).toReal) =
+    fun i => (chainLaw Q p).real {ω | coordinate 0 ω = i} from
+      funext fun i => (chainLaw_real_initial Q p i).symm]
+  exact h
 
 end SympyProofs.FiniteMarkovChain

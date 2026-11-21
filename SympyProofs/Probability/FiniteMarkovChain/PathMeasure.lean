@@ -40,8 +40,10 @@ distribution do not determine the process, but they determine its law on paths.
 distribution. Each is a mixture of the laws from the single states, they match the
 initial distributions one to one, and together they determine the generator.
 
-`Limit` says where these laws go as time grows. The limiting distributions that occur
-in the family are exactly the stationary distributions of the generator, and all
-members have the same one exactly when some state can be reached from every state. It
-uses `Process.Limit`.
+`Limit` reads the matrix notions of `LongRun` as statements about all the processes of
+one generator. A stationary distribution is the stationary law of some process, and
+the limiting law of some process. A limiting distribution is the limiting law of every
+process, and it exists exactly when some state can be reached from every state. The
+statements mention no measure on paths. The proofs use `chainLaw` to produce a process
+with a given start.
 -/

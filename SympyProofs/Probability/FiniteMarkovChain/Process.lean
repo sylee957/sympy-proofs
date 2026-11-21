@@ -5,8 +5,6 @@ import SympyProofs.Probability.FiniteMarkovChain.Process.Continuous
 import SympyProofs.Probability.FiniteMarkovChain.Process.Basic
 import SympyProofs.Probability.FiniteMarkovChain.Process.Transition
 import SympyProofs.Probability.FiniteMarkovChain.Process.Generator
-import SympyProofs.Probability.FiniteMarkovChain.Process.Stationary
-import SympyProofs.Probability.FiniteMarkovChain.Process.Limit
 
 /-!
 # Time-homogeneous Markov processes
@@ -36,13 +34,7 @@ that the process visits.
 probabilities of a generator, and that the generator is unique when every state is
 visited at some time. It uses `Matrix.Semigroup`.
 
-`Stationary` shows that the balance equation is the condition for a process to keep
-the same law at every time. It uses `Matrix.Stationary`.
-
-`Limit` defines the limiting distribution of a process, `IsLimitingDistribution`. A
-limiting distribution is a stationary distribution of the generator. When some state
-can be reached from every state the converse holds. Every time-homogeneous Markov
-process has exactly one limiting distribution. It uses `Matrix.Limit`.
+The stationary law and the limiting law of a process are in the folder `LongRun`.
 
 The converse of `Generator`, that every generator has such a process, needs a
 construction of the process. It is `exists_process_of_isGenerator` in

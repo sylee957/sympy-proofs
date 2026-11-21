@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.Probability.FiniteMarkovChain.Matrix.Stationary
+public import SympyProofs.Probability.FiniteMarkovChain.LongRun.MatrixStationary
 public import SympyProofs.Probability.FiniteMarkovChain.Matrix.Reachable
 
 import Mathlib.Analysis.SpecificLimits.Basic

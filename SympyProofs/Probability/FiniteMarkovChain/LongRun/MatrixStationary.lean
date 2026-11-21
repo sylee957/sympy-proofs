@@ -18,8 +18,8 @@ and solves the balance equation.
 The balance equation is equivalent to invariance under `exp (t • Q)` for every
 nonnegative time. The equivalence holds for every finite real square matrix.
 
-`Process.Stationary` reads the balance equation on a process, and `Process.Limit`
-shows that the limit of the law of a process is a stationary distribution.
+`ProcessStationary` reads the balance equation on a process, and `ProcessLimiting`
+shows that the limiting law of a process is a stationary distribution.
 -/
 
 @[expose] public section

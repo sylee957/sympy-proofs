@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.Probability.FiniteMarkovChain.Matrix.LimitMatrix
+public import SympyProofs.Probability.FiniteMarkovChain.LongRun.LimitMatrix
 
 import Mathlib.LinearAlgebra.Dual.Lemmas
 import Mathlib.LinearAlgebra.Matrix.ToLin
@@ -8,9 +8,9 @@ import Mathlib.LinearAlgebra.Matrix.ToLin
 /-!
 # The equations that the limit solves
 
-This file is about matrices only. `Matrix.Limit` proves that the row
+This file is about matrices only. `Convergence` proves that the row
 `p ᵥ* transition Q t` converges as time grows, for every generator `Q` and every row
-`p`, and `Matrix.LimitMatrix` names the limit `p ᵥ* limitMatrix Q`. This file says which
+`p`, and `LimitMatrix` names the limit `p ᵥ* limitMatrix Q`. This file says which
 linear equations the limit solves, so that it can be computed with no limit and no
 matrix exponential.
 
@@ -36,9 +36,10 @@ the limit matrix is `1 + Y * Q` for every such `Y`, and one exists, by
 
 The proof of the first form uses the limit matrix. The limit of a row is stationary
 and keeps every conserved quantity, by `vecMul_limitMatrix_dotProduct`. Conversely, a
-stationary row is its own limit, and every column of the limit matrix is conserved. So a stationary row that gives zero on every conserved
-column is zero. The second form follows because a row that gives zero on every conserved
-column is of the form `y ᵥ* Q`, which is
+stationary row is its own limit, and every column of the limit matrix is conserved. So a
+stationary row that gives zero on every conserved column is zero. The second form
+follows because a row that gives zero on every conserved column is of the form
+`y ᵥ* Q`, which is
 `exists_eq_vecMul_of_forall_dotProduct_eq_zero`.
 -/
 
