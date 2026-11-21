@@ -7,11 +7,11 @@ public import SympyProofs.Probability.FiniteMarkovChain.PathMeasure.Characteriza
 
 A generator does not choose where the chain starts. So one generator `Q` has a whole
 family of laws on paths, one for each starting distribution `p`. It is the map
-`p ↦ chainLaw hQ p`. This file describes that family.
+`p ↦ chainLaw Q p`. This file describes that family.
 
 * The law from `p` is the mixture of the laws from the single states, by
   `chainLaw_eq_sum`: pick the starting state by `p`, then run the law of that state.
-  So the family is built from one law for each state, `chainLaw hQ (PMF.pure i)`.
+  So the family is built from one law for each state, `chainLaw Q (PMF.pure i)`.
   Textbooks write this law `P_i`.
 * Different starting distributions give different laws, by `chainLaw_injective`.
 * Every law on paths with the transition probabilities of `Q` is the law of the chain
@@ -27,9 +27,8 @@ determines the whole generator, which is `eq_of_chainLaw_pure_eq`. This is also 
 textbooks can define the transition function through time `0`: they work with the
 family, where every state can occur at time `0`.
 
-The statements use `chainLaw` and not `pathMeasure`, so no filler state appears in
-them. The mixture is proved for the constructed path measure first, where the finite
-laws are mixtures by definition.
+The mixture holds for every matrix `Q`, because the finite laws are mixtures by
+definition.
 -/
 
 @[expose] public section
@@ -52,32 +51,25 @@ private theorem finiteLaw_eq_bind (p : PMF ι) (I : Finset ℝ≥0) :
 
 variable [MeasurableSpace ι]
 
-/-- The path measure from `p` is the mixture of the path measures from each state. -/
-private theorem pathMeasure_eq_sum (p : PMF ι) :
-    pathMeasure Q d p = ∑ i, p i • pathMeasure Q d (PMF.pure i) := by
-  refine (pathMeasure_isProjectiveLimit Q d p).unique fun I => ?_
+/-- The law of the chain from `p` is the mixture of the laws from each state. -/
+theorem chainLaw_eq_sum (p : PMF ι) :
+    chainLaw Q p = ∑ i, p i • chainLaw Q (PMF.pure i) := by
+  refine (chainLaw_isProjectiveLimit Q p).unique fun I => ?_
   ext S hS
-  change _ = (finiteLaw Q d p I).toMeasure S
+  change _ = (finiteLaw Q (filler p) p I).toMeasure S
   rw [Measure.map_apply (Finset.measurable_restrict I) hS, Measure.coe_finsetSum,
     Finset.sum_apply, finiteLaw_eq_bind, PMF.toMeasure_bind_apply _ _ _ hS, tsum_fintype]
   refine Finset.sum_congr rfl fun i _ => ?_
   rw [Measure.smul_apply, smul_eq_mul,
     ← Measure.map_apply (Finset.measurable_restrict I) hS,
-    pathMeasure_isProjectiveLimit Q d (PMF.pure i) I]
+    chainLaw_isProjectiveLimit Q (PMF.pure i) I, filler_eq (PMF.pure i) p]
 
 end Mixture
 
 variable [MeasurableSpace ι] [MeasurableSingletonClass ι] {Q : Matrix ι ι ℝ}
 
-/-- The law of the chain from `p` is the mixture of the laws from each state. -/
-theorem chainLaw_eq_sum (hQ : IsGenerator Q) (p : PMF ι) :
-    chainLaw hQ p = ∑ i, p i • chainLaw hQ (PMF.pure i) := by
-  obtain ⟨d, -⟩ := p.support_nonempty
-  simp_rw [chainLaw_eq_pathMeasure hQ d]
-  exact pathMeasure_eq_sum Q d p
-
 /-- Different starting distributions give different laws. -/
-theorem chainLaw_injective (hQ : IsGenerator Q) : Function.Injective (chainLaw hQ) := by
+theorem chainLaw_injective (Q : Matrix ι ι ℝ) : Function.Injective (chainLaw Q) := by
   intro p p' h
   have h0 := congrArg (fun μ : Measure (Path ι) => μ.map (coordinate 0)) h
   simp only [chainLaw_initial] at h0
@@ -87,7 +79,7 @@ theorem chainLaw_injective (hQ : IsGenerator Q) : Function.Injective (chainLaw h
 for exactly one starting distribution. -/
 theorem existsUnique_pmf_eq_chainLaw (hQ : IsGenerator Q) (μ : Measure (Path ι))
     [IsProbabilityMeasure μ] (hm : IsHomogeneousMarkovProcess coordinate μ)
-    (ht : HasTransition Q coordinate μ) : ∃! p : PMF ι, μ = chainLaw hQ p := by
+    (ht : HasTransition Q coordinate μ) : ∃! p : PMF ι, μ = chainLaw Q p := by
   have : IsProbabilityMeasure (μ.map (coordinate 0)) :=
     (Measure.isProbabilityMeasure_map_iff (measurable_coordinate 0).aemeasurable).2
       inferInstance
@@ -99,20 +91,19 @@ theorem existsUnique_pmf_eq_chainLaw (hQ : IsGenerator Q) (μ : Measure (Path ι
 /-- Started in state `i`, the chain is in state `j` at time `t` with probability
 `transition Q t i j`. This holds for every state `i`. -/
 theorem chainLaw_pure_coordinate (hQ : IsGenerator Q) (i j : ι) (t : ℝ≥0) :
-    chainLaw hQ (PMF.pure i) {ω | ω t = j} = ENNReal.ofReal (transition Q t i j) := by
+    chainLaw Q (PMF.pure i) {ω | ω t = j} = ENNReal.ofReal (transition Q t i j) := by
   have h := congrArg (fun μ : Measure ι => μ {j})
-    (pathMeasure_coordinate Q i (PMF.pure i) t)
+    (chainLaw_coordinate Q (PMF.pure i) t)
   simp only [PMF.pure_bind] at h
   rw [Measure.map_apply (measurable_coordinate t) (measurableSet_singleton j),
     PMF.toMeasure_apply_singleton _ _ (measurableSet_singleton j), step_apply hQ] at h
-  rw [chainLaw_eq_pathMeasure hQ i]
   exact h
 
 /-- The laws from the single states determine the generator. No state has to be visited
 by one particular process. -/
 theorem eq_of_chainLaw_pure_eq {Q' : Matrix ι ι ℝ} (hQ : IsGenerator Q)
     (hQ' : IsGenerator Q')
-    (h : ∀ i, chainLaw hQ (PMF.pure i) = chainLaw hQ' (PMF.pure i)) : Q = Q' := by
+    (h : ∀ i, chainLaw Q (PMF.pure i) = chainLaw Q' (PMF.pure i)) : Q = Q' := by
   refine transition_injective fun t => ?_
   ext i j
   have h1 := chainLaw_pure_coordinate hQ i j t

@@ -12,14 +12,14 @@ new state using only the previous state and the elapsed time. This is a
 finite-dimensional formulation of the Markov property; no division by the
 probability of a possibly null history is required.
 
-For a generator, the coordinate process under the path measure is a
+For a generator, the coordinate process under the law of the chain is a
 time-homogeneous Markov process whose transition probabilities are the transition
-matrices. These are `pathMeasure_isHomogeneousMarkovProcess` and
-`pathMeasure_hasTransition`.
+matrices. These are `chainLaw_isHomogeneousMarkovProcess` and
+`chainLaw_hasTransition`.
 
 The sampling law is stated for an increasing list of times. The Markov property in
 `Process.MarkovProperty` is stated for a finite set of earlier times.
-`pathMeasure_markovPropertyProduct` passes from one to the other by listing the set in
+`chainLaw_markovPropertyProduct` passes from one to the other by listing the set in
 increasing order.
 -/
 
@@ -123,14 +123,14 @@ local instance : MeasurableSpace (List ι) := ⊤
 
 section Observations
 
-variable (Q : Matrix ι ι ℝ) (d : ι)
+variable (Q : Matrix ι ι ℝ)
 
 /-- The probability of a finite observed history at strictly increasing times is given
 by the Markov sampling law. In particular each transition depends only on the last
 state. -/
-theorem pathMeasure_observations_eq (p : PMF ι) (ts : List ℝ≥0)
+theorem chainLaw_observations_eq (p : PMF ι) (ts : List ℝ≥0)
     (ho : ts.SortedLT) (xs : List ι) :
-    pathMeasure Q d p {ω | observations ts ω = xs} =
+    chainLaw Q p {ω | observations ts ω = xs} =
       (p.bind (fun i => sampleStates Q 0 i ts)) xs := by
   let I := ts.toFinset
   let f : (I → ι) → List ι := fun x =>
@@ -141,32 +141,32 @@ theorem pathMeasure_observations_eq (p : PMF ι) (ts : List ℝ≥0)
     simp [f, Finset.restrict, observations]
   have hm : Measurable (observations (ι := ι) ts) :=
     he ▸ hf.comp (Finset.measurable_restrict I)
-  have h := congrArg (Measure.map f) (pathMeasure_isProjectiveLimit Q d p I)
+  have h := congrArg (Measure.map f) (chainLaw_isProjectiveLimit Q p I)
   rw [Measure.map_map hf (Finset.measurable_restrict I), he,
     PMF.toMeasure_map _ _ hf] at h
-  change pathMeasure Q d p (observations ts ⁻¹' {xs}) = _
+  change chainLaw Q p (observations ts ⁻¹' {xs}) = _
   rw [← Measure.map_apply hm (measurableSet_singleton xs), h,
     PMF.toMeasure_apply_singleton _ xs (measurableSet_singleton xs)]
   congr 1
   rw [finiteLaw, PMF.map_comp, he]
-  exact sampledPath_observations Q d p ts ho
+  exact sampledPath_observations Q (filler p) p ts ho
 
 end Observations
 
 variable {Q : Matrix ι ι ℝ}
 
-/-- After any observed history ending in state `i` at time `s`, the path measure
+/-- After any observed history ending in state `i` at time `s`, the law of the chain
 gives state `j` at time `t` the probability `transition Q (t - s) i j`. -/
-private theorem pathMeasure_history_step (hQ : IsGenerator Q) (d : ι) (p : PMF ι)
+private theorem chainLaw_history_step (hQ : IsGenerator Q) (p : PMF ι)
     (ts : List ℝ≥0) (xs : List ι) (s t : ℝ≥0) (i j : ι) (ho : (ts ++ [s, t]).SortedLT)
     (hlen : ts.length = xs.length) :
-    pathMeasure Q d p {ω | observations (ts ++ [s, t]) ω = xs ++ [i, j]} =
-      pathMeasure Q d p {ω | observations (ts ++ [s]) ω = xs ++ [i]} *
+    chainLaw Q p {ω | observations (ts ++ [s, t]) ω = xs ++ [i, j]} =
+      chainLaw Q p {ω | observations (ts ++ [s]) ω = xs ++ [i]} *
         ENNReal.ofReal (transition Q (↑(t - s) : ℝ) i j) := by
   have hprefix : (ts ++ [s]).SortedLT :=
     (ho.pairwise.sublist (List.Sublist.append_left (by simp) ts)).sortedLT
-  rw [pathMeasure_observations_eq Q d p _ ho,
-    pathMeasure_observations_eq Q d p _ hprefix]
+  rw [chainLaw_observations_eq Q p _ ho,
+    chainLaw_observations_eq Q p _ hprefix]
   simp only [PMF.bind_apply, ← ENNReal.tsum_mul_right]
   apply tsum_congr
   intro k
@@ -176,21 +176,21 @@ private theorem pathMeasure_history_step (hQ : IsGenerator Q) (d : ι) (p : PMF 
     List.getLastD_concat, step_apply hQ, NNReal.coe_sub, mul_assoc] using congrArg (p k * ·) hh
 
 /-- Two-time probabilities, including the probability of the current state. -/
-theorem pathMeasure_two_times (hQ : IsGenerator Q) (d : ι) (p : PMF ι)
+theorem chainLaw_two_times (hQ : IsGenerator Q) (p : PMF ι)
     (s t : ℝ≥0) (hst : s < t) (i j : ι) :
-    pathMeasure Q d p {ω | ω s = i ∧ ω t = j} =
-      pathMeasure Q d p {ω | ω s = i} * ENNReal.ofReal (transition Q (↑(t - s) : ℝ) i j) := by
-  have h := pathMeasure_history_step hQ d p [] [] s t i j
+    chainLaw Q p {ω | ω s = i ∧ ω t = j} =
+      chainLaw Q p {ω | ω s = i} * ENNReal.ofReal (transition Q (↑(t - s) : ℝ) i j) := by
+  have h := chainLaw_history_step hQ p [] [] s t i j
     (by simp [List.sortedLT_iff_pairwise, hst]) rfl
   simpa [observations] using h
 
 /-- For a generator, the transition probabilities of the coordinate process under the
-path measure are the transition matrices. -/
-theorem pathMeasure_hasTransition (hQ : IsGenerator Q) (d : ι) (p : PMF ι) :
-    HasTransition Q coordinate (pathMeasure Q d p) := by
+law of the chain are the transition matrices. -/
+theorem chainLaw_hasTransition (hQ : IsGenerator Q) (p : PMF ι) :
+    HasTransition Q coordinate (chainLaw Q p) := by
   intro s t i j
-  change pathMeasure Q d p {ω | ω s = i ∧ ω (s + t) = j} =
-    pathMeasure Q d p {ω | ω s = i} * _
+  change chainLaw Q p {ω | ω s = i ∧ ω (s + t) = j} =
+    chainLaw Q p {ω | ω s = i} * _
   rcases eq_or_lt_of_le (zero_le (a := t)) with rfl | ht
   · by_cases hij : i = j
     · subst hij
@@ -202,13 +202,13 @@ theorem pathMeasure_hasTransition (hQ : IsGenerator Q) (d : ι) (p : PMF ι) :
         exact hij (h1.symm.trans h2)
       rw [e, measure_empty]
       simp [hij]
-  · rw [pathMeasure_two_times hQ d p s (s + t) (lt_add_of_pos_right s ht) i j,
+  · rw [chainLaw_two_times hQ p s (s + t) (lt_add_of_pos_right s ht) i j,
       add_tsub_cancel_left]
 
-/-- For a generator, the coordinate process under the path measure has the Markov
-property. -/
-theorem pathMeasure_markovPropertyProduct (hQ : IsGenerator Q) (d : ι) (p : PMF ι) :
-    MarkovPropertyProduct coordinate (pathMeasure Q d p) := by
+/-- For a generator, the coordinate process under the law of the chain has the
+Markov property. -/
+theorem chainLaw_markovPropertyProduct (hQ : IsGenerator Q) (p : PMF ι) :
+    MarkovPropertyProduct coordinate (chainLaw Q p) := by
   intro F x s t i j hF hst
   -- list the earlier times in increasing order
   have hmem : ∀ u, u ∈ F.sort (· ≤ ·) ↔ u ∈ F := fun u => Finset.mem_sort _
@@ -252,16 +252,16 @@ theorem pathMeasure_markovPropertyProduct (hQ : IsGenerator Q) (d : ι) (p : PMF
       simp only [List.map_cons, List.map_nil, List.cons.injEq, and_true] at h2
       exact ⟨h1, h2⟩
   rw [e1, e2]
-  change _ * pathMeasure Q d p {ω | ω s = i} = _ * pathMeasure Q d p {ω | ω s = i ∧ ω t = j}
-  rw [pathMeasure_history_step hQ d p _ _ s t i j ho hlen,
-    pathMeasure_two_times hQ d p s t hst i j]
+  change _ * chainLaw Q p {ω | ω s = i} = _ * chainLaw Q p {ω | ω s = i ∧ ω t = j}
+  rw [chainLaw_history_step hQ p _ _ s t i j ho hlen,
+    chainLaw_two_times hQ p s t hst i j]
   ring
 
-/-- For a generator, the coordinate process under the path measure is a
+/-- For a generator, the coordinate process under the law of the chain is a
 time-homogeneous Markov process. -/
-theorem pathMeasure_isHomogeneousMarkovProcess (hQ : IsGenerator Q) (d : ι) (p : PMF ι) :
-    IsHomogeneousMarkovProcess coordinate (pathMeasure Q d p) :=
-  (pathMeasure_hasTransition hQ d p).isHomogeneousMarkovProcess measurable_coordinate
-    (pathMeasure_markovPropertyProduct hQ d p)
+theorem chainLaw_isHomogeneousMarkovProcess (hQ : IsGenerator Q) (p : PMF ι) :
+    IsHomogeneousMarkovProcess coordinate (chainLaw Q p) :=
+  (chainLaw_hasTransition hQ p).isHomogeneousMarkovProcess measurable_coordinate
+    (chainLaw_markovPropertyProduct hQ p)
 
 end SympyProofs.FiniteMarkovChain

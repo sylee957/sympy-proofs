@@ -12,7 +12,7 @@ time-homogeneous Markov process on it that starts from `p` and has the transitio
 probabilities of `Q`. This is `exists_process_of_isGenerator`.
 
 The statement mentions no measure on paths. The proof uses one: the process is the
-coordinate process on the space of paths, under `pathMeasure Q d p`. The rest of this
+coordinate process on the space of paths, under `chainLaw Q p`. The rest of this
 folder exists to construct that measure and to prove these properties of it.
 -/
 
@@ -35,9 +35,8 @@ theorem exists_process_of_isGenerator {Q : Matrix ι ι ℝ} (hQ : IsGenerator Q
     ∃ (Ω : Type u) (_ : MeasurableSpace Ω) (P : Measure Ω) (X : ℝ≥0 → Ω → ι),
       IsProbabilityMeasure P ∧ P.map (X 0) = p.toMeasure ∧
         IsHomogeneousMarkovProcess X P ∧ HasTransition Q X P := by
-  obtain ⟨d, -⟩ := p.support_nonempty
-  exact ⟨Path ι, inferInstance, pathMeasure Q d p, coordinate, inferInstance,
-    pathMeasure_initial Q d p, pathMeasure_isHomogeneousMarkovProcess hQ d p,
-    pathMeasure_hasTransition hQ d p⟩
+  exact ⟨Path ι, inferInstance, chainLaw Q p, coordinate, inferInstance,
+    chainLaw_initial Q p, chainLaw_isHomogeneousMarkovProcess hQ p,
+    chainLaw_hasTransition hQ p⟩
 
 end SympyProofs.FiniteMarkovChain

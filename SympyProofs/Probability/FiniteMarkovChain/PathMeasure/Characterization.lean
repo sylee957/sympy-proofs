@@ -3,21 +3,15 @@ module
 public import SympyProofs.Probability.FiniteMarkovChain.PathMeasure.MarkovLaw
 
 /-!
-# The path measure is the unique law of the chain
+# The law of the chain is unique
 
 Fix a generator `Q` and an initial distribution `p`. Exactly one measure on paths
 makes the coordinate process start from `p`, be a time-homogeneous Markov process, and
-have the transition probabilities of `Q`. This is `existsUnique_pathMeasure`, and
-`eq_pathMeasure_iff` shows that the measure is `pathMeasure Q d p`.
+have the transition probabilities of `Q`. This is `existsUnique_chainLaw`, and
+`eq_chainLaw_iff` shows that the measure is `chainLaw Q p`.
 
-So the path measure is determined by the chain it describes and not by how it was
-constructed. In particular it does not depend on the filler state `d`, which is
-`pathMeasure_filler`.
-
-`chainLaw hQ p` names that one measure without the construction: it is defined as the
-measure that `existsUnique_pathMeasure` says exists. It needs the proof `hQ` that `Q` is
-a generator, and it mentions no filler state. It equals `pathMeasure Q d p` for every
-`d`, by `chainLaw_eq_pathMeasure`.
+So the law of the chain is determined by the chain it describes and not by how it was
+constructed.
 
 The process itself is not unique. The same chain lives on many probability spaces, and
 on one space two different processes can have the same probabilities at every finite
@@ -29,7 +23,7 @@ a time-homogeneous Markov process with the same transition probabilities.
 
 So the uniqueness holds for processes on any probability space. A time-homogeneous
 Markov process that starts from `p` and has the transition probabilities of `Q` has
-`chainLaw hQ p` as its law on paths, by
+`chainLaw Q p` as its law on paths, by
 `IsHomogeneousMarkovProcess.law_eq_chainLaw`. Two such processes with the same law
 at time `0` have the same law on paths, even on different probability spaces, by
 `IsHomogeneousMarkovProcess.law_eq`. The second statement needs no generator: any
@@ -324,89 +318,35 @@ theorem HasTransition.observations_eq {μ ν : Measure (Path ι)} [IsFiniteMeasu
         hνt.step hνm.markov l' xs' s t i j ho' hl'
       rw [e1, e2, sμ, sν, ih hprefix (xs' ++ [i]) hl]
 
-/-- A measure on paths is the path measure exactly when the coordinate process starts
-from `p`, is a time-homogeneous Markov process, and has the transition probabilities
-of `Q`. -/
-theorem eq_pathMeasure_iff (hQ : IsGenerator Q) (d : ι) (p : PMF ι) (μ : Measure (Path ι)) :
-    μ = pathMeasure Q d p ↔
+/-- A measure on paths is the law of the chain exactly when the coordinate process
+starts from `p`, is a time-homogeneous Markov process, and has the transition
+probabilities of `Q`. -/
+theorem eq_chainLaw_iff (hQ : IsGenerator Q) (p : PMF ι) (μ : Measure (Path ι)) :
+    μ = chainLaw Q p ↔
       μ.map (coordinate 0) = p.toMeasure ∧ IsHomogeneousMarkovProcess coordinate μ ∧
         HasTransition Q coordinate μ := by
   constructor
   · rintro rfl
-    exact ⟨pathMeasure_initial Q d p, pathMeasure_isHomogeneousMarkovProcess hQ d p,
-      pathMeasure_hasTransition hQ d p⟩
+    exact ⟨chainLaw_initial Q p, chainLaw_isHomogeneousMarkovProcess hQ p,
+      chainLaw_hasTransition hQ p⟩
   · rintro ⟨h0, hm, ht⟩
     have hprob : IsProbabilityMeasure μ := by
       refine ⟨?_⟩
       have h := congrArg (fun m : Measure ι => m Set.univ) h0
       simpa [Measure.map_apply (measurable_coordinate 0) MeasurableSet.univ] using h
     exact measure_ext_observations fun ts ho xs =>
-      ht.observations_eq hm (pathMeasure_hasTransition hQ d p)
-        (pathMeasure_isHomogeneousMarkovProcess hQ d p)
-        (h0.trans (pathMeasure_initial Q d p).symm) ts ho xs
+      ht.observations_eq hm (chainLaw_hasTransition hQ p)
+        (chainLaw_isHomogeneousMarkovProcess hQ p)
+        (h0.trans (chainLaw_initial Q p).symm) ts ho xs
 
 /-- For a generator `Q` and an initial distribution `p`, exactly one measure on paths
 makes the coordinate process start from `p`, be a time-homogeneous Markov process, and
 have the transition probabilities of `Q`. -/
-theorem existsUnique_pathMeasure (hQ : IsGenerator Q) (p : PMF ι) :
+theorem existsUnique_chainLaw (hQ : IsGenerator Q) (p : PMF ι) :
     ∃! μ : Measure (Path ι),
       μ.map (coordinate 0) = p.toMeasure ∧ IsHomogeneousMarkovProcess coordinate μ ∧
-        HasTransition Q coordinate μ := by
-  obtain ⟨d, -⟩ := p.support_nonempty
-  exact ⟨pathMeasure Q d p, (eq_pathMeasure_iff hQ d p _).1 rfl,
-    fun μ h => (eq_pathMeasure_iff hQ d p μ).2 h⟩
-
-/-- The path measure does not depend on the filler state. -/
-theorem pathMeasure_filler (hQ : IsGenerator Q) (d d' : ι) (p : PMF ι) :
-    pathMeasure Q d p = pathMeasure Q d' p :=
-  (eq_pathMeasure_iff hQ d' p _).2 ((eq_pathMeasure_iff hQ d p _).1 rfl)
-
-/-! ### The law of the chain, named without the construction -/
-
-/-- The law on paths of the chain with generator `Q` that starts from `p`. It is defined
-as the one measure of `existsUnique_pathMeasure`, so it mentions no filler state. -/
-noncomputable def chainLaw (hQ : IsGenerator Q) (p : PMF ι) : Measure (Path ι) :=
-  (existsUnique_pathMeasure hQ p).choose
-
-/-- A measure on paths is the law of the chain exactly when the coordinate process
-starts from `p`, is a time-homogeneous Markov process, and has the transition
-probabilities of `Q`. -/
-theorem eq_chainLaw_iff (hQ : IsGenerator Q) (p : PMF ι) (μ : Measure (Path ι)) :
-    μ = chainLaw hQ p ↔
-      μ.map (coordinate 0) = p.toMeasure ∧ IsHomogeneousMarkovProcess coordinate μ ∧
-        HasTransition Q coordinate μ := by
-  constructor
-  · rintro rfl
-    exact (existsUnique_pathMeasure hQ p).choose_spec.1
-  · exact fun h => (existsUnique_pathMeasure hQ p).choose_spec.2 μ h
-
-/-- The law of the chain is the constructed path measure, for any filler state. -/
-theorem chainLaw_eq_pathMeasure (hQ : IsGenerator Q) (d : ι) (p : PMF ι) :
-    chainLaw hQ p = pathMeasure Q d p :=
-  (eq_pathMeasure_iff hQ d p _).2 ((eq_chainLaw_iff hQ p _).1 rfl)
-
-instance chainLaw_isProbabilityMeasure (hQ : IsGenerator Q) (p : PMF ι) :
-    IsProbabilityMeasure (chainLaw hQ p) := by
-  obtain ⟨d, -⟩ := p.support_nonempty
-  rw [chainLaw_eq_pathMeasure hQ d p]
-  infer_instance
-
-/-- Under the law of the chain the state at time `0` has the law `p`. -/
-@[simp] theorem chainLaw_initial (hQ : IsGenerator Q) (p : PMF ι) :
-    (chainLaw hQ p).map (coordinate 0) = p.toMeasure :=
-  ((eq_chainLaw_iff hQ p _).1 rfl).1
-
-/-- Under the law of the chain the coordinate process is a time-homogeneous Markov
-process. -/
-theorem chainLaw_isHomogeneousMarkovProcess (hQ : IsGenerator Q) (p : PMF ι) :
-    IsHomogeneousMarkovProcess coordinate (chainLaw hQ p) :=
-  ((eq_chainLaw_iff hQ p _).1 rfl).2.1
-
-/-- Under the law of the chain the coordinate process has the transition probabilities
-of `Q`. -/
-theorem chainLaw_hasTransition (hQ : IsGenerator Q) (p : PMF ι) :
-    HasTransition Q coordinate (chainLaw hQ p) :=
-  ((eq_chainLaw_iff hQ p _).1 rfl).2.2
+        HasTransition Q coordinate μ :=
+  ⟨chainLaw Q p, (eq_chainLaw_iff hQ p _).1 rfl, fun μ h => (eq_chainLaw_iff hQ p μ).2 h⟩
 
 /-! ### The law of a process on any probability space -/
 
@@ -420,7 +360,7 @@ probabilities of the generator `Q` has the law of the chain as its law on paths.
 theorem IsHomogeneousMarkovProcess.law_eq_chainLaw (hQ : IsGenerator Q) (p : PMF ι)
     (h : IsHomogeneousMarkovProcess X P) (ht : HasTransition Q X P)
     (h0 : P.map (X 0) = p.toMeasure) :
-    P.map (fun ω u => X u ω) = chainLaw hQ p := by
+    P.map (fun ω u => X u ω) = chainLaw Q p := by
   have hΦ : Measurable fun ω (u : ℝ≥0) => X u ω := Measurable.of_eval h.measurable
   refine (eq_chainLaw_iff hQ p _).2 ⟨?_, h.law, ht.law h.measurable⟩
   rw [Measure.map_map (measurable_coordinate 0) hΦ]
