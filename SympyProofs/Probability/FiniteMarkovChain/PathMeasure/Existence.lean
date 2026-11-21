@@ -1,6 +1,7 @@
 module
 
 public import SympyProofs.Probability.FiniteMarkovChain.PathMeasure.MarkovLaw
+public import SympyProofs.Probability.FiniteMarkovChain.Process.Bundled
 
 /-!
 # Every generator has a process
@@ -9,7 +10,8 @@ public import SympyProofs.Probability.FiniteMarkovChain.PathMeasure.MarkovLaw
 the transition probabilities of a generator. This file is the converse. For every
 generator `Q` and every initial distribution `p` there is a probability space with a
 time-homogeneous Markov process on it that starts from `p` and has the transition
-probabilities of `Q`. This is `exists_process_of_isGenerator`.
+probabilities of `Q`. This is `exists_process_of_isGenerator`. The space and the process
+are given together, as a `Process ι`.
 
 The statement mentions no measure on paths. The proof uses one: the process is the
 coordinate process on the space of paths, under `chainLaw Q p`. The rest of this
@@ -32,11 +34,9 @@ variable {ι : Type u} [Fintype ι] [DecidableEq ι] [MeasurableSpace ι]
 Markov process that starts from that distribution and has the transition probabilities
 of the generator. -/
 theorem exists_process_of_isGenerator {Q : Matrix ι ι ℝ} (hQ : IsGenerator Q) (p : PMF ι) :
-    ∃ (Ω : Type u) (_ : MeasurableSpace Ω) (P : Measure Ω) (X : ℝ≥0 → Ω → ι),
-      IsProbabilityMeasure P ∧ P.map (X 0) = p.toMeasure ∧
-        IsHomogeneousMarkovProcess X P ∧ HasTransition Q X P := by
-  exact ⟨Path ι, inferInstance, chainLaw Q p, coordinate, inferInstance,
-    chainLaw_initial Q p, chainLaw_isHomogeneousMarkovProcess hQ p,
-    chainLaw_hasTransition hQ p⟩
+    ∃ S : Process ι, S.P.map (S.X 0) = p.toMeasure ∧
+      IsHomogeneousMarkovProcess S.X S.P ∧ HasTransition Q S.X S.P :=
+  ⟨⟨Path ι, chainLaw Q p, coordinate⟩, chainLaw_initial Q p,
+    chainLaw_isHomogeneousMarkovProcess hQ p, chainLaw_hasTransition hQ p⟩
 
 end SympyProofs.FiniteMarkovChain

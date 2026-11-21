@@ -3,6 +3,7 @@ import SympyProofs.Probability.FiniteMarkovChain.Process.MarkovProperty
 import SympyProofs.Probability.FiniteMarkovChain.Process.Homogeneous
 import SympyProofs.Probability.FiniteMarkovChain.Process.Continuous
 import SympyProofs.Probability.FiniteMarkovChain.Process.Basic
+import SympyProofs.Probability.FiniteMarkovChain.Process.Bundled
 import SympyProofs.Probability.FiniteMarkovChain.Process.Transition
 import SympyProofs.Probability.FiniteMarkovChain.Process.Generator
 
@@ -25,6 +26,10 @@ a product.
 
 `Basic` states what it means for a process to be a time-homogeneous Markov process,
 `IsHomogeneousMarkovProcess`. It mentions no matrix.
+
+`Bundled` packs a probability space and a process on it into one object, `Process ι`,
+for statements that say "some process" or "every process". It assumes nothing about
+how the process moves.
 
 `Transition` states what it means for a matrix to give the transition probabilities
 of a process, `HasTransition`. Such a matrix is determined at the row of every state
