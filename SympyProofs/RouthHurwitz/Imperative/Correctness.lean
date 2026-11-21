@@ -22,35 +22,42 @@ private theorem run_outcome (p : Polynomial ℝ) (hp : p ≠ 0) :
     apply Std.WP.Id.of_run_eq_wp h
     vcgen [run, hn] invariants
     · fun pref _ ⟨upper, lower, _, count, degenerate⟩ =>
-        LoopInvariant p (p.natDegree-(pref.length+1))
+        LoopInvariant p (natDegree p-(pref.length+1))
           (rowFunction upper) (rowFunction lower) count degenerate
     case vc1 => exact (hn ‹_ = 0›).elim
-    case vc2 =>
+    case vc2 => exact (hn ‹_ = 0›).elim
+    case vc3 =>
       have h0 := rowFunction_initial p 0
       have h1 := rowFunction_initial p 1
-      let u := initialRow p.natDegree (descendingCoefficients p) 0
-      let v := repairRow p.natDegree (width p.natDegree) u
-        (initialRow p.natDegree (descendingCoefficients p) 1)
+      let u := initialRow (natDegree p) (descendingCoefficients p) 0
+      let v := repairRow (natDegree p) (width (natDegree p)) u
+        (initialRow (natDegree p) (descendingCoefficients p) 1)
       have h := LoopInvariant.start p hp (by omega)
-      change LoopInvariant p (p.natDegree-1) u v _ _ at h
-      have hv := rowFunction_tabulate_degree p.natDegree (p.natDegree-1) v (by omega) h.lower_support
+      change LoopInvariant p (natDegree p-1) u v _ _ at h
+      have hv := rowFunction_tabulate_degree (natDegree p) (natDegree p-1) v (by omega)
+        h.lower_support
       dsimp only [width] at h0 h1 hv
       simp +zetaDelta only [repair_eq, h0, h1]
-      change LoopInvariant p (p.natDegree-1) u (rowFunction (tabulate (p.natDegree / 2 + 1) v)) _ _
+      change LoopInvariant p (natDegree p-1) u (rowFunction (tabulate (natDegree p / 2 + 1) v)) _ _
       rw [hv]
       simpa [initial, initialCoefficients, initialRow, descendingCoefficients, tabulate, u, v] using h
-    case vc3 =>
+    case vc4 =>
       have hi := ‹LoopInvariant p _ _ _ _ _›
       simp only [List.length_range] at hi
-      rw [show p.natDegree - (p.natDegree - 1 + 1) = 0 by omega] at hi
-      exact hi.finish hp
-    case vc4 =>
-      rename_i pref k suff hsplit u v rs c dg hi _ _ _
+      rw [show natDegree p - (natDegree p - 1 + 1) = 0 by omega] at hi
+      exact (hi.finish hp).1
+    case vc5 =>
+      have hi := ‹LoopInvariant p _ _ _ _ _›
+      simp only [List.length_range] at hi
+      rw [show natDegree p - (natDegree p - 1 + 1) = 0 by omega] at hi
+      exact (hi.finish hp).2
+    case vc6 =>
+      rename_i pref k suff hsplit u v rs c dg hi
       obtain ⟨hkpos, hlt⟩ := range_split hsplit
-      have hk : k+2 ≤ p.natDegree := by omega
+      have hk : k+2 ≤ natDegree p := by omega
       rw [← hkpos] at hi
       simp only [List.length_append, List.length_singleton, ← hkpos]
-      let n := p.natDegree
+      let n := natDegree p
       change LoopInvariant p (n-(k+1)) (rowFunction u) (rowFunction v) c dg at hi
       let w : Fin (width n + 1) := ⟨activeWidth n (k+2), Nat.lt_succ_of_le (activeWidth_le n _)⟩
       let raw := Vector.ofFn (fun j : Fin (width n) =>
@@ -63,7 +70,8 @@ private theorem run_outcome (p : Polynomial ℝ) (hp : p ≠ 0) :
         by_cases hj : j < activeWidth n (k+2)
         · have hj' := next_index_lt n k j hj
           dsimp only [n] at hj hj'
-          simp +zetaDelta [rowFunction, hj, show j < width p.natDegree by omega, hj', boundedNextRow, nextRow]
+          simp +zetaDelta [rowFunction, hj, show j < width (natDegree p) by omega, hj',
+            boundedNextRow, nextRow]
         · simp only [rowFunction, raw, Vector.getElem_ofFn, boundedNextRow]
           split_ifs <;> simp_all
       have hs : ∀ j, n-(k+2) < 2*j → rowFunction raw j = 0 := by

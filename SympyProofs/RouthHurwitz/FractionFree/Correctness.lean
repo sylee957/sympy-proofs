@@ -95,35 +95,41 @@ private theorem run_outcome (p : Polynomial ℝ) (hp : p ≠ 0) :
     vcgen invariants
     · fun pref _ ⟨upper, lower, _, count, degenerate, divisor, nextDivisor⟩ =>
         ∃ u v : Row ℝ,
-          Scaled upper (tabulate (width p.natDegree) u) ∧
-          Scaled lower (tabulate (width p.natDegree) v) ∧
-          LoopInvariant p (p.natDegree-(pref.length+1)) u v count degenerate ∧
+          Scaled upper (tabulate (width (natDegree p)) u) ∧
+          Scaled lower (tabulate (width (natDegree p)) v) ∧
+          LoopInvariant p (natDegree p-(pref.length+1)) u v count degenerate ∧
           0 < divisor ∧ 0 < nextDivisor
     case vc1 => exact (hn ‹_ = 0›).elim
-    case vc2 =>
+    case vc2 => exact (hn ‹_ = 0›).elim
+    case vc3 =>
       have h0 := rowFunction_initial p 0
       have h1 := rowFunction_initial p 1
       dsimp only [width, initial] at h0 h1
       simp +zetaDelta only [repair_eq, h0, h1]
-      let u := initialRow p.natDegree (descendingCoefficients p) 0
-      let v := repairRow p.natDegree (width p.natDegree) u
-        (initialRow p.natDegree (descendingCoefficients p) 1)
+      let u := initialRow (natDegree p) (descendingCoefficients p) 0
+      let v := repairRow (natDegree p) (width (natDegree p)) u
+        (initialRow (natDegree p) (descendingCoefficients p) 1)
       refine ⟨u, v, scaled_refl _, scaled_refl _, ?_, zero_lt_one, zero_lt_one⟩
       have h := LoopInvariant.start p hp (by omega)
       simpa [u, v, initial, initialCoefficients, initialRow, descendingCoefficients, tabulate,
         mul_neg_iff, div_neg_iff] using h
-    case vc3 =>
+    case vc4 =>
       obtain ⟨u, v, _, _, hm, _, _⟩ := ‹∃ u v : Row ℝ, _›
       simp only [List.length_range] at hm
-      rw [show p.natDegree - (p.natDegree - 1 + 1) = 0 by omega] at hm
-      exact hm.finish hp
-    case vc4 =>
-      rename_i pref k suff hsplit up lo rs cnt dg dv nd hi _ _ _ _ _
+      rw [show natDegree p - (natDegree p - 1 + 1) = 0 by omega] at hm
+      exact (hm.finish hp).1
+    case vc5 =>
+      obtain ⟨u, v, _, _, hm, _, _⟩ := ‹∃ u v : Row ℝ, _›
+      simp only [List.length_range] at hm
+      rw [show natDegree p - (natDegree p - 1 + 1) = 0 by omega] at hm
+      exact (hm.finish hp).2
+    case vc6 =>
+      rename_i pref k suff hsplit up lo rs cnt dg dv nd hi
       obtain ⟨hkpos, hlt⟩ := range_split hsplit
-      have hk : k+2 ≤ p.natDegree := by omega
+      have hk : k+2 ≤ natDegree p := by omega
       simp only [← hkpos] at hi
       simp only [List.length_append, List.length_singleton, ← hkpos]
-      let n := p.natDegree
+      let n := natDegree p
       obtain ⟨u, v, hu, hl, hm, hd, hnext⟩ := hi
       let w : Fin (width n + 1) := ⟨activeWidth n (k+2), Nat.lt_succ_of_le (activeWidth_le n _)⟩
       let raw := Vector.ofFn (fun j : Fin (width n) =>

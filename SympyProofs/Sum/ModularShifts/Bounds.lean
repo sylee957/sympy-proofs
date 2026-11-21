@@ -13,7 +13,7 @@ private theorem cauchyBound_le_radius (p : Polynomial ℚ) :
     ((p.map (algebraMap ℚ ℂ)).cauchyBound : ℝ) ≤ (radius p : ℝ) := by
   unfold Polynomial.cauchyBound radius
   simp only [natDegree_map, leadingCoeff_map, coeff_map, NNReal.coe_add, NNReal.coe_div,
-    NNReal.coe_one, coe_nnnorm]
+    NNReal.coe_one, coe_nnNorm]
   push_cast
   change (((Finset.range p.natDegree).sup (fun i => ‖(p.coeff i : ℂ)‖₊) : NNReal) : ℝ) /
       ‖(p.leadingCoeff : ℂ)‖ + 1 ≤
@@ -26,7 +26,7 @@ private theorem cauchyBound_le_radius (p : Polynomial ℚ) :
     apply Finset.sup_le
     intro i hi
     exact Finset.single_le_sum (f := fun i => ‖(p.coeff i : ℂ)‖₊) (fun _ _ => zero_le) hi
-  simpa only [NNReal.coe_sum, coe_nnnorm, Complex.norm_ratCast] using
+  simpa only [NNReal.coe_sum, coe_nnNorm, Complex.norm_ratCast] using
     (show (((Finset.range p.natDegree).sup (fun i => ‖(p.coeff i : ℂ)‖₊) : NNReal) : ℝ) ≤
       ((∑ i ∈ Finset.range p.natDegree, ‖(p.coeff i : ℂ)‖₊ : NNReal) : ℝ) from hs)
 

@@ -28,7 +28,7 @@ theorem differentiable_etaFactor : Differentiable ℂ etaFactor := by
     (((differentiableAt_const 1).sub differentiableAt_id).const_cpow (Or.inl (by norm_num)))
 
 theorem isOpen_etaDomain : IsOpen etaDomain :=
-  (isOpen_lt continuous_const Complex.continuous_re).inter
+  (isOpen_lt continuous_const Complex.continuous_re).and
     (isOpen_ne_fun differentiable_etaFactor.continuous continuous_const)
 
 theorem etaFactor_ne_zero {s : ℂ} (hs : s ∈ rightHalfPlane) : etaFactor s ≠ 0 := by

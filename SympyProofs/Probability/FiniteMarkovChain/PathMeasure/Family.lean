@@ -57,10 +57,10 @@ theorem chainLaw_eq_sum (p : PMF ι) :
   refine (chainLaw_isProjectiveLimit Q p).unique fun I => ?_
   ext S hS
   change _ = (finiteLaw Q (filler p) p I).toMeasure S
-  rw [Measure.map_apply (Finset.measurable_restrict I) hS, Measure.coe_finsetSum,
+  rw [Measure.map_apply (Finset.measurable_restrict I) hS, FunLike.coe_sum,
     Finset.sum_apply, finiteLaw_eq_bind, PMF.toMeasure_bind_apply _ _ _ hS, tsum_fintype]
   refine Finset.sum_congr rfl fun i _ => ?_
-  rw [Measure.smul_apply, smul_eq_mul,
+  rw [smul_apply, smul_eq_mul,
     ← Measure.map_apply (Finset.measurable_restrict I) hS,
     chainLaw_isProjectiveLimit Q (PMF.pure i) I, filler_eq (PMF.pure i) p]
 

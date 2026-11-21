@@ -66,7 +66,7 @@ theorem truncatedKrylov_linearIndependent (K : Subfield ℂ) {n ℓ : ℕ}
     apply low_degree_aeval_injective_on_kernel K A f q hf hne _ ℓ u hu hqann
     simpa [degree_eq_natDegree hf.ne_zero] using degree_sum_fin_lt c
   have hcoeff := congrArg (fun p : K[X] => p.coeff i) hq
-  simpa [q, C_mul_X_pow_eq_monomial, coeff_monomial, Fin.val_eq_val,
+  simpa [q, C_mul_X_pow_eq_monomial, coeff_monomial_apply, Finsupp.single_apply, Fin.val_eq_val,
     Finset.sum_ite_eq'] using hcoeff
 
 /-- Every nonzero vector in the first Krylov block has the same f-rank as u. -/
@@ -245,7 +245,7 @@ theorem krylovLayers_independent (K : Subfield ℂ) {n ℓ : ℕ}
   have hall : ∀ t : ℕ, ∀ i : Fin ℓ, i.val = t → i ∈ s → v i = 0 := by
     intro t
     induction t using Nat.strong_induction_on with
-    | h t ih =>
+    | ind t ih =>
       intro i hit his
       apply layer_eq_zero_of_mem_previous_kernel K A f hf u hu hprev i (v i) (hv i his)
       rw [mem_powerKernel]

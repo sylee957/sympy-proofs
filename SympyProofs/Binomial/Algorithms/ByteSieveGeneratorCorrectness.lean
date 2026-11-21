@@ -187,9 +187,10 @@ theorem sieve_spec (limit : ℕ) :
       ∀ i, i < size current → getByte current i =
         if Nat.Prime (2 * i + 1) ∨ 3 + 2 * pref.length ≤ (2 * i + 1).minFac then 1 else 0
   case vc1 =>
-    rename_i old jp hpos
-    refine ⟨by simp [bytes, old], ?_⟩
-    intro i hi
+    rename_i old hpos
+    simp [bytes, old]
+  case vc2 =>
+    rename_i old hpos i hi
     have hi' : i < (limit + 1)/2 := by simpa [bytes, old] using hi
     dsimp only [bytes]
     rw [get_set! _ _ _ hpos]
@@ -199,10 +200,12 @@ theorem sieve_spec (limit : ℕ) :
       have hf := odd_minFac (m := 2 * i + 1) (by omega)
       have hf2 := (Nat.minFac_prime (show 2 * i + 1 ≠ 1 by omega)).two_le
       simp [show 3 ≤ (2 * i + 1).minFac by omega]
-  case vc5 =>
-    rename_i jp hempty
-    exact ⟨by simp [bytes], fun i hi => False.elim (by omega)⟩
-  case vc2 | vc6 =>
+  case vc6 =>
+    simp [bytes]
+  case vc7 =>
+    rename_i hempty i hi
+    exact False.elim (by omega)
+  case vc3 | vc8 =>
     rename_i current hinv i hi
     rw [hinv.2 i hi]
     have hstop : limit.sqrt < 3 + 2 * (ForIn.toList [3:limit.sqrt + 1:2]).length := by
@@ -216,7 +219,7 @@ theorem sieve_spec (limit : ℕ) :
       have hs := Nat.le_sqrt'.mpr (hf.trans hle)
       simp only [hp, false_or, ite_false, show ¬3 + 2 * (ForIn.toList [3:limit.sqrt + 1:2]).length ≤
         (2 * i + 1).minFac by omega]
-  case vc3 | vc7 =>
+  case vc4 | vc9 =>
     rename_i pref p suff hs current hinv hnonzero
     have hpidx := range_index hs
     have hmem : p ∈ ([3:limit.sqrt + 1:2] : Std.Legacy.Range) :=
@@ -245,7 +248,7 @@ theorem sieve_spec (limit : ℕ) :
     rw [show 3 + 2 * (pref.length + 1) = p + 2 by omega, ← hpidx]
     simp only [hstep]
     split_ifs <;> simp_all; omega
-  case vc4 | vc8 =>
+  case vc5 | vc10 =>
     rename_i pref p suff hs current hinv hzero
     have hpidx := range_index hs
     have hmem : p ∈ ([3:limit.sqrt + 1:2] : Std.Legacy.Range) :=

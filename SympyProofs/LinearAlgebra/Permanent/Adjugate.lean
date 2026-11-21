@@ -72,7 +72,7 @@ theorem permanentalAdjugate_transpose {R : Type*} [CommSemiring R]
 theorem permanentalAdjugate_mul_apply {R : Type*} [CommSemiring R]
     [Fintype n] [DecidableEq n] (A : Matrix n n R) (i j : n) :
     (permanentalAdjugate A * A) i j = (A.updateCol i (fun k => A k j)).permanent := by
-  rw [mul_apply, permanent_updateCol_eq_sum]
+  rw [Matrix.mul_apply, permanent_updateCol_eq_sum]
 
 /-- Entries of the reverse product are permanents with a replaced row. -/
 theorem mul_permanentalAdjugate_apply {R : Type*} [CommSemiring R]

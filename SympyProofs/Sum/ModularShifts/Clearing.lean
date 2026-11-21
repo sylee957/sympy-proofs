@@ -23,7 +23,7 @@ theorem coeff_den_dvd_commonDenominator (p : Polynomial ℚ) (i : ℕ) :
     (clearDenominators p).coeff i =
       (p.coeff i).num * (commonDenominator p / (p.coeff i).den : ℕ) := by
   classical
-  simp +contextual [clearDenominators, Polynomial.sum_def, coeff_monomial]
+  simp +contextual [clearDenominators, Polynomial.sum_def, Finsupp.single_apply]
 
 theorem map_clearDenominators (p : Polynomial ℚ) :
     (clearDenominators p).map (Int.castRingHom ℚ) = C (commonDenominator p : ℚ) * p := by

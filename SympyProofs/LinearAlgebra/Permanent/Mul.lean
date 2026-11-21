@@ -16,7 +16,7 @@ theorem permanent_mul_eq_sum {m n R : Type*} [CommSemiring R]
     (A * B).permanent =
       ∑ f : n → m, (A.submatrix id f).permanent * ∏ j, B (f j) j := by
   classical
-  simp only [permanent, mul_apply, Fintype.prod_sum]
+  simp only [permanent, Matrix.mul_apply, Fintype.prod_sum]
   rw [Finset.sum_comm]
   apply Finset.sum_congr rfl
   intro f _

@@ -69,7 +69,7 @@ private theorem ψ_swap (K : Subfield ℂ) (f : K[X]) :
 private theorem coeff_swap (K : Subfield ℂ) (q : Polynomial K[X]) (i j : ℕ) :
     ((Bivariate.swap q).coeff i).coeff j = (q.coeff j).coeff i := by
   induction q using Polynomial.induction_on' with
-  | add q r hq hr => simp [map_add, coeff_add, hq, hr]
+  | add q r hq hr => simp [map_add, hq, hr]
   | monomial k a =>
     simp only [Bivariate.swap_monomial, coeff_mul_C, coeff_map, coeff_C_mul,
       coeff_X_pow, coeff_monomial]

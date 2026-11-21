@@ -119,7 +119,8 @@ theorem factorization_choose_eq_borrowCount {p n k : ℕ} (hp : p.Prime) (hk : k
 /-- The same theorem using mathlib's natural-valued `p`-adic valuation. -/
 theorem padicValNat_choose_eq_borrowCount {p n k : ℕ} (hp : p.Prime) (hk : k ≤ n) :
     padicValNat p (n.choose k) = borrowCount p n k := by
-  rw [← Nat.factorization_def _ hp, factorization_choose_eq_borrowCount hp hk]
+  rw [Nat.padicValNat_def, ← Nat.factorization_def _ hp,
+    factorization_choose_eq_borrowCount hp hk]
 
 /-- The digit-sum form of Kummer's theorem, with natural subtraction. -/
 theorem sub_one_mul_factorization_choose {p n k : ℕ} (hp : p.Prime) (hk : k ≤ n) :
@@ -127,7 +128,7 @@ theorem sub_one_mul_factorization_choose {p n k : ℕ} (hp : p.Prime) (hk : k �
       (p.digits k).sum + (p.digits (n - k)).sum - (p.digits n).sum := by
   let : Fact p.Prime := ⟨hp⟩
   rw [Nat.factorization_def _ hp]
-  exact sub_one_mul_padicValNat_choose_eq_sub_sum_digits hk
+  exact sub_one_mul_multiplicity_choose_eq_sub_sum_digits hk
 
 /-- At base two, digit sums are population counts and the factor `p - 1` disappears. -/
 theorem factorization_choose_two {n k : ℕ} (hk : k ≤ n) :
@@ -138,7 +139,8 @@ theorem factorization_choose_two {n k : ℕ} (hk : k ≤ n) :
 /-- Kummer's theorem applies to our integer binomial on the nonzero natural triangle. -/
 theorem padicValInt_choose_natCast {p n k : ℕ} (hp : p.Prime) (hk : k ≤ n) :
     padicValInt p (SympyBinomial.choose (n : ℤ) (k : ℤ)) = borrowCount p n k := by
-  rw [SympyBinomial.choose_natCast_natCast, padicValInt, Int.natAbs_natCast]
+  rw [SympyBinomial.choose_natCast_natCast, padicValInt, Int.natAbs_natCast,
+    ← Nat.padicValNat_def]
   exact padicValNat_choose_eq_borrowCount hp hk
 
 /-- For upper argument `-(m+1)`, the sign has no effect on prime multiplicity. -/

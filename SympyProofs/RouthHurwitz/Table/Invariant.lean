@@ -65,7 +65,7 @@ private theorem encoded_pair_ne_zero (d : ℕ) (u v : Row ℝ) (hu : u 0 ≠ 0) 
     (encodeRow (d + 1) u + encodeRow d v).map Complex.ofRealHom ≠ 0 := by
   intro h
   have hh := congrArg (fun p : ℂ[X] => p.coeff (d + 1)) h
-  simp [coeff_map, coeff_add, coeff_encodeRow] at hh
+  simp [coeff_map, coeff_encodeRow] at hh
   exact hu hh
 
 private theorem axis_eq_mul_I (z : ℂ) (hz : z.re = 0) : z = z.im * Complex.I := by

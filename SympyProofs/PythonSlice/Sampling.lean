@@ -290,7 +290,7 @@ theorem sample_eq_pmap {α : Type*} {n : ℕ} (v : Fin n → α)
     convert h using 1
     cases hraw : r.start <;> cases hstop : r.stop <;>
       simp [f, l, hraw, hstop, source, hstep, Id.run, arrayIntGetElem] <;>
-      (try split_ifs) <;> first | omega | congr 3
+      split_ifs <;> first | omega | congr 3
   · simp -zeta only [hp, dite_false]
     let f : ℤ := if let some x := r.start then
         if x < 0 then x + n else x

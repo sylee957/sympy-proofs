@@ -114,7 +114,7 @@ theorem exists_minusOne_lower_limit_of_ne_zero {x : ℝ} (hx : x ≠ 0) :
     linarith
   let C : NNReal := ⟨2 / δ, le_of_lt (div_pos (by norm_num) hδ)⟩
   have hLip : LipschitzOnWith C (branch (-1)) S := by
-    apply Convex.lipschitzOnWith_of_nnnorm_deriv_le
+    apply Convex.lipschitzOnWith_of_nnNorm_deriv_le (s := S)
       (fun z hz => ((analyticOnNhd_branch (-1)) _ (Or.inr (ne_of_lt hz.1))).differentiableAt)
     · intro z hz
       exact norm_deriv_minusOne_le_of_im_neg hz.1 hδ (hnorm z hz)

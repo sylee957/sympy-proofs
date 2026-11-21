@@ -59,7 +59,7 @@ structure Operations.IsCorrect (K : Type*) [Field K]
 theorem Operations.IsCorrect.reducedPower_eq (K : Subfield ℂ)
     [Operations K] (hops : Operations.IsCorrect K) (f : K[X]) (k : ℕ) :
     Operations.reducedPower f k = ψPower K f k := by
-  ext j : 1
+  ext j : 2
   exact hops.reducedPower_coeff f k j
 
 end SympyProofs.JordanKrylov

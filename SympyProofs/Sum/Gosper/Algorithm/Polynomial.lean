@@ -30,7 +30,7 @@ theorem rat_isInteger_iff_den_eq_one (q : ℚ) : IsInteger ℤ q ↔ q.den = 1 :
   · rintro ⟨z, rfl⟩
     exact Rat.den_intCast z
   · intro h
-    exact ⟨q.num, Rat.coe_int_num_of_den_eq_one h⟩
+    exact ⟨q.num, Rat.intCast_num_of_den_eq_one h⟩
 
 /-- Decide integer membership over the rational coefficient field without classical choice. -/
 instance ratDecidableIsInteger : DecidablePred (IsInteger ℤ : ℚ → Prop) := fun q =>

@@ -28,7 +28,7 @@ section Exponential
 
 variable [FiniteDimensional ℂ V]
 
-local instance : CompleteSpace V := FiniteDimensional.complete ℂ V
+local instance : CompleteSpace V := FiniteDimensional.completeSpace ℂ V
 
 noncomputable def endExp (f : End ℂ V) : End ℂ V :=
   (End.toContinuousLinearMap V).symm

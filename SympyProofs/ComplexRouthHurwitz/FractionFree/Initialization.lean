@@ -129,7 +129,7 @@ theorem initialRows_pack {N} (p : ℂ[X]) (n : ℕ) (hd : p.natDegree=n) (hN : n
   · simp [firstLower,hb]
   · simp only [hb, ite_false, firstLower]
     apply Vector.ext; intro j hj
-    simp [Coefficients.pack, coeff_sub, coeff_C_mul]
+    simp [Coefficients.pack, coeff_C_mul]
     rw [← map_mul, coeff_C_mul]
 
 theorem initialDivisor_pack {N} (p : ℂ[X]) (n : ℕ) (hd : p.natDegree=n) (hN : n<N) :

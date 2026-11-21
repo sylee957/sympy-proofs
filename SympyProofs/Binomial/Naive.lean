@@ -111,7 +111,7 @@ theorem evalCore_eq_choose (n : ℤ) (k : ℕ) : evalCore n k = choose n (k : �
   · fun pref suff (d, result) =>
       d = n - (suff.length : ℤ) ∧ result = (pref.length.factorial : ℤ) * Ring.choose d pref.length
   case vc1 =>
-    rename_i hn jp hnk
+    rename_i hn hnk
     change n < (k : ℤ) at hnk
     rw [choose_int_eq]
     have hlt : n.toNat < k := by omega
@@ -119,7 +119,7 @@ theorem evalCore_eq_choose (n : ℤ) (k : ℕ) : evalCore n k = choose n (k : �
   case vc2 | vc5 | vc8 =>
     simp [d]
   case vc3 =>
-    rename_i k0 hn jp hnk hhalf oldD oldResult hi
+    rename_i k0 hn hnk hhalf oldD oldResult hi
     have hi' : oldD = n ∧ oldResult = Ring.choose oldD k := by simpa using hi
     rw [hi'.2, hi'.1]
     exact choose_reflected n (k0 : ℤ) hn (by omega) (le_of_not_gt hnk)

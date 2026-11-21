@@ -76,7 +76,7 @@ theorem differentiableAt_mellinExtension {s : ℂ} (hs : s ≠ 1) :
   exact (((Gaussian.differentiable_entirePart s).sub
     ((differentiableAt_const 1).div ((differentiableAt_const 1).sub differentiableAt_id) hden)).mul
       (differentiable_Gammaℝ_inv s)).sub
-    (((differentiable_Gammaℝ_inv (s + 2)).comp s (differentiableAt_id.add_const 2)).div_const _)
+    (((differentiable_Gammaℝ_inv.comp (differentiable_id.add_const 2)) s).div_const _)
 
 theorem analyticOnNhd_mellinExtension : AnalyticOnNhd ℂ mellinExtension {1}ᶜ :=
   (show DifferentiableOn ℂ mellinExtension {1}ᶜ from

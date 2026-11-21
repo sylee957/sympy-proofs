@@ -106,10 +106,10 @@ private theorem inverseMod_eq_halfEuclid (a b : Polynomial ℚ) :
   vcgen invariants
   · fun pref _ (r, previous, u, previousU) =>
       halfEuclid r previous u previousU = halfEuclid a b 1 0 ∧
-      (r ≠ 0 → r.natDegree + pref.length < a.natDegree + 1)
+      (r ≠ 0 → natDegree r + pref.length < natDegree a + 1)
   case vc1 => simp
   case vc2 =>
-    rename_i r previous u previousU hi s1 s2
+    rename_i r previous u previousU hi
     have hr : r = 0 := by
       by_contra hr
       have h := hi.2 hr
@@ -121,16 +121,16 @@ private theorem inverseMod_eq_halfEuclid (a b : Polynomial ℚ) :
     simp only [↓reduceDIte] at h
     rw [← h]
   case vc3 =>
-    rename_i pref cur suff hs r previous u previousU hi s1 s2 hr
+    rename_i pref cur suff hs r previous u previousU hi hr
     exact ⟨hi.1, fun h => (h hr).elim⟩
   case vc4 =>
-    rename_i pref cur suff hs r previous u previousU hi s1 s2 hr
+    rename_i pref cur suff hs r previous u previousU hi hr
     refine ⟨?_, ?_⟩
     · have h := hi.1
       rw [halfEuclid, dite_eq_right hr] at h
       exact h
     · intro hn
-      have hdeg : next.natDegree < r.natDegree :=
+      have hdeg : natDegree next < natDegree r :=
         natDegree_lt_natDegree hn (degree_mod_lt _ hr)
       have hbound := hi.2 hr
       simp only [List.length_append, List.length_singleton]

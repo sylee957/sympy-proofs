@@ -189,7 +189,7 @@ theorem iteratedDeriv_eq_mul_expBellFactor {f g : 𝕜 → 𝕜} {x : 𝕜} (n :
     (hode : deriv g =ᶠ[𝓝 x] fun x => deriv f x * g x) :
     iteratedDeriv n g x = g x * expBellFactor f n x := by
   induction n using Nat.strong_induction_on with
-  | h n ih =>
+  | ind n ih =>
     cases n with
     | zero => simp
     | succ n =>

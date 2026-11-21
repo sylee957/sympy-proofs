@@ -224,14 +224,14 @@ theorem primeExponents_eq_choose (n k : Value I)
     · simpa [c] using sub_le_self (toInt n) hk0
     · simpa [c, hc] using factorial_exponent_sub (toNat n) (toNat k) prime hkN
   case vc5 =>
-    rename_i pref prime suff hs old hprod a b c e hinv _ _ hne
+    rename_i pref prime suff hs old hprod a b c e hinv hne
     have heq := exponent_finish I (toNat n) (toNat k) prime a b c e
       (hinv.2.2.2.2.2.2 rfl) hinv.2.1 hinv.2.2.1 hinv.2.2.2.1 hinv.2.2.2.2.1
       hinv.2.2.2.2.2.1
     have he0 : 0 ≤ toInt e := by rw [heq]; positivity
     simp [factors, List.map_append, toInt_pow _ _ he0, p, heq, hprod]
   case vc6 =>
-    rename_i pref prime suff hs old hprod a b c e hinv _ _ he0
+    rename_i pref prime suff hs old hprod a b c e hinv he0
     have heq := exponent_finish I (toNat n) (toNat k) prime a b c e
       (hinv.2.2.2.2.2.2 rfl) hinv.2.1 hinv.2.2.1 hinv.2.2.2.1 hinv.2.2.2.2.1
       hinv.2.2.2.2.2.1
@@ -239,10 +239,10 @@ theorem primeExponents_eq_choose (n k : Value I)
     have hz : ((toNat n).choose (toNat k)).factorization prime = 0 := by omega
     simpa [List.map_append, hz] using hprod
   case vc7 =>
-    rename_i pref prime suff hs old hprod initialC a0 b0 c0 e0 measure hinv _ _ hne
+    rename_i pref prime suff hs old hprod initialC a0 b0 c0 e0 measure hinv hne
     have hp := prime_of_visit hs
     simp only [Std.WP.Variant.evalsTo_ofMeasure, Std.WP.Assertion.NondetFun.evalsTo_pure,
-      Lean.Order.ofProp_prop_eq, Lean.Order.meet_prop_eq_and,
+      Lean.Order.CompleteLattice.ofProp_prop_eq, Lean.Order.meet_prop_eq_and,
       Bool.false_eq_true, false_implies, and_true] at hinv
     rcases hinv with ⟨hm, ha0, hb0, hc0, hba, hca, he⟩
     have hane : toInt a0 ≠ 0 := by simpa using hne
@@ -255,7 +255,7 @@ theorem primeExponents_eq_choose (n k : Value I)
     have nb := toNat_div_of_nonneg b0 prime hb0 hp.ne_zero
     have nc := toNat_div_of_nonneg c0 prime hc0 hp.ne_zero
     dsimp only [a, b, c, e, p]
-    simp only [Std.WP.Variant.evalsBelow_ofMeasure_nat, Lean.Order.ofProp_prop_eq,
+    simp only [Std.WP.Variant.evalsBelow_ofMeasure_nat, Lean.Order.CompleteLattice.ofProp_prop_eq,
       Lean.Order.meet_prop_eq_and, Bool.false_eq_true, false_implies, and_true,
       toInt_add, toInt_sub, da, db, dc, na, nb, nc]
     refine ⟨?_, Int.natCast_nonneg _, Int.natCast_nonneg _, Int.natCast_nonneg _, ?_, ?_, ?_⟩
@@ -270,9 +270,9 @@ theorem primeExponents_eq_choose (n k : Value I)
       simp only [Int.natCast_add] at he
       linear_combination he
   case vc8 =>
-    rename_i pref prime suff hs old hprod a b c e measure hinv _ _ ha0
+    rename_i pref prime suff hs old hprod a b c e measure hinv ha0
     simp only [Std.WP.Variant.evalsTo_ofMeasure, Std.WP.Assertion.NondetFun.evalsTo_pure,
-      Lean.Order.ofProp_prop_eq, Lean.Order.meet_prop_eq_and,
+      Lean.Order.CompleteLattice.ofProp_prop_eq, Lean.Order.meet_prop_eq_and,
       Bool.false_eq_true, false_implies, and_true] at hinv
     have ha : toInt a = 0 := by simpa using ha0
     exact ⟨hinv.2.1, hinv.2.2.1, hinv.2.2.2.1, hinv.2.2.2.2.1,

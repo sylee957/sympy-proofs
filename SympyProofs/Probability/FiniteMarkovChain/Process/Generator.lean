@@ -84,7 +84,8 @@ private theorem measure_two_times (h : IsHomogeneousMarkovProcess X P)
     (s d : ℝ≥0) (i j : ι) :
     P {ω | X s ω = i ∧ X (s + d) ω = j} = P {ω | X s ω = i} * moveProb X P d i j := by
   by_cases hs : P {ω | X s ω = i} = 0
-  · rw [measure_mono_null (fun ω hω => hω.1) hs, hs, zero_mul]
+  · have hsub : {ω | X s ω = i ∧ X (s + d) ω = j} ⊆ {ω | X s ω = i} := fun ω hω => hω.1
+    rw [measure_mono_null hsub hs, hs, zero_mul]
   · have hv : ∃ s : ℝ≥0, P {ω | X s ω = i} ≠ 0 := ⟨s, hs⟩
     have e := h.homogeneous s hv.choose d i j
     simp only [moveProb, hv, ↓reduceDIte]

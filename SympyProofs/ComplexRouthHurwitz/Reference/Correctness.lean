@@ -39,34 +39,34 @@ theorem run_counts_correct (p : ℂ[X]) (hp : p ≠ 0) :
     apply Std.WP.Id.of_run_eq_wp h
     vcgen invariants
     · fun pref _ s => ∃ t : Proofs.Locals,
-        Proofs.atLocals q (p.natDegree-pref.length) t ∧ s = Proofs.encode (p.natDegree+1) t
+        Proofs.atLocals q (natDegree p-pref.length) t ∧ s = Proofs.encode (natDegree p+1) t
     case vc1 => exact (hn ‹_ = 0›).elim
     case vc2 =>
-      refine ⟨Proofs.initial q p.natDegree, ?_, ?_⟩
+      refine ⟨Proofs.initial q (natDegree p), ?_, ?_⟩
       · simpa only [List.length_nil, Nat.sub_zero] using
-          Proofs.initial_inv q p.natDegree (by omega) hqd hqm
+          Proofs.initial_inv q (natDegree p) (by omega) hqd hqm
       · simp +zetaDelta only [hcoeff, Coefficients.scan_pack, Proofs.encode, Proofs.initial,
         List.map_nil]
     case vc3 =>
       obtain ⟨t, hi, he⟩ := ‹∃ t : Proofs.Locals, _›
       simp +zetaDelta only [List.length_range, Nat.sub_self] at hi
       have hf := hi.finish
-      have hc := congrArg (fun s : Proofs.VectorLocals (p.natDegree+1) => s.2.2.2.2.1) he
-      have ha := congrArg (fun s : Proofs.VectorLocals (p.natDegree+1) =>
+      have hc := congrArg (fun s : Proofs.VectorLocals (natDegree p+1) => s.2.2.2.2.1) he
+      have ha := congrArg (fun s : Proofs.VectorLocals (natDegree p+1) =>
         axisTotal s.2.2.2.2.2 s.2.2.2.2.1) he
       exact ⟨hc.trans (hf.1.trans hs.1), ha.trans (hf.2.trans hs.2)⟩
     case vc4 | vc5 =>
-      rename_i pref k suff hsplit u v rs ps c aux hi _ _ _ _ hbranch
+      rename_i pref k suff hsplit u v rs ps c aux hi hbranch
       obtain ⟨hk, hlt⟩ := Imperative.Bounds.range_split hsplit
       obtain ⟨t, ht, he⟩ := hi
       rw [← hk] at ht
-      have heq : Proofs.vectorStep p.natDegree k (u, v, rs, ps, c, aux) =
-          Proofs.encode (p.natDegree+1) (Proofs.step p.natDegree k t) := by
+      have heq : Proofs.vectorStep (natDegree p) k (u, v, rs, ps, c, aux) =
+          Proofs.encode (natDegree p+1) (Proofs.step (natDegree p) k t) := by
         rw [he]
-        exact Proofs.vectorStep_encode q p.natDegree k hlt t ht
-      refine ⟨Proofs.step p.natDegree k t, ?_, ?_⟩
+        exact Proofs.vectorStep_encode q (natDegree p) k hlt t ht
+      refine ⟨Proofs.step (natDegree p) k t, ?_, ?_⟩
       · simpa only [List.length_append, List.length_singleton, ← hk] using
-          Proofs.step_inv q p.natDegree k hlt t ht
+          Proofs.step_inv q (natDegree p) k hlt t ht
       · dsimp only [d, n] at hbranch
         simpa +zetaDelta only [Proofs.vectorStep, hbranch, ite_true, ite_false] using heq
 

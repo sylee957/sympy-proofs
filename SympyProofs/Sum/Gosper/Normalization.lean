@@ -63,7 +63,7 @@ theorem exists_normalForm (A B : K[X]) (hA : A ≠ 0) (hB : B ≠ 0) :
       A * (taylor (-1) p * r) = B * (p * q) := by
   classical
   induction hn : A.natDegree using Nat.strong_induction_on generalizing A B with
-  | h n ih =>
+  | ind n ih =>
     by_cases hnorm : ShiftCoprime A B
     · exact ⟨1, A, B, one_ne_zero, hA, hB, hnorm, by simp [mul_comm]⟩
     obtain ⟨j, hj⟩ : ∃ j : ℕ, ¬IsCoprime A (taylor (j : K) B) := by

@@ -46,6 +46,8 @@ theorem matchFactors_spec {m : ℕ} (p q : Polynomial ℤ)
       rename_i pref f suff hs old hi
       exact fun pref _ found => found.toList.Nodup ∧
         ∀ h, h ∈ found ↔ h ∈ old ∨ ∃ g ∈ pref, PairProduces p q f g h
+  case vc1 => simp +zetaDelta
+  case vc2 => simp +zetaDelta
   all_goals simp_all [PairProduces]
   all_goals grind
 

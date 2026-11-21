@@ -84,7 +84,7 @@ theorem entrywiseNorm_apply (A : Matrix m n 𝕜) :
     entrywiseNorm A =
       ((Finset.univ.sup fun i => Finset.univ.sup fun j => ‖A i j‖₊ : ℝ≥0) : ℝ) := by
   open scoped Matrix.Norms.Elementwise in
-    exact Matrix.norm_eq_sup_sup_nnnorm A
+    exact Matrix.norm_eq_sup_sup_nnNorm A
 
 theorem frobeniusNorm_apply (A : Matrix m n 𝕜) :
     frobeniusNorm A = Real.sqrt (∑ i, ∑ j, ‖A i j‖ ^ 2) := by

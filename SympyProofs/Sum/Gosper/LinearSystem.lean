@@ -35,7 +35,8 @@ theorem coefficientMatrix_mulVec (p q r : K[X]) (N : ℕ) (c : Fin (N + 1) → K
       (operator q r (ofFn (N + 1) c)).coeff i := by
   rw [ofFn_eq_sum_monomial, map_sum]
   simp only [Matrix.mulVec, dotProduct, coefficientMatrix, finsetSum_coeff,
-    ← C_mul_X_pow_eq_monomial, ← smul_eq_C_mul, map_smul, coeff_smul, smul_eq_mul]
+    ← C_mul_X_pow_eq_monomial, ← smul_eq_C_mul, map_smul, AddMonoidAlgebra.coeff_smul_apply,
+    smul_eq_mul]
   apply Finset.sum_congr rfl
   intro j _
   ring

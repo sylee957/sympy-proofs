@@ -51,7 +51,7 @@ theorem reduce_eq_model (ops : ShiftlessDecomposition.Primitives ℚ)
     simp only [Model.prepareGroup, ← hm] at ho
     rw [← ho]
   case vc7 =>
-    rename_i gp g gs hg cs rs hi m hm op o os ho cs ns hi cs' ns' A' hd state
+    rename_i gp g gs hg cs rs hi m hm op o os ho cs ns hi cs' ns' A' hd
     simp only [Std.Internal.ForIn.toList_range, Std.Legacy.Range.size,
       Nat.sub_zero, Nat.add_sub_cancel, Nat.div_one, ← List.range_eq_range'] at hd
     simp only [List.map_append, List.map_cons, List.map_nil, List.foldl_append,
@@ -60,7 +60,7 @@ theorem reduce_eq_model (ops : ShiftlessDecomposition.Primitives ℚ)
       (List.foldl _ (cs, ns, A) (List.range o.multiplicity)).2.1)
     rw [← hd]
   case vc8 | vc9 =>
-    rename_i gp g gs hg cs rs hi m hm op o os ho cs ns hi jp j js hj cs' ns' a ha state oldDigit hpos
+    rename_i gp g gs hg cs rs hi m hm _ op o os ho cs ns hi _ jp j js hj cs' ns' a ha oldDigit hpos
     rw [List.foldl_append, List.foldl_cons, List.foldl_nil, ← ha]
     simp only [Model.digit, Model.prepareOccurrence, Model.prepareGroup, hpos, ite_true, ite_false]
     rfl

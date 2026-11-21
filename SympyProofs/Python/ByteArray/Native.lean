@@ -42,7 +42,7 @@ theorem findByte_spec (bytes : ByteArray) (value : UInt8) (start : ℕ) :
       match ret with
       | none => ∀ i ∈ pref, bytes[i]! ≠ value
       | some result => suff = [] ∧ FindSpec bytes value start result
-  all_goals try simp_all +zetaDelta [FindSpec]
+  all_goals simp_all +zetaDelta [FindSpec]
   case vc3 =>
     rename_i ret state hinv hret
     intro i hstart hi
@@ -151,8 +151,10 @@ theorem setSlice_spec (bytes : PythonByteArray.Native) (start step : ℕ)
       ∀ j, current[j]! = if j ∈ pref then replacement.contents[(j - start) / step]!
         else bytes.storage[j]!
   case vc1 => simp +zetaDelta [size]
-  case vc2 => simp_all +zetaDelta [size]
-  case vc3 =>
+  case vc2 => simp_all +zetaDelta
+  case vc3 => simp_all +zetaDelta [size]
+  case vc4 => simp_all +zetaDelta [size]
+  case vc5 =>
     rename_i pref i suff hs current hinv
     dsimp +zetaDelta only
     have hmem : i ∈ ForIn.toList (⟨start, bytes.size, step, hstep⟩ : Std.Legacy.Range) := by

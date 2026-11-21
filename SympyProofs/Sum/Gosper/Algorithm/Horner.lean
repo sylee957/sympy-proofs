@@ -145,7 +145,7 @@ theorem fusedBackSub_invariant (steps : List (EliminationStep K L n)) (A B : L[X
 
 theorem monomialSum_coeff (x : Vector L n) (j : Fin n) :
     (∑ k : Fin n, monomial k.val x[k.val]).coeff j.val = x[j.val] := by
-  simp [finsetSum_coeff, coeff_monomial, Fin.val_inj]
+  simp [Finsupp.single_apply, Fin.val_inj]
 
 theorem polynomial_backStep_eq (step : EliminationStep K L n) (d : K) (x : Vector L n) :
     C (algebraMap K L step.2.1) * (∑ j : Fin n, monomial j.val x[j.val]) +

@@ -116,7 +116,8 @@ theorem exists_minusOne_upper_puiseux :
 theorem tendsto_norm_minusOne_upper_zero :
     Tendsto (fun z => ‖(branch (-1)) z‖) (𝓝[{z : ℂ | 0 < z.im}] 0) atTop := by
   have ht := tendsto_norm_middle_zero.mono_left
-    (nhdsWithin_mono (0 : ℂ) (fun _ hz => Or.inl (ne_of_gt hz)))
+    (nhdsWithin_mono (0 : ℂ) (show {z : ℂ | 0 < z.im} ⊆ middleDomain from
+      fun z (hz : 0 < z.im) => Or.inl (ne_of_gt hz)))
   apply ht.congr'
   filter_upwards [self_mem_nhdsWithin] with z hz
   rw [middle_eq_branch_neg_one_of_im_pos hz]

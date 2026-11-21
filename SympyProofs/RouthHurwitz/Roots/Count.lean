@@ -92,8 +92,8 @@ theorem exists_uniform_root_bound {T : Type*} [TopologicalSpace T] [CompactSpace
     ∃ M : ℝ, ∀ t z, (p t).IsRoot z → ‖z‖ ≤ M := by
   let b : T → ℝ := fun t => (∑ i ∈ Finset.range n, ‖(p t).coeff i‖) / ‖(p t).coeff n‖ + 1
   have hb : Continuous b := by
-    apply Continuous.add _ continuous_const
-    apply Continuous.div
+    apply Continuous.fun_add _ continuous_const
+    apply Continuous.div₀
     · exact continuous_finsetSum _ (fun i _ => (hc i).norm)
     · exact (hc n).norm
     · intro t
@@ -114,7 +114,7 @@ theorem exists_uniform_root_bound {T : Type*} [TopologicalSpace T] [CompactSpace
   apply hh'.trans
   dsimp [b]
   gcongr
-  simpa only [NNReal.coe_sum, coe_nnnorm] using (NNReal.coe_le_coe.mpr hsup)
+  simpa only [NNReal.coe_sum, coe_nnNorm] using (NNReal.coe_le_coe.mpr hsup)
 
 /-- On a compact family of fixed-degree polynomials with a constant
 imaginary-axis root count, the right-half-plane root count is continuous
@@ -271,7 +271,7 @@ theorem rightCount_eq_of_connected_axisCount {T : Type*} [TopologicalSpace T]
     (hc : ∀ i, Continuous (fun t => (p t).coeff i))
     (haxis : ∀ t, axisCount (p t) = m) (s t : T) :
     rightCount (p s) = rightCount (p t) :=
-  PreconnectedSpace.constant inferInstance (continuous_rightCount_of_axisCount p n m hp hd hc haxis)
+  (continuous_rightCount_of_axisCount p n m hp hd hc haxis).isConst_of_preconnectedSpace s t
 
 /-- Pointwise equality of imaginary-axis multiplicities gives equality of
 the total imaginary-axis counts, including repeated roots. -/

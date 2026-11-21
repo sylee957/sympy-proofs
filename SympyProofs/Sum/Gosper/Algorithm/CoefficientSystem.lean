@@ -45,7 +45,8 @@ theorem coefficientSystem_mulVec_bounded [DecidableEq K] {L : Type*} [Semiring L
       (forwardOperator A B (ofFn (d + 1) c)).coeff i := by
   rw [ofFn_eq_sum_monomial, map_sum]
   simp only [Matrix.mulVec, dotProduct, coefficientSystem, finsetSum_coeff,
-    ← C_mul_X_pow_eq_monomial, ← smul_eq_C_mul, map_smul, coeff_smul, smul_eq_mul]
+    ← C_mul_X_pow_eq_monomial, ← smul_eq_C_mul, map_smul, AddMonoidAlgebra.coeff_smul_apply,
+    smul_eq_mul]
   apply Finset.sum_congr rfl
   intro j _
   ring
@@ -101,7 +102,7 @@ theorem coefficientSystem_mulVec_extension_bounded (A B : K[X]) (C : L[X])
   rw [ofFn_eq_sum_monomial, map_sum]
   simp only [Matrix.mulVec, dotProduct, coefficientSystem, Matrix.map_apply,
     finsetSum_coeff, ← C_mul_X_pow_eq_monomial, ← smul_eq_C_mul, map_smul,
-    coeff_smul, smul_eq_mul]
+    AddMonoidAlgebra.coeff_smul_apply, smul_eq_mul]
   apply Finset.sum_congr rfl
   intro j _
   rw [hentry]

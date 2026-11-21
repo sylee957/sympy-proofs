@@ -127,7 +127,8 @@ theorem hasSum_sq_mul_pow {A : Matrix n n 𝕜} (h : Summable (fun k : ℕ => A 
   have h2 : A * (1 + A) * (1 - A)⁻¹ ^ 3 = A * (1 - A)⁻¹ ^ 2 + 2 * A ^ 2 * (1 - A)⁻¹ ^ 3 := by
     rw [h1]
     noncomm_ring
-  simpa [h2, Finset.sum_range_succ, stirlingSecond_one_right, stirlingSecond_self] using
+  rw [h2]
+  simpa [Finset.sum_range_succ, stirlingSecond_one_right, stirlingSecond_self] using
     hasSum_pow_mul_pow h 2
 
 end SympyProofs.NeumannSeries

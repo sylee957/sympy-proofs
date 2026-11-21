@@ -82,16 +82,17 @@ theorem rref_spec (A : Vector (Vector F n) m) :
   vcgen invariants
   · fun pref _ (rows, pivots, rank) => DenseInvariant (toMatrix A) rows pivots pref.length rank
   · by
-    rename_i pref c suff hs before pivots rank hi rest hbound
+    rename_i pref c suff hs before pivots rank hi hbound
     exact fun pref _ (selected, a) =>
       (∀ r, selected = some r → rank ≤ r.val ∧ before[r.val][c.val] ≠ 0 ∧ a = before[r.val][c.val]) ∧
       (selected = none → ∀ i : Fin m, i.val ∈ pref → before[i.val][c.val] = 0)
   · by
-    rename_i cols c cs hcs before pivots rank hc rest hbound selectedValue a hscan r hselected
+    rename_i cols c cs hcs before pivots rank hc hbound selectedValue a hscan r hselected
     exact fun pref _ entry => ∀ j : Fin n,
       entry[j.val] = if j.val ∈ pref then rows[p.val][j.val] * scale else rows[p.val][j.val]
   · by
-    rename_i cols c cs hcs before pivots rank hc rest hbound selectedValue a hscan r hselected swapped initialPivot done hdone
+    rename_i cols c cs hcs before pivots rank hc hbound selectedValue a hscan r hselected
+      swapped initialPivot done hdone
     exact fun pref _ current => ∀ i : Fin m,
       current[i.val] = if i ∈ pref then (crossRows rows c p)[i.val] else rows[i.val]
   · fun pref _ entry => ∀ j : Fin n,
@@ -101,13 +102,13 @@ theorem rref_spec (A : Vector (Vector F n) m) :
       by intro i q; simp +zetaDelta, by intro i k q t; simp +zetaDelta⟩
     constructor <;> simp +zetaDelta
   case vc2 =>
-    rename_i rows pivots rank h rest
+    rename_i rows pivots rank h
     exact ⟨rank, by simpa using h⟩
   case vc3 => simp +zetaDelta
   case vc4 => simp +zetaDelta
   case vc5 => simp
   case vc6 =>
-    rename_i cols c cs hcs before oldPivots rank0 hc rest hbound selectedValue a hscan r hselected
+    rename_i cols c cs hcs before oldPivots rank0 hc hbound selectedValue a hscan r hselected
       swapped initialPivot done hdone after hafter
     have hp := hscan.1 r hselected
     have hpn : oldPivots[p.val] = none := (hc.unused_iff p).mpr (by simp [p])
@@ -126,7 +127,7 @@ theorem rref_spec (A : Vector (Vector F n) m) :
       simpa [rows, hpeq, normalizedRows] using hafter ⟨i, hi⟩
     simpa [pivots, rank, heq, index_eq_length hcs] using hs.advance p rfl ha
   case vc7 =>
-    rename_i cols c cs hcs before pivots rank hc rest hbound selectedValue a hscan r hselected
+    rename_i cols c cs hcs before pivots rank hc hbound selectedValue a hscan r hselected
       swapped initialPivot done hdone pref i suff hs current hcurrent heq
     have hrow : current[i.val] = rows[i.val] := by simpa [not_mem_prefix hs] using hcurrent i
     have hip : i = p := by simpa using heq
@@ -140,7 +141,7 @@ theorem rref_spec (A : Vector (Vector F n) m) :
       simp [hsame, hrow]
     · simpa [hki] using hcurrent k
   case vc8 =>
-    rename_i cols c cs hcs before pivots rank hc rest hbound selectedValue a hscan r hselected
+    rename_i cols c cs hcs before pivots rank hc hbound selectedValue a hscan r hselected
       swapped initialPivot done hdone pref i suff hs current hcurrent hne hz
     have hrow : current[i.val] = rows[i.val] := by simpa [not_mem_prefix hs] using hcurrent i
     have hip : i ≠ p := by simpa using hne
@@ -157,7 +158,7 @@ theorem rref_spec (A : Vector (Vector F n) m) :
     · simpa [hki] using hcurrent k
   case vc9 => simp
   case vc10 =>
-    rename_i cols c cs hcs before pivots rank hc rest hbound selectedValue a hscan r hselected
+    rename_i cols c cs hcs before pivots rank hc hbound selectedValue a hscan r hselected
       swapped initialPivot normalized hnormalized start pref i suff hs current hcurrent hne hnz initialRow done hdone
     have hrow : current[i.val] = start[i.val] := by simpa [not_mem_prefix hs] using hcurrent i
     have hip : i ≠ p := by simpa using hne
@@ -218,7 +219,8 @@ theorem rref_spec (A : Vector (Vector F n) m) :
     · simp [pivot, ← hjk, heq]
     · simpa [pivot, hjk, Ne.symm hjk] using hentry k
   case vc13 =>
-    rename_i pref c suff hs rows pivots rank hi rest hbound selectedValue a hscan missing hmissing hselected
+    rename_i pref c suff hs rows pivots rank hi hbound selectedValue a hscan missing hmissing
+      hselected
     have hnone : missing = none := by cases missing <;> simp_all
     have hzero (i : Fin m) (hip : pivots[i.val] = none) : rows[i.val][c.val] = 0 :=
       hscan.2 (hselected.trans hnone) i ((mem_range _ _ _).mpr ⟨(hi.unused_iff i).mp hip, i.isLt⟩)
@@ -238,7 +240,7 @@ theorem rref_spec (A : Vector (Vector F n) m) :
           exact h.unused i hip j hjlt
     simpa [hc] using hnext
   case vc14 =>
-    rename_i cols c cs hcs rows pivots rank hc rest hbound pref i suff hs selectedValue a hscan hz
+    rename_i cols c cs hcs rows pivots rank hc hbound pref i suff hs selectedValue a hscan hz
     refine ⟨hscan.1, ?_⟩
     intro hnone k hk
     simp only [List.mem_append, List.mem_singleton] at hk
@@ -246,11 +248,12 @@ theorem rref_spec (A : Vector (Vector F n) m) :
     · exact hscan.2 hnone k hk
     · simpa [hk] using hz
   case vc15 =>
-    rename_i cols c cs hcs rows pivots rank hc rest hbound selectedInitial pref i suff hs selectedValue a0 hscan hnz
+    rename_i cols c cs hcs rows pivots rank hc hbound selectedInitial pref i suff hs
+      selectedValue a0 hscan hnz
     have hm : rank ≤ i ∧ i < m := (mem_range _ _ _).mp (by rw [hs]; simp)
     simp_all +zetaDelta
   case vc16 =>
-    rename_i cols c cs hcs rows pivots rank hc rest hbound
+    rename_i cols c cs hcs rows pivots rank hc hbound
     simpa using hc.complete (by omega)
 
 /-- The returned buffers satisfy the completed elimination invariant. -/

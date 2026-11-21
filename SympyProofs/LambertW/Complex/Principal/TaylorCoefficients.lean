@@ -113,7 +113,7 @@ theorem iteratedDeriv_principal_zero_closed (n : ℕ) :
     have h := congrArg (fun z : ℂ => z * weight w) ht
     simp only [add_mul, Finset.sum_mul, smul_eq_mul] at h
     rw [h]
-    congr 1
+    refine congrArg₂ (· + ·) ?_ ?_
     · apply Finset.sum_congr rfl
       intro k hk
       dsimp [c]

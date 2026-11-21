@@ -180,7 +180,7 @@ theorem run_certificate_iff (p : Polynomial A) (g : A →+* ℝ) :
   apply Std.WP.Id.of_run_eq_wp h
   vcgen invariants
   · fun pref _ s => Proofs.Inv (algebraMap A (FractionRing A))
-      (initial p p.natDegree 0) (initial p p.natDegree 1) pref.length s
+      (initial p (Polynomial.natDegree p) 0) (initial p (Polynomial.natDegree p) 1) pref.length s
   case vc1 => simp_all +zetaDelta [Result.Holds]
   case vc2 => exact Or.inl (Proofs.initial_regular _ _ _)
   case vc3 =>
@@ -223,7 +223,8 @@ theorem run_positive_eq_firstColumn (p : Polynomial A) :
   apply Std.WP.Id.of_run_eq_wp h
   vcgen invariants
   · fun _ _ ⟨_, _, pivots, _, _, rows⟩ =>
-      rows.map (fun row => row[0]) = p.leadingCoeff * p.leadingCoeff :: pivots
+      rows.map (fun row => row[0]) =
+        Polynomial.leadingCoeff p * Polynomial.leadingCoeff p :: pivots
   all_goals simp_all +zetaDelta only [List.map_append, List.map_cons, List.map_nil,
     List.cons_append]
 

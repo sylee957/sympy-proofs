@@ -57,7 +57,7 @@ theorem linearIndependent_of_exact_orders {V : Type*} [AddCommGroup V] [Module �
   have hall : ∀ m : ℕ, ∀ i : Fin ℓ, ℓ - 1 - i.val = m → c i = 0 := by
     intro m
     induction m using Nat.strong_induction_on with
-    | h m ih =>
+    | ind m ih =>
       intro i him
       have he := congrArg (T ^ i.val) hc
       simp only [map_sum, map_smul, map_zero] at he
@@ -71,7 +71,7 @@ theorem linearIndependent_of_exact_orders {V : Type*} [AddCommGroup V] [Module �
               have : j.val ≠ i.val := fun h => hji (Fin.ext h)
               omega
             have heq : i.val = (i.val - (j.val + 1)) + (j.val + 1) := by omega
-            rw [heq, pow_add, Module.End.mul_apply, hz j, map_zero, smul_zero]
+            rw [heq, pow_add, mul_apply_eq_comp, hz j, map_zero, smul_zero]
         · simp
       rw [hs] at he
       exact (smul_eq_zero.mp he).resolve_right (hne i)
@@ -82,7 +82,7 @@ private theorem matrix_end_pow_apply {n : ℕ} (B : Matrix (Fin n) (Fin n) ℂ)
     (k : ℕ) (v : Fin n → ℂ) : (B.mulVecLin ^ k) v = B ^ k *ᵥ v := by
   induction k generalizing v with
   | zero => simp
-  | succ k ih => simp [pow_succ, Module.End.mul_apply, ih, Matrix.mulVec_mulVec]
+  | succ k ih => simp [pow_succ, ih, Matrix.mulVec_mulVec]
 
 /-- Each chain is an independent family of ℓ vectors. -/
 theorem chainVectors_linearIndependent (K : Subfield ℂ) {n ℓbar ℓ : ℕ}

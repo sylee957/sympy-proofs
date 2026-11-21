@@ -34,19 +34,19 @@ theorem runFF_counts_correct (p : ℂ[X]) (hp : p ≠ 0) :
     generalize h : runFF p = result
     apply Std.WP.Id.of_run_eq_wp h
     vcgen invariants
-    · fun pref _ s => ProofsFF.Valid q (p.natDegree-pref.length) s
+    · fun pref _ s => ProofsFF.Valid q (natDegree p-pref.length) s
     case vc1 => exact (hn ‹_ = 0›).elim
     case vc2 =>
       simpa +zetaDelta only [List.length_nil, Nat.sub_zero, hcoeff, ProofsFF.initial] using
-        ProofsFF.initial_valid q p.natDegree (by omega) hqd hqm
+        ProofsFF.initial_valid q (natDegree p) (by omega) hqd hqm
     case vc3 =>
       have hi := ‹ProofsFF.Valid q _ _›
       simp +zetaDelta only [List.length_range, Nat.sub_self] at hi
       simpa only [hs.1, hs.2] using ProofsFF.finish hi
     case vc4 | vc5 =>
-      rename_i pref k suff hsplit u v rs ps c aux div hi _ _ _ _ _ _ _ hbranch
+      rename_i pref k suff hsplit u v rs ps c aux div hi _ hbranch
       obtain ⟨hk, hlt⟩ := Imperative.Bounds.range_split hsplit
-      have hnext := ProofsFF.step_valid q p.natDegree k hlt (u, v, rs, ps, c, aux, div)
+      have hnext := ProofsFF.step_valid q (natDegree p) k hlt (u, v, rs, ps, c, aux, div)
         (hk.symm ▸ hi)
       dsimp only [d, n] at hbranch
       simpa +zetaDelta only [ProofsFF.step, List.length_append, List.length_singleton,

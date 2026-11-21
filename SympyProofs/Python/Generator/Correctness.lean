@@ -126,7 +126,7 @@ theorem finite_of_halts {initial : Computation V α} (h : Halts initial) :
   all_goals
     change c.step = _ at heq
     cases heq.symm.trans hs
-  all_goals rfl
+  rfl
 
 @[simp] theorem frame_step_yield {initial c d : Computation V α} (v : ULift.{1} V)
     (hr : Reachable initial c) (hs : c.step = .yield d v) :
@@ -136,7 +136,7 @@ theorem finite_of_halts {initial : Computation V α} (h : Halts initial) :
   all_goals
     change c.step = _ at heq
     cases heq.symm.trans hs
-  all_goals rfl
+  rfl
 
 @[simp] theorem frame_step_skip {initial c d : Computation V α}
     (hr : Reachable initial c) (hs : c.step = .skip d) :
@@ -146,7 +146,7 @@ theorem finite_of_halts {initial : Computation V α} (h : Halts initial) :
   all_goals
     change c.step = _ at heq
     cases heq.symm.trans hs
-  all_goals rfl
+  rfl
 
 /-- Reading any reachable frame agrees with its finite trace. -/
 theorem toList_of_produces {initial c : Computation V α} {values : List V}

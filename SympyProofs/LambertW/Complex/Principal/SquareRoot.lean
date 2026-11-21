@@ -23,7 +23,7 @@ theorem exists_mulExp_branchPoint_factor :
   have ha : AnalyticAt ℂ f 0 :=
     ((analyticAt_mulExp ((0 : ℂ) - 1)).comp (f := fun u : ℂ => u - 1) (x := 0) hsub).sub analyticAt_const
   have hd (u : ℂ) : HasDerivAt f (Complex.exp (u - 1) * u) u := by
-    convert ((hasDerivAt_mulExp (u - 1)).comp u
+    convert ((hasDerivAt_mulExp (u - 1)).comp (h := fun x => id x - 1) u
       ((hasDerivAt_id u).sub_const 1)).sub_const (mulExp (-1)) using 1
     · rfl
     · ring
@@ -32,7 +32,7 @@ theorem exists_mulExp_branchPoint_factor :
   have hf2 : iteratedDeriv 2 f 0 = Complex.exp (-1) := by
     have he : deriv f = fun u => Complex.exp (u - 1) * u := funext fun u => (hd u).deriv
     rw [iteratedDeriv_succ, iteratedDeriv_one, he]
-    have h := (((Complex.hasDerivAt_exp ((0 : ℂ) - 1)).comp 0
+    have h := (((Complex.hasDerivAt_exp ((0 : ℂ) - 1)).comp (h := fun x => id x - 1) 0
       ((hasDerivAt_id (0 : ℂ)).sub_const 1)).mul (hasDerivAt_id (0 : ℂ))).deriv
     convert h using 2 <;> norm_num
     congr 1

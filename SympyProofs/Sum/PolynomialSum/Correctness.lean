@@ -115,8 +115,8 @@ theorem primitiveCoeff_recurrence (n k : ℕ) (hn : 0 < n) (hk : 2 ≤ k) :
     (derivative_monomialPrimitive_succ n)
   have hk0 : k - 1 ≠ 0 := by omega
   have hk1 : k - 1 + 1 = k := by omega
-  simp only [coeff_derivative, coeff_add, coeff_smul, coeff_C, ite_eq_right hk0,
-    add_zero, hk1, coeff_monomialPrimitive, smul_eq_mul] at h
+  simp only [coeff_derivative, coeff_add, AddMonoidAlgebra.coeff_smul_apply, coeff_C,
+    ite_eq_right hk0, add_zero, hk1, coeff_monomialPrimitive, smul_eq_mul] at h
   have hkq : (k : ℚ) ≠ 0 := by exact_mod_cast (show k ≠ 0 by omega)
   have hkcast : ((k - 1 : ℕ) : ℚ) + 1 = k := by exact_mod_cast hk1
   rw [hkcast] at h
@@ -207,7 +207,7 @@ theorem antidifferenceCoefficients_get {N : ℕ} (a : Fin N → R) (k : ℕ) (hk
     have hempty (j : Fin (N + 1)) : ¬ (n + 2 ≤ j.val ∧ j.val ≤ n + 1) := by omega
     simp [hempty]
   case vc4 =>
-    rename_i pref n suff hs oldRow oldQ hi currentRow currentQ total hcurrent state
+    rename_i pref n suff hs oldRow oldQ hi currentRow currentQ total hcurrent
     obtain ⟨hp, hbound⟩ := range_prefix hs
     have hold : ∀ k : Fin (N + 1), oldRow[k.val] =
         if n = 0 then 0 else primitiveCoeff (n - 1) k := by
@@ -241,7 +241,7 @@ theorem antidifferenceCoefficients_get {N : ℕ} (a : Fin N → R) (k : ℕ) (hk
             · exact primitiveCoeff_eq_zero n t (by omega)
           simp only [ite_eq_right hhigh, hz, map_zero, mul_zero]
   case vc5 =>
-    rename_i pref n suff hs oldRow oldQ hi pref' j suff' hs' currentRow currentQ total hcurrent state
+    rename_i pref n suff hs oldRow oldQ hi pref' j suff' hs' currentRow currentQ total hcurrent
     obtain ⟨hp, hjbound⟩ := range_prefix hs'
     obtain ⟨hpOuter, hnBound⟩ := range_prefix hs
     dsimp only [row, q, total, c, k] at hcurrent ⊢

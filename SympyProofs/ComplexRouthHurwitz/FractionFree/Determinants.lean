@@ -133,18 +133,16 @@ theorem det_step (u v : ℕ → K) (hv : v 0 ≠ 0) (k j : ℕ) :
     simp only [M, Fin.val_succ, Fin.val_zero, show ¬ 0=2*k+2 by omega, ite_false]
     dsimp [reducedEntry, entry, lower, shift]
     split_ifs <;> simp_all only [ite_true, ite_false]
-    all_goals
-      split_ifs <;> simp_all only [ite_true, ite_false]
-      omega
+    split_ifs <;> simp_all only [ite_true, ite_false]
+    omega
   let M' := M.submatrix Fin.succ Fin.succ
   have h11 : M' 0 0 = v 0 := by simp [M', M, Matrix.submatrix, reducedEntry, entry, lower, shift]
   have h21 : ∀ r : Fin (2*k+1), M' r.succ 0 = 0 := by
     intro r
     dsimp [M', M, Matrix.submatrix, reducedEntry, entry, lower, shift]
     split_ifs <;> simp_all only [ite_true, ite_false]
-    all_goals
-      split_ifs <;> simp_all only [ite_true, ite_false]
-      omega
+    split_ifs <;> simp_all only [ite_true, ite_false]
+    omega
   have hsub : M'.submatrix Fin.succ Fin.succ = minor v (next u v) k j := by
     ext r c
     dsimp only [M', M, Matrix.submatrix, Matrix.of_apply, minor, Fin.val_succ]

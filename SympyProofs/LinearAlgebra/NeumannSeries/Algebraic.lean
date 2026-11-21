@@ -40,8 +40,8 @@ lemma steinMatrix_mulVec (A P : Matrix n n ℝ) :
   rw [steinMatrix, sub_mulVec, one_mulVec]
   ext ⟨i, j⟩
   simp only [Pi.sub_apply, mulVec, dotProduct,
-    of_apply, vec, stein, Matrix.sub_apply, mul_apply, transpose_apply, Fintype.sum_prod_type,
-    Finset.sum_mul]
+    of_apply, vec, stein, Matrix.sub_apply, Matrix.mul_apply, transpose_apply,
+    Fintype.sum_prod_type, Finset.sum_mul]
   congr 1
   rw [Finset.sum_comm]
   apply Finset.sum_congr rfl

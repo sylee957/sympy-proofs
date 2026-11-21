@@ -46,7 +46,7 @@ theorem pChainAt_isJordanChain (K : Subfield ℂ) {n : ℕ}
     have h := pChainAt_step K A f u α hα
       (by omega : 1 ≤ ℓ - j.val) (Nat.sub_le ℓ j.val)
     simp only [Matrix.sub_mulVec, Matrix.smul_mulVec, Matrix.one_mulVec] at h
-    simp only [LinearMap.sub_apply, LinearMap.smul_apply, Module.End.one_apply,
+    simp only [LinearMap.sub_apply, LinearMap.smul_apply, one_apply_eq_self,
       Matrix.mulVecLin_apply]
     split_ifs with hj
     · have he : ℓ - j.val - 1 = ℓ - (j.val + 1) := by omega

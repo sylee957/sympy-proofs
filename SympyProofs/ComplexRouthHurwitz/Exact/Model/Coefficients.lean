@@ -46,7 +46,7 @@ def mapPair {N : ℕ} (r : Rows.Pair N) : Coefficients.Pair N := ⟨mapRow r.upp
   all_goals
     apply Vector.ext; intro j hj
     simp only [mapRow, Vector.getElem_ofFn, Fin.getElem_fin]
-    split_ifs <;> first | exact map_real _ | exact map_imag _
+    split_ifs <;> simp only [map_real, map_imag]
 
 @[simp] theorem mapRow_eq_zero {N} (a : Rows.Row N) :
     mapRow a = Coefficients.zero N ↔ a = Rows.zero N := by

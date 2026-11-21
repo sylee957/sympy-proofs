@@ -59,24 +59,28 @@ theorem computeBasisAnnihilators_sizes
   case vc1 => simp [polynomials, multiplicities, column]
   case vc2 =>
     rename_i ps ms hi
-    refine ⟨by simpa using hi.1, hi.2.1, ?_⟩
-    intro col hc
+    simpa using hi.1
+  case vc3 =>
+    rename_i ps ms hi
+    exact hi.2.1
+  case vc4 =>
+    rename_i ps ms hi col hc
     obtain ⟨k, hk, rfl⟩ := Array.mem_iff_getElem.mp hc
     have he := hi.2.2 ⟨k, Nat.lt_of_lt_of_eq hk hi.2.1⟩
     simpa [column, hk] using he
-  case vc3 =>
+  case vc5 =>
     rename_i pref i suff hsplit ps ms hi
     simpa using hi.2
-  case vc4 =>
-    rename_i pref i suff hsplit ps ms hout nextMs current c rest hi _ _
+  case vc6 =>
+    rename_i pref i suff hsplit ps ms hout nextMs current c rest hi
     refine ⟨by simpa [polynomials] using hout.1, hi.1, ?_⟩
     intro k
     simpa using hi.2 k
-  case vc5 =>
-    rename_i pref j suff hsplit ms current c rest hi _ _ jp hn co nextB nextC used nextProbe _ _
+  case vc7 =>
+    rename_i pref j suff hsplit ms current c rest hi hn co nextB nextC used nextProbe
     exact column_sizes_push ms pref suff j used hsplit hi
-  case vc6 =>
-    rename_i pref j suff hsplit ms current c rest hi _ _ jp hz
+  case vc8 =>
+    rename_i pref j suff hsplit ms current c rest hi hz
     exact column_sizes_push ms pref suff j 0 hsplit hi
 
 /-- If the cofactor alone does not annihilate, another copy of the current factor is necessary. -/
@@ -116,15 +120,16 @@ theorem computeBasisAnnihilators_correct
   · by
       let v := b0
       exact fun _ suff (ms, b0, c, rest) =>
-        rest = suff.map (fun j => factors[j.val]) ∧ c.Monic ∧ c ∣ minimalAnnihilatingPolynomial K A v ∧
+        rest = suff.map (fun j => factors[j.val]) ∧ Monic c ∧
+        c ∣ minimalAnnihilatingPolynomial K A v ∧
         b0 = aeval A c *ᵥ v ∧
         minimalAnnihilatingPolynomial K A v ∣ c * product rest
   · fun pref _ c => c = product pref
   · by
       let v := b0
-      rename_i pref j suff hsplit ms current c rest hi _ _ jp hn co hc
+      rename_i pref j suff hsplit ms current c rest hi hn co hc
       exact fun pref _ (b0, c, used, probe) =>
-        c.Monic ∧ c ∣ minimalAnnihilatingPolynomial K A v ∧
+        Monic c ∧ c ∣ minimalAnnihilatingPolynomial K A v ∧
         b0 = aeval A c *ᵥ v ∧ probe = aeval A (c * product remaining) *ᵥ v ∧
         minimalAnnihilatingPolynomial K A v ∣
           c * (factors[j.val].1 ^ (factors[j.val].2 - pref.length) * product remaining)
@@ -140,7 +145,7 @@ theorem computeBasisAnnihilators_correct
       simpa [product, List.flatMap_def, List.prod_flatten, List.map_map, Function.comp_def, List.prod_replicate] using hfactorization.symm
     rw [he, Matrix.aeval_self_charpoly, zero_mulVec]
   case vc4 =>
-    rename_i pref i suff hsplit out ms hout nextMs current c rest hi _ _
+    rename_i pref i suff hsplit out ms hout nextMs current c rest hi
     rcases hi with ⟨hr, hc, hd, hb, hcover⟩
     have he : c = minimalAnnihilatingPolynomial K A (e i) := by
       apply eq_of_monic_of_dvd_of_natDegree_le
@@ -154,7 +159,7 @@ theorem computeBasisAnnihilators_correct
     rename_i pref g exponent suff hsplit c hc
     simp [cofactor, hops.mul_eq, hops.pow_eq, hc, product]
   case vc6 =>
-    rename_i pref j suff hsplit ms current c rest hi _ _ jp hn co hc
+    rename_i pref j suff hsplit ms current c rest hi hn co hc
     rcases hi with ⟨hr, hmon, hd, hb, hcover⟩
     refine ⟨hmon, hd, hb, ?_, ?_⟩
     · by_cases hempty : remaining = []
@@ -163,19 +168,19 @@ theorem computeBasisAnnihilators_correct
     · simpa only [List.length_nil, Nat.sub_zero, remaining, hr,
         List.map_cons, List.tail_cons, product, List.map_cons, List.prod_cons] using hcover
   case vc7 =>
-    rename_i pref j suff hsplit ms current c rest hi _ _ jp hn co hc nextB nextC nextUsed nextProbe hnext _ _
+    rename_i pref j suff hsplit ms current c rest hi hn co hc nextB nextC nextUsed nextProbe hnext
     refine ⟨?_, hnext.1, hnext.2.1, hnext.2.2.1, ?_⟩
     · simp only [remaining, hi.1, List.map_cons, List.tail_cons]
     · simpa only [List.length_range, Nat.sub_self, pow_zero, one_mul] using hnext.2.2.2.2
   case vc8 =>
-    rename_i current c used probeValue hi _ _ hz
+    rename_i current c used probeValue hi hz
     refine ⟨hi.1, hi.2.1, hi.2.2.1, hi.2.2.2.1, ?_⟩
     simp only [List.length_range, Nat.sub_self, pow_zero, one_mul]
     exact (minimalAnnihilatingPolynomial_dvd_iff K A _ _).mpr
       (hi.2.2.2.1.symm.trans hz)
   case vc9 =>
-    rename_i factorPref jFactor suffix hsplit ms oldB oldC rest houter _ _ jp hnonzero co hco _
-      steps j tail hsteps current c used probeValue hi _ _ hn
+    rename_i factorPref jFactor suffix hsplit ms oldB oldC rest houter hnonzero co hco _
+      steps j tail hsteps current c used probeValue hi hn
     have hf := hg factors[jFactor.val] (Array.getElem_mem _)
     have hlen : steps.length < factors[jFactor.val].2 := by
       have hl := congrArg List.length hsteps
@@ -198,7 +203,7 @@ theorem computeBasisAnnihilators_correct
       rw [he]
       exact hi.2.2.2.2
   case vc11 =>
-    rename_i pref j suff hsplit ms current c rest hi _ _ jp hz
+    rename_i pref j suff hsplit ms current c rest hi hz
     have hz : current = 0 := Classical.not_not.mp hz
     refine ⟨by simp [remaining, hi.1], hi.2.1, hi.2.2.1, hi.2.2.2.1, ?_⟩
     apply dvd_mul_of_dvd_left
@@ -305,7 +310,7 @@ theorem computeBasisAnnihilators_factorization
       exact fun pref _ (ms, _, c, _) => FactorState factors ps pref ms c
   · fun _ _ _ => True
   · by
-      rename_i pref j suff hsplit ms current c rest hi _ _ jp hn co
+      rename_i pref j suff hsplit ms current c rest hi hn co
       exact fun _ _ (_, nextC, used, _) => nextC = c * factors[j.val].1 ^ used
   case vc1 => simp [multiplicities, polynomials, column]
   case vc2 =>
@@ -315,7 +320,7 @@ theorem computeBasisAnnihilators_factorization
     rename_i pref i suff hsplit ps ms hi
     exact ⟨hi.1, by simpa using hi.2.1, hi.2.2, by simp [candidate, hops.one_eq, annihilatorFactorProduct]⟩
   case vc4 =>
-    rename_i pref i suff hsplit ps ms hout nextMs current c rest hi _ _
+    rename_i pref i suff hsplit ps ms hout nextMs current c rest hi
     refine ⟨hi.1, ?_, ?_⟩
     · intro k; simpa [polynomials] using hi.2.1 k
     · intro k hk
@@ -326,15 +331,15 @@ theorem computeBasisAnnihilators_factorization
         simpa [polynomials] using hi.2.2.2.symm
   case vc5 => simp
   case vc6 =>
-    rename_i pref j suff hsplit ms current c rest hi _ _ jp hn co nextB nextC used nextProbe hnext _ _
+    rename_i pref j suff hsplit ms current c rest hi hn co nextB nextC used nextProbe hnext
     rw [hnext]
     exact factorState_push factors _ pref suff j ms c used hsplit hi
   case vc7 => assumption
   case vc8 =>
-    rename_i current c used probeValue hi _ _ hn
+    rename_i current c used probeValue hi hn
     simp only [candidate, hops.mul_eq, hi, used, pow_succ, mul_assoc]
   case vc9 =>
-    rename_i pref j suff hsplit ms current c rest hi _ _ jp hz
+    rename_i pref j suff hsplit ms current c rest hi hz
     simpa using factorState_push factors _ pref suff j ms c 0 hsplit hi
 
 private theorem factor_emultiplicity_zero {K : Type*} [Field K]

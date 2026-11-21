@@ -69,7 +69,7 @@ theorem exists_path_lift_endpoint_of_bounded {F γ F' γ' : ℝ → ℂ} {a b R 
     simpa only [(hi t ht).self_of_nhds] using haway t ht
   let L : NNReal := ⟨C * M, mul_nonneg hC hM⟩
   have hLip : LipschitzOnWith L F (Ico a b) :=
-    (convex_Ico a b).lipschitzOnWith_of_nnnorm_hasDerivWithin_le
+    (convex_Ico a b).lipschitzOnWith_of_nnNorm_hasDerivWithin_le
       (fun t ht => (hF t ht).hasDerivWithinAt) (fun t ht => hd t ht)
   apply cauchy_map_iff_exists_tendsto.mp
   have hf : Cauchy (𝓝[<] b) := cauchy_nhds.mono nhdsWithin_le_nhds

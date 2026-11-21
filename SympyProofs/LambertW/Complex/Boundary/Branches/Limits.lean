@@ -88,7 +88,7 @@ private theorem exists_branch_limit_of_norm_bound (k : ℤ) (side : BoundarySide
     linarith
   let C : NNReal := ⟨2 / δ, le_of_lt (div_pos (by norm_num) hδ)⟩
   have hLip : LipschitzOnWith C (branch k) S := by
-    apply Convex.lipschitzOnWith_of_nnnorm_deriv_le
+    apply Convex.lipschitzOnWith_of_nnNorm_deriv_le (s := S)
       (fun z hz => (analyticOnNhd_branch k _ (side.halfPlane_subset_branchDomain hz.1)).differentiableAt)
     · intro z hz
       change ‖deriv (branch k) z‖ ≤ 2 / δ

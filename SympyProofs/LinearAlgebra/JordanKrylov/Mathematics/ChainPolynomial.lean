@@ -16,8 +16,8 @@ open Polynomial Matrix
 /-- ψ_f^(k): raise ψ_f to k, then reduce every μ-coefficient modulo f(λ).
 As in the paper, f is assumed monic when using the remainder properties. -/
 noncomputable def ψPower (K : Subfield ℂ) (f : K[X]) (k : ℕ) : Polynomial K[X] :=
-  Polynomial.ofFinsupp (AddMonoidAlgebra.ofCoeff ((ψ K f ^ k).toFinsupp.coeff.mapRange
-    (fun q => q %ₘ f) (by simp)))
+  AddMonoidAlgebra.ofCoeff ((AddMonoidAlgebra.coeff (ψ K f ^ k)).mapRange
+    (fun q => q %ₘ f) (by simp))
 
 /-- The coefficientwise remainder formula in Definition 3. -/
 @[simp] theorem ψPower_coeff (K : Subfield ℂ) (f : K[X]) (k j : ℕ) :

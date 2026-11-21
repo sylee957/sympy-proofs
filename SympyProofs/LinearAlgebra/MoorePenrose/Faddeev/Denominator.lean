@@ -29,7 +29,7 @@ theorem spectralPolynomial_coeff_eq_elementary (d : n → R) (k : ℕ) :
   rw [Finset.prod_one_add]
   simp_rw [Finset.prod_mul_distrib, ← map_prod, Finset.prod_const,
     C_mul_X_pow_eq_monomial]
-  simp only [Polynomial.finsetSum_coeff, coeff_monomial]
+  simp only [Polynomial.finsetSum_coeff, coeff_monomial_apply]
   rw [← Finset.sum_filter]
   congr 1
   ext s

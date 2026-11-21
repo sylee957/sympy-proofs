@@ -134,9 +134,14 @@ private theorem product_spec (d : ℤ) (lo hi : ℕ) (hlo : 0 < lo) :
     case vc1 => simp
     case vc2 =>
       rename_i p q hinv
-      have hc := cancel_spec p q hinv.1
-      exact ⟨hc.1, hc.2.trans (by simpa using hinv.2), cancel_coprime p q hinv.1⟩
+      exact (cancel_spec p q hinv.1).1
     case vc3 =>
+      rename_i p q hinv
+      exact (cancel_spec p q hinv.1).2.trans (by simpa using hinv.2)
+    case vc4 =>
+      rename_i p q hinv
+      exact cancel_coprime p q hinv.1
+    case vc5 =>
       rename_i pref i suff hs p q hinv
       have hmem : i ∈ List.range' lo (hi - lo) := by
         have : i ∈ ForIn.toList [lo:hi] := by rw [hs]; simp

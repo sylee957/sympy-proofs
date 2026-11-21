@@ -142,7 +142,7 @@ theorem puiseuxDerivative_eq_iteratedDeriv {Q : ℂ → ℂ} (hQ : AnalyticAt �
     (he : ∀ᶠ p in 𝓝 0, branchSeries (Q p) = p ^ 2) (n : ℕ) :
     (puiseuxDerivative n : ℂ) = iteratedDeriv n Q 0 := by
   induction n using Nat.strong_induction_on with
-  | h n ih =>
+  | ind n ih =>
     rcases n with _ | _ | k
     · simp [puiseuxDerivative, iteratedDeriv_zero, h0]
     · simp [puiseuxDerivative, iteratedDeriv_one, h1.deriv]

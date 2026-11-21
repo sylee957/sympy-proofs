@@ -13,7 +13,10 @@ open Polynomial Model
 @[simp] theorem decode_entry {N} (n : ℕ) (a : Row N) (j : ℕ) :
     Rows.entry (decode n a) j = scalar (n%2 == j%2) (entry a j) := by
   simp only [Rows.entry, entry]
-  split_ifs <;> (simp [decode, scalar]; try rfl)
+  split_ifs
+  · simp [decode, scalar]
+  · simp [scalar]
+    rfl
 
 @[simp] theorem decode_pivot {N} (n : ℕ) (a : Row N) :
     (Rows.entry (decode n a) n).re = entry a n := by simp [scalar]
@@ -60,9 +63,9 @@ theorem decode_encode_symmetric {N} (n : ℕ) (a : Rows.Row N) (p : ℂ[X])
       ← GaussianInt.intCast_re, ← GaussianInt.intCast_im] at hre him
     simp only [hn, hj', beq_self_eq_true, ↓reduceIte, Nat.reduceBEq,
       Bool.false_eq_true, Nat.zero_ne_one, Nat.one_ne_zero]
-    apply Zsqrtd.ext <;> (dsimp; try rfl)
-    all_goals norm_cast at hre him
-    all_goals omega
+    apply Zsqrtd.ext <;> dsimp
+    norm_cast at hre him
+    omega
 
 /-- Selecting a real or imaginary component commutes with an exact real divisor. -/
 theorem component_div (z : GaussianInt) (D : ℤ) (hD : D ≠ 0)

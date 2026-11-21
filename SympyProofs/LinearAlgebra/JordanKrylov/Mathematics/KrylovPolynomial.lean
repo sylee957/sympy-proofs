@@ -101,7 +101,7 @@ theorem krylovVector_linearIndependent (K : Subfield ℂ) {n : ℕ}
     rw [← degree_eq_natDegree (minimalAnnihilatingPolynomial_monic K A u).ne_zero] at hlt
     exact (not_lt_of_ge hle) hlt
   have hcoeff := congrArg (fun p : K[X] => p.coeff i) hqzero
-  simpa [q, C_mul_X_pow_eq_monomial, coeff_monomial, Fin.val_eq_val,
+  simpa [q, C_mul_X_pow_eq_monomial, Finsupp.single_apply, Fin.val_eq_val,
     Finset.sum_ite_eq'] using hcoeff
 
 /-- Every monic polynomial can be reconstructed from the negatives of its lower coefficients. -/
@@ -123,7 +123,7 @@ def krylovCoefficient {K : Type*} [Field K] {r : ℕ} (c : Fin r → K) (j : ℕ
 The coefficients are supplied explicitly rather than extracted from an existence theorem. -/
 def krylovPolynomialCompute {K : Type*} [Field K] [DecidableEq K] {r : ℕ}
     (c : Fin r → K) : K[X] :=
-  Polynomial.ofFinsupp (AddMonoidAlgebra.ofCoeff {
+  AddMonoidAlgebra.ofCoeff {
     support := (Finset.range (r + 1)).filter (fun j => krylovCoefficient c j ≠ 0)
     toFun := krylovCoefficient c
     mem_support_toFun := by
@@ -132,14 +132,14 @@ def krylovPolynomialCompute {K : Type*} [Field K] [DecidableEq K] {r : ℕ}
       intro hj
       by_contra hbound
       have hgt : r < j := by omega
-      simp [krylovCoefficient, Nat.not_lt_of_ge hgt.le, ne_of_gt hgt] at hj })
+      simp [krylovCoefficient, Nat.not_lt_of_ge hgt.le, ne_of_gt hgt] at hj }
 
 theorem krylovPolynomialCompute_eq {K : Type*} [Field K] [DecidableEq K] {r : ℕ}
     (c : Fin r → K) : krylovPolynomialCompute c = krylovPolynomial c := by
   ext j
   change krylovCoefficient c j = (krylovPolynomial c).coeff j
   simp only [krylovPolynomial, coeff_sub, coeff_X_pow, finsetSum_coeff,
-    C_mul_X_pow_eq_monomial, coeff_monomial]
+    C_mul_X_pow_eq_monomial, coeff_monomial_apply]
   by_cases hj : j < r
   · have hne : j ≠ r := ne_of_lt hj
     have hsum : (∑ i : Fin r, if (i : ℕ) = j then c i else 0) = c ⟨j, hj⟩ := by

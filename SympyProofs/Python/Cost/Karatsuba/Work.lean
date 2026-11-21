@@ -88,7 +88,7 @@ theorem work_le_rpow (bits : ℕ) (hbits : 0 < bits) :
       have := (Nat.lt_clog_iff_pow_lt (by omega : 1 < 2) (x := bits) (y := 0))
       simp only [pow_zero] at this
       exact this.mpr (by omega)
-    have hpow : 2^(d-1) < bits := Nat.pow_pred_clog_lt_self (by omega) (by omega)
+    have hpow : 2^(d-1) < bits := Nat.pow_pred_clog_lt_self 2 (by omega)
     have hr := Real.rpow_le_rpow (by positivity : (0:ℝ) ≤ (2:ℝ)^(d-1))
       (show (2:ℝ)^(d-1) ≤ bits by exact_mod_cast hpow.le) exponent_pos.le
     rw [dyadic_rpow] at hr

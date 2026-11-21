@@ -238,7 +238,7 @@ private theorem matrix_end_pow_apply {n : ℕ} (M : Matrix (Fin n) (Fin n) ℂ)
     (k : ℕ) (v : Fin n → ℂ) : (M.mulVecLin ^ k) v = M ^ k *ᵥ v := by
   induction k generalizing v with
   | zero => simp
-  | succ k ih => simp [pow_succ, Module.End.mul_apply, ih, Matrix.mulVec_mulVec]
+  | succ k ih => simp [pow_succ, ih, Matrix.mulVec_mulVec]
 
 /-- A root's entire generalized eigenspace lies in the complexified primary kernel
 once the exponent captures ker f(A)^n. In particular, any exponent at least n suffices. -/

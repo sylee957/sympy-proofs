@@ -114,7 +114,7 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
   case vc3 => simp
   case vc4 =>
     rename_i hdeg start rem la hi ta ht
-    have hi' : LayerInvariant F F.natDegree rem la := by
+    have hi' : LayerInvariant F (natDegree F) rem la := by
       simpa [← hFdegree, hlength hdeg] using hi.1
     have hS : S ≠ 1 := by
       simpa [hi.2] using hi'.support_ne_one (hFne hdeg)
@@ -124,7 +124,7 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
     rename_i hdeg start rem la hi ta ht ba hb ga hg
     have hS : SupportInvariant la.toList S := by simpa [hi.2] using hi.1.support
     simp only [Std.Internal.ForIn.toList_array] at ht hb hg
-    have hi' : LayerInvariant F F.natDegree rem la := by
+    have hi' : LayerInvariant F (natDegree F) rem la := by
       simpa [← hFdegree, hlength hdeg] using hi.1
     obtain ⟨hlprod, hl⟩ := hi'.finish
     change ta.toList = shiftTests ops S la.toList at ht
@@ -172,19 +172,19 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
     rename_i pref test suff hs old hb new hn
     simpa [refineBlocks_append, ← hb] using hn
   case vc19 =>
-    rename_i old hb empty pref b suff hs acc hn jp hg pushed hq
+    rename_i old hb empty pref b suff hs acc hn hg pushed hq
     simp only [Std.Internal.ForIn.toList_array] at hs
     have hm : b ∈ old.toList := by rw [hs]; simp
     have hb1 : b ≠ 1 := refineBlocks_ne_one ops _ _ (hb ▸ hm)
     simp_all +zetaDelta [Array.toList_push, List.flatMap_append, refineBlocks, List.append_assoc]
   case vc20 | vc21 =>
-    rename_i old hb empty pref b suff hs acc hn jp hg hq
+    rename_i old hb empty pref b suff hs acc hn hg hq
     simp only [Std.Internal.ForIn.toList_array] at hs
     have hm : b ∈ old.toList := by rw [hs]; simp
     have hb1 : b ≠ 1 := refineBlocks_ne_one ops _ _ (hb ▸ hm)
     simp_all +zetaDelta [Array.toList_push, List.flatMap_append, refineBlocks]
   case vc22 =>
-    rename_i old hb pref b suff hs acc hn jp hg hq
+    rename_i old hb pref b suff hs acc hn hg hq
     simp only [Std.Internal.ForIn.toList_array] at hs
     have hm : b ∈ old.toList := by rw [hs]; simp
     have hb1 : b ≠ 1 := refineBlocks_ne_one ops _ _ (hb ▸ hm)
@@ -199,7 +199,7 @@ theorem decompose_sound [CharZero K] (ops : Primitives K) (hops : ops.Valid)
   case vc26 =>
     rename_i pref n suff hs rem layers hi hr
     refine ⟨?_, hi.2⟩
-    have hdeg : D.natDegree ≠ 0 := by assumption
+    have hdeg : natDegree D ≠ 0 := by assumption
     simpa [← hFdegree, hlength hdeg] using hi.1.stop hr
   case vc27 =>
     rename_i pref n suff hs old oldLayers hi hne

@@ -43,7 +43,7 @@ theorem computeJordanDecomposition_eq
     rfl
   case vc3 =>
     rename_i pref j suff hsplit out hout
-    have hg : ∀ fm ∈ factors, fm.1.Monic ∧ Irreducible fm.1 := by
+    have hg : ∀ fm ∈ factors, Monic fm.1 ∧ Irreducible fm.1 := by
       intro fm hfm
       exact ⟨(hops.factorCharpoly_factors A fm.1 fm.2 hfm).1,
         (hops.factorCharpoly_factors A fm.1 fm.2 hfm).2.1⟩
