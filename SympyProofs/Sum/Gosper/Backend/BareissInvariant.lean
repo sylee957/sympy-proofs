@@ -103,7 +103,6 @@ theorem bareissHistoryRhs_step [IsDomain K] [IsDomain L] [Module.IsTorsionFree K
   exact mul_div_cancel_left₀ _ (bareiss_algebraMap_ne_zero (L := L) hp)
 
 
-set_option backward.isDefEq.respectTransparency false in
 /-- Every state represented by pivot-history minors satisfies all remaining exact divisions. -/
 theorem bareiss_history_exact [IsDomain K] [IsDomain L] [Module.IsTorsionFree K L]
     [Div K] [Div L] [MulDivCancelClass K] [MulDivCancelClass L] [DecidableEq K]

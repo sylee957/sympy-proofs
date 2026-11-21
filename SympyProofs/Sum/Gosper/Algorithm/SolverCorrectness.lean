@@ -36,7 +36,6 @@ variable [IsDomain K] [DecidableEq K] [Div K] [Div R] [Div S]
 variable {W : Type} [CommRing W] [IsDomain W] [Algebra K W]
 
 omit [Algebra K W] in
-set_option backward.isDefEq.respectTransparency false in
 private theorem gosperSolve_fused_eq (backend : TermBackend K W)
     (A B : K[X]) (C : R[X]) :
     gosperSolve backend A B C =
@@ -69,7 +68,6 @@ private theorem gosperSolve_fused_eq (backend : TermBackend K W)
       rfl
     _ = _ := by simp only [bareissForwardRun_eq]
 
-set_option backward.isDefEq.respectTransparency false in
 /-- Bareiss elimination returns the coefficient candidate and its common denominator. -/
 theorem gosperSolve_eq (backend : TermBackend K W) (_hbackend : backend.Valid)
     (A B : K[X]) (C : R[X]) :
@@ -180,7 +178,6 @@ theorem gosperSolve_output_map [MulDivCancelClass K]
   rw [bareissModel_map f _ _ (bareiss_exactDivisions _ _ _)]
   simp [Result.map, Polynomial.map_sum, Polynomial.map_map]
 
-set_option backward.isDefEq.respectTransparency false in
 /-- Rerunning commutes with a parameter map that preserves the input degree. -/
 theorem gosperSolve_map [MulDivCancelClass K]
     [IsDomain R] [MulDivCancelClass R]

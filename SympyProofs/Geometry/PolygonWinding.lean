@@ -277,7 +277,6 @@ def argumentLoop {n : ℕ} [NeZero n] (p : Polygon Point2D n) (X : Point2D)
     rw [Real.Angle.coe_add, totalAngle_eq_signedCrossings p hX, mul_comm,
       Real.Angle.intCast_mul_eq_zsmul, Real.Angle.coe_two_pi, zsmul_zero, add_zero])
 
-set_option backward.isDefEq.respectTransparency false in
 /-- The angular-sum formula agrees with Mathlib's topological winding number,
 defined through the fundamental group and continuous lifting of circle loops. -/
 theorem windingNumber_eq_topological {n : ℕ} [NeZero n]
@@ -287,7 +286,7 @@ theorem windingNumber_eq_topological {n : ℕ} [NeZero n]
   rw [windingNumber_cast p hX]
   have he := AddCircle.windingNumber_eq_div (argumentLoop p X hX)
     (argumentLift p X hX).toContinuousMap (by rfl)
-  convert he.symm using 1
+  refine Eq.trans ?_ he.symm
   simp only [Path.coe_toContinuousMap, Path.source, Path.target, add_sub_cancel_left]
 
 theorem oddEvenIndicator_eq_windingNumber {n : ℕ} (p : Polygon Point2D n) {X : Point2D}

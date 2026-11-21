@@ -14,9 +14,8 @@ open Matrix
 /-- Border a square matrix by one row and one column. -/
 def bareissBorder {R α : Type*} (D : Matrix α α R) (u v : α → R) (a : R) :
     Matrix (α ⊕ Unit) (α ⊕ Unit) R :=
-  Matrix.fromBlocks D (fun i _ => u i) (fun _ j => v j) (fun _ _ => a)
+  Matrix.fromBlocks D (.of fun i _ => u i) (.of fun _ j => v j) (.of fun _ _ => a)
 
-set_option backward.isDefEq.respectTransparency false in
 /-- The two-by-two Sylvester identity around an invertible core. -/
 theorem bareiss_sylvester_of_invertible {R α : Type*} [CommRing R]
     [Fintype α] [DecidableEq α] (D : Matrix α α R) [Invertible D]
@@ -34,7 +33,6 @@ theorem bareiss_sylvester_of_invertible {R α : Type*} [CommRing R]
   rw [hsmall, hsmall, hsmall, hsmall, Matrix.det_fromBlocks₁₁, Matrix.det_fin_two]
   ring
 
-set_option backward.isDefEq.respectTransparency false in
 /-- Sylvester's identity over a domain only requires the previous pivot minor to be nonzero. -/
 theorem bareiss_sylvester {R α : Type*} [CommRing R] [IsDomain R]
     [Fintype α] [DecidableEq α] (D : Matrix α α R) (hD : D.det ≠ 0)
@@ -101,7 +99,6 @@ theorem bareissMinor_core {R α ι κ : Type*} [CommRing R] [Fintype α] [Decida
   ext a b
   cases a <;> cases b <;> rfl
 
-set_option backward.isDefEq.respectTransparency false in
 /-- The condensation identity for arbitrary (possibly repeated) row/column histories. -/
 theorem bareissMinor_step {R α ι κ : Type*} [CommRing R] [IsDomain R]
     [Fintype α] [DecidableEq α] (M : Matrix ι κ R) (rows : α → ι) (cols : α → κ)
@@ -143,7 +140,6 @@ theorem bareissMinor_empty {R ι κ : Type*} [CommRing R]
   rw [bareissMinor, Matrix.det_unique]
   rfl
 
-set_option backward.isDefEq.respectTransparency false in
 /-- Bordered minors commute with coefficient homomorphisms. -/
 theorem bareissMinor_map {R S α ι κ : Type*} [CommRing R] [CommRing S]
     [Fintype α] [DecidableEq α] (f : R →+* S) (M : Matrix ι κ R)

@@ -8,8 +8,6 @@ theorems. The mathematical row-operation invariants are in `Rref.Invariants`. -/
 
 @[expose] public section
 
-set_option experimental.vcgen true
-
 namespace SympyProofs.Rref
 namespace RrefAlgorithm
 

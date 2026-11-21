@@ -8,8 +8,6 @@ public import SympyProofs.LinearAlgebra.Rref.Correctness
 
 @[expose] public section
 
-set_option experimental.vcgen true
-
 namespace SympyProofs.GeneralizedInverse
 
 open SympyProofs.Rref

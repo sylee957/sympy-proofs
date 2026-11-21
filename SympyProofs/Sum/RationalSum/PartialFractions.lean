@@ -95,7 +95,6 @@ private theorem halfEuclid_eq_aux (r previous u previousU v previousV : Polynomi
     rw [halfEuclid, dite_eq_right hr, EuclideanDomain.xgcdAux_rec hr]
     exact ih _ _ _ _
 
-set_option experimental.vcgen true in
 private theorem inverseMod_eq_halfEuclid (a b : Polynomial ℚ) :
     inverseMod a b =
       let z := halfEuclid a b 1 0
