@@ -16,10 +16,10 @@ the symmetric modified-principal formula.
 
 noncomputable section
 
-namespace CubicEquation.CardanoReal
+namespace CubicEquation.CardanoComplex
 
 open RealCubeRoot
-open CardanoComplex
+open CardanoReal
 open Complex
 open scoped ComplexConjugate
 
@@ -66,4 +66,4 @@ theorem modifiedConjugateCorrected_cardano_first_im (a b c d : ℝ) :
     modifiedConjugateCorrected_pair_sum_im (c / a - (b / a) ^ 2 / 3)
       (2 * (b / a) ^ 3 / 27 - (b / a) * (c / a) / 3 + d / a)
 
-end CubicEquation.CardanoReal
+end CubicEquation.CardanoComplex

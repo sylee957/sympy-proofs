@@ -5,7 +5,6 @@ public import SympyProofs.CubicEquation.CardanoReal.KnownRoot
 public import SympyProofs.CubicEquation.CardanoReal.CubicSurd
 public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal
 public import SympyProofs.CubicEquation.CardanoReal.ReIm
-public import SympyProofs.CubicEquation.CardanoReal.ModifiedConjugateCorrected
 public import SympyProofs.CubicEquation.CardanoReal.Discriminant
 public import SympyProofs.CubicEquation.CardanoReal.Continuity
 public import SympyProofs.CubicEquation.CardanoReal.Jump
