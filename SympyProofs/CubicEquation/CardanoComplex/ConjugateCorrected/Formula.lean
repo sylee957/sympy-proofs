@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.RealCubeRoot.Cardano.Principal
+public import SympyProofs.CubicEquation.CardanoComplex.Principal.Formula
 
 /-!
 # Cardano's formula with a conjugation-based zero detector
@@ -28,8 +28,9 @@ for the complete formula with all intermediate quantities visible.
 
 noncomputable section
 
-namespace RealCubeRoot.Cardano
+namespace CubicEquation.CardanoComplex
 
+open RealCubeRoot
 open Complex
 open scoped ComplexConjugate
 
@@ -198,4 +199,4 @@ theorem cardano_formula_conjugateCorrected {a : ℂ} (ha : a ≠ 0) (b c d x : �
     List.map_cons, List.map_nil, List.mem_cons, List.not_mem_nil, or_false] using
     (mem_cubicRoots_iff ha b c d x).symm
 
-end RealCubeRoot.Cardano
+end CubicEquation.CardanoComplex

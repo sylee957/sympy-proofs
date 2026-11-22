@@ -9,4 +9,3 @@ public import SympyProofs.RealCubeRoot.Uniqueness
 public import SympyProofs.RealCubeRoot.Boundary
 public import SympyProofs.RealCubeRoot.BoundaryClassification
 public import SympyProofs.RealCubeRoot.ModifiedPrincipal
-public import SympyProofs.RealCubeRoot.Cardano

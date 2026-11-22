@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.RealCubeRoot.Cardano.ConjugateCorrected
+public import SympyProofs.CubicEquation.CardanoComplex.ConjugateCorrected.Formula
 
 /-!
 # A nonreal first root for real coefficients
@@ -14,8 +14,9 @@ quantities; its proof uses `x^3 - 6*x + 9 = 0` as a witness.
 
 noncomputable section
 
-namespace RealCubeRoot.Cardano
+namespace CubicEquation.CardanoComplex
 
+open RealCubeRoot
 open Complex
 open scoped ComplexConjugate ComplexOrder
 
@@ -75,4 +76,4 @@ theorem exists_conjugateCorrected_first_not_real :
   norm_num [u, conjugateCorrectedV, conjugatePairedRoot, conjugateZeroDetector,
     radicandPlus, radicandMinus, discriminant]
 
-end RealCubeRoot.Cardano
+end CubicEquation.CardanoComplex

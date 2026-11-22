@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.RealCubeRoot.Cardano.CubicSurd
+public import SympyProofs.CubicEquation.CardanoReal.CubicSurd.Formula
 
 /-!
 # Realness of the first cubic-surd Cardano root
@@ -13,8 +13,10 @@ coefficients, regardless of the sign of the discriminant.
 
 noncomputable section
 
-namespace RealCubeRoot.Cardano
+namespace CubicEquation.CardanoReal
 
+open RealCubeRoot
+open CardanoComplex
 open Complex
 open scoped ComplexConjugate
 
@@ -45,4 +47,4 @@ theorem cubicSurd_cardano_first_im (S : ℂ → ℂ)
     hsum (c / a - (b / a) ^ 2 / 3)
       (2 * (b / a) ^ 3 / 27 - (b / a) * (c / a) / 3 + d / a)
 
-end RealCubeRoot.Cardano
+end CubicEquation.CardanoReal

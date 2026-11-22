@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.RealCubeRoot.Cardano.CubicSurd
+public import SympyProofs.CubicEquation.CardanoReal.CubicSurd.Formula
 
 /-!
 # Cardano's formula with cubic surds and explicit real and imaginary parts
@@ -14,8 +14,10 @@ all three roots are real and can be listed in ascending order.
 
 noncomputable section
 
-namespace RealCubeRoot.Cardano
+namespace CubicEquation.CardanoReal
 
+open RealCubeRoot
+open CardanoComplex
 open Complex
 open scoped ComplexConjugate
 
@@ -212,4 +214,4 @@ theorem cardano_formula_cubicSurd_sorted (S : ℂ → ℂ)
   refine ⟨(sort_three _ _ _).1, (sort_three _ _ _).2.1, ?_⟩
   exact h.trans ((sort_three _ _ _).2.2 x)
 
-end RealCubeRoot.Cardano
+end CubicEquation.CardanoReal

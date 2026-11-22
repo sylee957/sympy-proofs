@@ -1,6 +1,6 @@
 module
 
-public import SympyProofs.RealCubeRoot.Cardano.Principal
+public import SympyProofs.CubicEquation.CardanoComplex.Principal.Formula
 public import Mathlib.Algebra.Order.Round
 public import Mathlib.Basic.Real.Sign
 
@@ -34,8 +34,9 @@ and `cardano_formula_phaseCorrected_sign`.
 
 noncomputable section
 
-namespace RealCubeRoot.Cardano
+namespace CubicEquation.CardanoComplex
 
+open RealCubeRoot
 open Complex
 open scoped ComplexConjugate
 
@@ -394,4 +395,4 @@ theorem cardano_formula_phaseCorrected_sign {a : ℂ} (ha : a ≠ 0) (b c d x : 
     discriminant, depressedP, depressedQ, omega] using
     (cubic_formula_of_compatible_pair ha b c d x (u p q) (signCorrectedV p q) hsum hpair.2)
 
-end RealCubeRoot.Cardano
+end CubicEquation.CardanoComplex

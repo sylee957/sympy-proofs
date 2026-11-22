@@ -1,0 +1,3 @@
+module
+
+public import SympyProofs.CubicEquation.CardanoComplex.ModifiedConjugateCorrected.Formula

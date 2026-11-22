@@ -1,7 +1,7 @@
 module
 
-public import SympyProofs.RealCubeRoot.Cardano.ModifiedConjugateCorrected
-public import SympyProofs.RealCubeRoot.Cardano.ModifiedPrincipal
+public import SympyProofs.CubicEquation.CardanoComplex.ModifiedConjugateCorrected.Formula
+public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal.Properties
 
 /-!
 # Realness of the first modified conjugate-corrected Cardano root
@@ -16,8 +16,10 @@ the symmetric modified-principal formula.
 
 noncomputable section
 
-namespace RealCubeRoot.Cardano
+namespace CubicEquation.CardanoReal
 
+open RealCubeRoot
+open CardanoComplex
 open Complex
 open scoped ComplexConjugate
 
@@ -64,4 +66,4 @@ theorem modifiedConjugateCorrected_cardano_first_im (a b c d : ℝ) :
     modifiedConjugateCorrected_pair_sum_im (c / a - (b / a) ^ 2 / 3)
       (2 * (b / a) ^ 3 / 27 - (b / a) * (c / a) / 3 + d / a)
 
-end RealCubeRoot.Cardano
+end CubicEquation.CardanoReal

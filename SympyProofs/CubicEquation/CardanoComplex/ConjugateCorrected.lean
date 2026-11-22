@@ -1,0 +1,4 @@
+module
+
+public import SympyProofs.CubicEquation.CardanoComplex.ConjugateCorrected.Formula
+public import SympyProofs.CubicEquation.CardanoComplex.ConjugateCorrected.Counterexample

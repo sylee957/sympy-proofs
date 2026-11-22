@@ -50,6 +50,20 @@ theorem realCubicSurd_unique {x y : ℝ} (hy : y ^ 3 = x) : y = realCubicSurd x 
 @[simp] theorem realCubicSurd_zero : realCubicSurd 0 = 0 :=
   eq_zero_of_pow_eq_zero (realCubicSurd_cube 0)
 
+/-- The real cube root of a negative number is negative. -/
+theorem realCubicSurd_lt_zero {x : ℝ} (hx : x < 0) : realCubicSurd x < 0 := by
+  simp only [realCubicSurd, hx, ↓reduceIte]
+  exact neg_neg_of_pos (Real.rpow_pos_of_pos (neg_pos.mpr hx) _)
+
+/-- The real cube root is strictly increasing. -/
+theorem strictMono_realCubicSurd : StrictMono realCubicSurd := by
+  intro x y hxy
+  by_contra h
+  have h3 : realCubicSurd y ^ 3 ≤ realCubicSurd x ^ 3 :=
+    (show Odd (3 : ℕ) by decide).strictMono_pow.monotone (not_lt.mp h)
+  rw [realCubicSurd_cube, realCubicSurd_cube] at h3
+  exact absurd hxy (not_lt.mpr h3)
+
 /-- On the positive half-line, use the real analytic formula `exp (log x / 3)`. -/
 theorem analyticAt_realCubicSurd_of_pos {x : ℝ} (hx : 0 < x) :
     AnalyticAt ℝ realCubicSurd x := by

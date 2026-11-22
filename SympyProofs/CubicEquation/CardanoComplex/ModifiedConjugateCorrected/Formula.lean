@@ -1,8 +1,8 @@
 module
 
 public import SympyProofs.RealCubeRoot.ModifiedPrincipal
-public import SympyProofs.RealCubeRoot.Cardano.ConjugateCorrected
-public import SympyProofs.RealCubeRoot.Cardano.PhaseCorrected
+public import SympyProofs.CubicEquation.CardanoComplex.ConjugateCorrected.Formula
+public import SympyProofs.CubicEquation.CardanoComplex.PhaseCorrected.Formula
 
 /-!
 # Modified principal cube roots with conjugate correction
@@ -12,7 +12,7 @@ conjugation-based zero detector to pair them with `C = -p/3`. Since both are
 cube roots and `A*B = C^3`, the corrected pair gives all three roots for arbitrary
 complex coefficients. The denominator is always positive real, including at zero.
 
-See `ModifiedConjugateCorrectedRealness.lean` for the reduction to the direct
+See `CardanoReal/ModifiedConjugateCorrected/Realness.lean` for the reduction to the direct
 modified-principal formula on real coefficients and realness of the first root.
 -/
 
@@ -20,8 +20,9 @@ modified-principal formula on real coefficients and realness of the first root.
 
 noncomputable section
 
-namespace RealCubeRoot.Cardano
+namespace CubicEquation.CardanoComplex
 
+open RealCubeRoot
 open Complex
 open scoped ComplexConjugate
 
@@ -92,4 +93,4 @@ theorem cardano_formula_modifiedConjugateCorrected {a : ℂ} (ha : a ≠ 0)
   · rw [hU, hV]
     exact (modifiedConjugateCorrected_pair p q).2
 
-end RealCubeRoot.Cardano
+end CubicEquation.CardanoComplex
