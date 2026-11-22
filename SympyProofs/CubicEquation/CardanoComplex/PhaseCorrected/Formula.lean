@@ -293,6 +293,19 @@ theorem signCorrected_pair (p q : ℂ) :
     rw [mul_left_comm]
     exact hprod
 
+/-- The sign version returns the same second radical as the two-case quotient
+rule, so the two formulas give identical ordered roots. -/
+theorem signCorrectedV_eq_v (p q : ℂ) : signCorrectedV p q = v p q := by
+  by_cases hu : u p q = 0
+  · have hU : principal (radicandPlus p q) = 0 := hu
+    simp [signCorrectedV, hU, hu, signPhase, v]
+  · rw [v, ite_eq_right hu]
+    have hprod := (signCorrected_pair p q).2
+    apply (eq_div_iff (mul_ne_zero (by norm_num) hu)).mpr
+    calc
+      signCorrectedV p q * (3 * u p q) = 3 * (u p q * signCorrectedV p q) := by ring
+      _ = -p := by rw [hprod]; ring
+
 /-- Exact factorization for the sign version, preserving root multiplicities. -/
 theorem signCorrected_depressed_factorization (p q x : ℂ) :
     (x - (u p q + signCorrectedV p q)) *
