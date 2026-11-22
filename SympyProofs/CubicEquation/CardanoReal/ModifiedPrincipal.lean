@@ -3,3 +3,5 @@ module
 public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal.Properties
 public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal.Formula
 public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal.Order
+public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal.Shortcuts
+public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal.Monic

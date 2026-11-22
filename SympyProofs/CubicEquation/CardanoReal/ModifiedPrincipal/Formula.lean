@@ -27,7 +27,7 @@ open Complex
 open scoped ComplexConjugate
 
 /-- Three complex solutions of a cubic, in the order Cardano's formula lists them. -/
-structure CardanoRoots where
+@[ext] structure CardanoRoots where
   x₀ : ℂ
   x₁ : ℂ
   x₂ : ℂ

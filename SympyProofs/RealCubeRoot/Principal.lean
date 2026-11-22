@@ -61,6 +61,20 @@ theorem continuousAt_principal_of_re_nonneg {z : ℂ} (hz : 0 ≤ z.re) :
     ContinuousAt principal z :=
   Complex.continuousAt_cpow_const_of_re_pos (Or.inl hz) (by norm_num)
 
+/-- The real part of the principal cube root in polar form. -/
+theorem principal_re (z : ℂ) :
+    (principal z).re = ‖z‖ ^ (3⁻¹ : ℝ) * Real.cos (arg z / 3) := by
+  have h := Complex.cpow_ofReal_re z (3⁻¹ : ℝ)
+  rw [show ((3⁻¹ : ℝ) : ℂ) = (3⁻¹ : ℂ) by simp] at h
+  rw [principal, h, div_eq_mul_inv]
+
+/-- The imaginary part of the principal cube root in polar form. -/
+theorem principal_im (z : ℂ) :
+    (principal z).im = ‖z‖ ^ (3⁻¹ : ℝ) * Real.sin (arg z / 3) := by
+  have h := Complex.cpow_ofReal_im z (3⁻¹ : ℝ)
+  rw [show ((3⁻¹ : ℝ) : ℂ) = (3⁻¹ : ℂ) by simp] at h
+  rw [principal, h, div_eq_mul_inv]
+
 /-- Every principal cube root lies in the closed right half-plane. -/
 theorem principal_re_nonneg (z : ℂ) : 0 ≤ (principal z).re := by
   have h := Complex.cpow_ofReal_re z (3⁻¹ : ℝ)

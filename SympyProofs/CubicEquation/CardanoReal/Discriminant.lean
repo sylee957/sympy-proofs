@@ -1,6 +1,7 @@
 module
 
 public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal.Properties
+public import SympyProofs.CubicEquation.CardanoReal.ModifiedPrincipal.Monic
 
 /-!
 # The two Cardano radicals by the sign of the discriminant
@@ -16,8 +17,10 @@ two Cardano radicands.
   cube root of the first radicand and the conjugate of that root.
 
 `cubicDiscriminant a b c d` is `Δ` for the depressed form of a general real
-cubic. The last section expresses the three fields of
-`modifiedPrincipalCubicRoots` through `modifiedU` and `modifiedV`.
+cubic, and `monicCubicDiscriminant a b c` is `Δ` for the monic cubic
+`x^3 + a*x^2 + b*x + c`. The last two sections express the three fields of
+`modifiedPrincipalCubicRoots` and of `modifiedPrincipalMonicCubicRoots` through
+`modifiedU` and `modifiedV`.
 -/
 
 @[expose] public section
@@ -236,5 +239,47 @@ theorem modifiedPrincipalCubicRoots_x₂_eq (a b c d : ℝ) :
           ((b / a / 3 : ℝ) : ℂ) := by
   simp only [modifiedPrincipalCubicRoots, modifiedU, modifiedV, realDepressedP, realDepressedQ,
     radicandPlus, radicandMinus, discriminant_ofReal, realDiscriminant, omega]
+
+/-! ### The monic cubic -/
+
+/-- The linear coefficient of the depressed form of `x^3 + a*x^2 + b*x + c`. -/
+def monicDepressedP (a b : ℝ) : ℝ := b - a ^ 2 / 3
+
+/-- The constant coefficient of the depressed form of `x^3 + a*x^2 + b*x + c`. -/
+def monicDepressedQ (a b c : ℝ) : ℝ := 2 * a ^ 3 / 27 - a * b / 3 + c
+
+/-- Cardano's discriminant `q^2/4 + p^3/27` of the depressed form of the real
+monic cubic `x^3 + a*x^2 + b*x + c`. -/
+def monicCubicDiscriminant (a b c : ℝ) : ℝ :=
+  realDiscriminant (monicDepressedP a b) (monicDepressedQ a b c)
+
+/-- The discriminant of a general cubic is the monic one of the coefficients
+divided by the leading one. -/
+theorem cubicDiscriminant_eq_monic (a b c d : ℝ) :
+    cubicDiscriminant a b c d = monicCubicDiscriminant (b / a) (c / a) (d / a) :=
+  rfl
+
+theorem modifiedPrincipalMonicCubicRoots_x₀_eq (a b c : ℝ) :
+    (modifiedPrincipalMonicCubicRoots a b c).x₀ =
+      modifiedU (monicDepressedP a b) (monicDepressedQ a b c) +
+        modifiedV (monicDepressedP a b) (monicDepressedQ a b c) - ((a / 3 : ℝ) : ℂ) := by
+  simp only [modifiedPrincipalMonicCubicRoots, modifiedU, modifiedV, monicDepressedP,
+    monicDepressedQ, radicandPlus, radicandMinus, discriminant_ofReal, realDiscriminant]
+
+theorem modifiedPrincipalMonicCubicRoots_x₁_eq (a b c : ℝ) :
+    (modifiedPrincipalMonicCubicRoots a b c).x₁ =
+      omega * modifiedU (monicDepressedP a b) (monicDepressedQ a b c) +
+        omega ^ 2 * modifiedV (monicDepressedP a b) (monicDepressedQ a b c) -
+          ((a / 3 : ℝ) : ℂ) := by
+  simp only [modifiedPrincipalMonicCubicRoots, modifiedU, modifiedV, monicDepressedP,
+    monicDepressedQ, radicandPlus, radicandMinus, discriminant_ofReal, realDiscriminant, omega]
+
+theorem modifiedPrincipalMonicCubicRoots_x₂_eq (a b c : ℝ) :
+    (modifiedPrincipalMonicCubicRoots a b c).x₂ =
+      omega ^ 2 * modifiedU (monicDepressedP a b) (monicDepressedQ a b c) +
+        omega * modifiedV (monicDepressedP a b) (monicDepressedQ a b c) -
+          ((a / 3 : ℝ) : ℂ) := by
+  simp only [modifiedPrincipalMonicCubicRoots, modifiedU, modifiedV, monicDepressedP,
+    monicDepressedQ, radicandPlus, radicandMinus, discriminant_ofReal, realDiscriminant, omega]
 
 end CubicEquation.CardanoReal
