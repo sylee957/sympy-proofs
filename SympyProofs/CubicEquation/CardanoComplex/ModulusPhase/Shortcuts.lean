@@ -141,6 +141,43 @@ theorem radicandPlus_mem_slitPlane_of_re_neg (p : ℂ) {q : ℂ} (hq : q.re < 0)
   rw [radicandPlus, add_re, hre]
   linarith [sqrt_re_nonneg (discriminant p q)]
 
+/-- A constant coefficient on the negative imaginary axis makes the first
+radicand nonzero. -/
+theorem radicandPlus_ne_zero_of_re_eq_zero_of_im_neg (p : ℂ) {q : ℂ}
+    (hre : q.re = 0) (him : q.im < 0) : radicandPlus p q ≠ 0 := by
+  intro hA
+  obtain ⟨-, hq⟩ := (radicandPlus_eq_zero_iff p q).mp hA
+  rcases hq with hq | ⟨-, hq⟩ <;> linarith
+
+/-! ### The second radicand -/
+
+/-- A constant coefficient with positive real part makes the second radicand
+nonzero. -/
+theorem radicandMinus_ne_zero_of_re_pos (p : ℂ) {q : ℂ} (hq : 0 < q.re) :
+    radicandMinus p q ≠ 0 := by
+  intro h
+  have hhalf : (-q / 2).re = -q.re / 2 := by simp
+  have hre : (radicandMinus p q).re =
+      -q.re / 2 - (Complex.sqrt (discriminant p q)).re := by
+    rw [radicandMinus, sub_re, hhalf]
+  rw [h, zero_re] at hre
+  linarith [sqrt_re_nonneg (discriminant p q)]
+
+/-- A constant coefficient on the positive imaginary axis makes the second
+radicand nonzero. -/
+theorem radicandMinus_ne_zero_of_re_eq_zero_of_im_pos (p : ℂ) {q : ℂ}
+    (hre : q.re = 0) (him : 0 < q.im) : radicandMinus p q ≠ 0 := by
+  intro hB
+  have hs : Complex.sqrt (discriminant p q) = -q / 2 := by
+    rw [radicandMinus] at hB
+    exact (sub_eq_zero.mp hB).symm
+  have hre' : (-q / 2).re = -q.re / 2 := by simp
+  have him' : (-q / 2).im = -q.im / 2 := by simp
+  have hnonneg := sqrt_im_nonneg_of_re_eq_zero (z := discriminant p q)
+    (by rw [hs, hre', hre]; norm_num)
+  rw [hs, him'] at hnonneg
+  linarith
+
 /-! ### A nonzero first radicand: the second radical is a quotient -/
 
 /-- When the first radicand is nonzero, the second radical is `-p / (3 * u)`. -/
@@ -234,6 +271,23 @@ theorem modulusPhaseMonicCubicRoots_eq_principalQuotient_of_re_neg {a b c : ℂ}
     (h : (complexMonicDepressedQ a b c).re < 0) :
     modulusPhaseMonicCubicRoots a b c = principalQuotientMonicCubicRoots a b c :=
   modulusPhaseMonicCubicRoots_eq_principalQuotient (radicandPlus_mem_slitPlane_of_re_neg _ h)
+
+/-! ### The formula built on the second radicand -/
+
+/-- Cardano's formula for `x^3 + a*x^2 + b*x + c = 0` built on the second
+radicand `B = -q/2 - sqrt Δ`: the second radical is `v = -(-B)^(1/3)` with a
+principal cube root, and the first is the quotient `-p / (3 * v)`. -/
+def secondRadicandQuotientMonicCubicRoots (a b c : ℂ) : CardanoRoots :=
+  let p := b - a ^ 2 / 3
+  let q := 2 * a ^ 3 / 27 - a * b / 3 + c
+  let Δ := q ^ 2 / 4 + p ^ 3 / 27
+  let v := -principal (-(-q / 2 - Complex.sqrt Δ))
+  let u := -p / (3 * v)
+  let ω : ℂ := (-1 + (Real.sqrt 3 : ℂ) * I) / 2
+  let shift := a / 3
+  { x₀ := u + v - shift
+    x₁ := ω * u + ω ^ 2 * v - shift
+    x₂ := ω ^ 2 * u + ω * v - shift }
 
 /-! ### A vanishing depressed linear coefficient: the cube roots of `-q` -/
 

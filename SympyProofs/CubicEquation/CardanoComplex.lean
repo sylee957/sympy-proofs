@@ -6,4 +6,6 @@ public import SympyProofs.CubicEquation.CardanoComplex.PhaseCorrected
 public import SympyProofs.CubicEquation.CardanoComplex.ConjugateCorrected
 public import SympyProofs.CubicEquation.CardanoComplex.ModifiedConjugateCorrected
 public import SympyProofs.CubicEquation.CardanoComplex.ModulusPhase
+public import SympyProofs.CubicEquation.CardanoComplex.MonicPolynomial
+public import SympyProofs.CubicEquation.CardanoComplex.CompatiblePair
 public import SympyProofs.CubicEquation.CardanoComplex.Roots

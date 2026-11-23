@@ -34,6 +34,12 @@ theorem principal_ofReal_of_nonneg {x : ℝ} (hx : 0 ≤ x) :
     principal (x : ℂ) = ((x ^ (3⁻¹ : ℝ) : ℝ) : ℂ) := by
   simpa [principal] using (Complex.ofReal_cpow hx (3⁻¹ : ℝ)).symm
 
+/-- For a nonnegative real `q`, minus the principal cube root of `q` is the
+real number `-q^(1/3)`. -/
+theorem neg_principal_ofReal_of_nonneg {r : ℝ} (hr : 0 ≤ r) :
+    -principal (r : ℂ) = ((-(r ^ (3⁻¹ : ℝ)) : ℝ) : ℂ) := by
+  rw [principal_ofReal_of_nonneg hr, ofReal_neg]
+
 /-- On negative real inputs the principal cube root has argument `π / 3`. -/
 theorem principal_ofReal_of_neg {x : ℝ} (hx : x < 0) :
     principal (x : ℂ) = (((-x) ^ (3⁻¹ : ℝ) : ℝ) : ℂ) *
