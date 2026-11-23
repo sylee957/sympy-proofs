@@ -4,3 +4,4 @@ public import SympyProofs.CubicEquation.CardanoComplex.ModulusPhase.Formula
 public import SympyProofs.CubicEquation.CardanoComplex.ModulusPhase.Monic
 public import SympyProofs.CubicEquation.CardanoComplex.ModulusPhase.Shortcuts
 public import SympyProofs.CubicEquation.CardanoComplex.ModulusPhase.Realness
+public import SympyProofs.CubicEquation.CardanoComplex.ModulusPhase.DepressedConstantZero
