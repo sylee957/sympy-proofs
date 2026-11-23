@@ -12,7 +12,7 @@ conjugation-based zero detector to pair them with `C = -p/3`. Since both are
 cube roots and `A*B = C^3`, the corrected pair gives all three roots for arbitrary
 complex coefficients. The denominator is always positive real, including at zero.
 
-See `CardanoReal/ModifiedConjugateCorrected/Realness.lean` for the reduction to the direct
+See `ModifiedConjugateCorrected/Realness.lean` for the reduction to the direct
 modified-principal formula on real coefficients and realness of the first root.
 -/
 

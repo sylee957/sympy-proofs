@@ -26,6 +26,12 @@ namespace CubicEquation.CardanoComplex
 open Complex
 open scoped ComplexConjugate
 
+/-- Three complex solutions of a cubic, in the order Cardano's formula lists them. -/
+@[ext] structure CardanoRoots where
+  x₀ : ℂ
+  x₁ : ℂ
+  x₂ : ℂ
+
 def discriminant (p q : ℂ) : ℂ := q ^ 2 / 4 + p ^ 3 / 27
 
 def radicandPlus (p q : ℂ) : ℂ := -q / 2 + Complex.sqrt (discriminant p q)

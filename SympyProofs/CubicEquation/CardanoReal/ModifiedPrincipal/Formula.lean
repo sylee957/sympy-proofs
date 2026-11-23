@@ -26,12 +26,6 @@ open CardanoComplex
 open Complex
 open scoped ComplexConjugate
 
-/-- Three complex solutions of a cubic, in the order Cardano's formula lists them. -/
-@[ext] structure CardanoRoots where
-  x₀ : ℂ
-  x₁ : ℂ
-  x₂ : ℂ
-
 /-- The three Cardano solutions of the real cubic `a*x^3 + b*x^2 + c*x + d = 0`.
 Both cube roots are modified principal cube roots, and the only variable
 denominator is the leading coefficient `a`. The first solution is real; the

@@ -71,6 +71,16 @@ private theorem modifiedPrincipal_ofReal_neg {x : ℝ} (hx : x < 0) :
     rw [← hreal, modifiedPrincipal_ofReal, ← Complex.ofReal_pow, realCubicSurd_cube]
   · rw [modifiedPrincipal_eq_principal (Or.inr hz), principal_cube]
 
+/-- The modified principal cube root vanishes only at zero. -/
+theorem modifiedPrincipal_eq_zero_iff {z : ℂ} : modifiedPrincipal z = 0 ↔ z = 0 := by
+  constructor
+  · intro h
+    have h3 := modifiedPrincipal_cube z
+    rw [h] at h3
+    simpa using h3.symm
+  · rintro rfl
+    exact modifiedPrincipal_zero
+
 /-- Realness is both preserved and reflected. -/
 theorem modifiedPrincipal_im_eq_zero_iff (z : ℂ) :
     (modifiedPrincipal z).im = 0 ↔ z.im = 0 := by
