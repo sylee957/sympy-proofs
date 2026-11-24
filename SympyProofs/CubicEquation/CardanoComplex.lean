@@ -2,6 +2,7 @@ module
 
 public import SympyProofs.CubicEquation.CardanoComplex.Basic
 public import SympyProofs.CubicEquation.CardanoComplex.Principal
+public import SympyProofs.CubicEquation.Meadow
 public import SympyProofs.CubicEquation.CardanoComplex.PhaseCorrected
 public import SympyProofs.CubicEquation.CardanoComplex.ConjugateCorrected
 public import SympyProofs.CubicEquation.CardanoComplex.ModifiedConjugateCorrected
