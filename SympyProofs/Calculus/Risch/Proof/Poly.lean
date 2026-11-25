@@ -6,6 +6,8 @@ public import SympyProofs.Calculus.Risch.Spec.Poly
 public import SympyProofs.Calculus.Risch.Proof.Normal
 public import Mathlib.Algebra.Polynomial.Derivative
 public import Mathlib.RingTheory.Coprime.Basic
+import Mathlib.Algebra.Polynomial.FieldDivision
+import Mathlib.RingTheory.PrincipalIdealDomain
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.LinearCombination
 import Mathlib.Tactic.Ring
@@ -621,6 +623,30 @@ theorem quotWith_of_dvd (hν : Sound k ν) {p d : Poly n} (hp : Defined k p)
 
 /-! ### Greatest common divisors -/
 
+/-- Dividing every coefficient by a term with nonzero value and simplifying keeps a defined
+coefficient list defined. -/
+theorem defined_map_sound_div (hν : Sound k ν) {p : Poly n} {e : Term n} (hp : Defined k p)
+    (he : Term.InDomain k e) (nz : Term.value k e ≠ 0) :
+    Defined k (p.map fun a => ν (.div a e)) := by
+  have := defined_map_sound hν (defined_map_div hp he nz)
+  rwa [List.map_map] at this
+
+/-- Dividing every coefficient by a term with nonzero value and simplifying divides the
+polynomial by the value. -/
+theorem model_map_sound_div (hν : Sound k ν) {p : Poly n} {e : Term n} (hp : Defined k p)
+    (he : Term.InDomain k e) (nz : Term.value k e ≠ 0) :
+    model k (p.map fun a => ν (.div a e)) = C (Term.value k e)⁻¹ * model k p := by
+  have := model_map_sound hν (defined_map_div hp he nz)
+  rwa [List.map_map, model_map_div] at this
+
+/-- Dividing a normal coefficient list by its highest coefficient keeps it defined and
+divides the polynomial by that coefficient. -/
+theorem monicWith_spec (hν : Sound k ν) {p : Poly n} (hp : Defined k p) (np : Normal k p) :
+    Defined k (monicWith ν p) ∧ (monicWith ν p).length = p.length ∧
+      model k (monicWith ν p) = C (Term.value k (lead p))⁻¹ * model k p :=
+  ⟨defined_map_sound_div hν hp (defined_lead hp) np, List.length_map _,
+    model_map_sound_div hν hp (defined_lead hp) np⟩
+
 /-- The extended Euclidean algorithm returns a common divisor with its cofactors, once the
 fuel is at least the trimmed length of the second argument. -/
 theorem xgcdWith_spec (hν : Sound k ν) : ∀ (fuel : ℕ) {a b : Poly n}, Defined k a →
@@ -654,19 +680,39 @@ theorem xgcdWith_spec (hν : Sound k ν) : ∀ (fuel : ℕ) {a b : Poly n}, Defi
       have bz : model k b = 0 := (trim_eq_nil_iff hb).mp (List.isEmpty_iff.mp he)
       exact ⟨ha, one, defined_nil, by simp [mone, model_nil], dvd_rfl, bz ▸ dvd_zero _⟩
     · rw [ite_eq_right he]
+      dsimp only
       have nb : Normal k (trim b) := nrm.resolve_left fun h => he (List.isEmpty_iff.mpr h)
       obtain ⟨eq, dq, dr, small⟩ := remWith_spec hν ha dt nb
-      obtain ⟨dg, du, dv, bez, ga, gb⟩ := ih dt dr (by
-        have := (trim_spec dr).2.2.2
-        omega)
-      rw [mt] at eq bez ga
-      have dco := defined_sub du (defined_mul dv dq)
-      refine ⟨dg, dv, defined_map_sound hν dco, ?_, ?_, ga⟩
-      · dsimp only
-        rw [model_map_sound hν dco, model_sub, model_mul, ← bez, eq]
-        ring
-      · rw [eq]
-        exact dvd_add (dvd_mul_of_dvd_left ga _) gb
+      simp only [remWith, quotWith] at eq dq dr small
+      generalize divModWith ν (trim b) a.length a = qr at eq dq dr small ⊢
+      obtain ⟨rt, drt, nrt, lrt⟩ := trim_spec dr
+      rw [mt] at eq
+      by_cases re : (trim qr.2).isEmpty
+      · rw [ite_eq_left re]
+        have rz : model k qr.2 = 0 := (trim_eq_nil_iff dr).mp (List.isEmpty_iff.mp re)
+        refine ⟨dt, defined_nil, one, by rw [model_nil, mone, mt]; ring, ?_, by rw [mt]⟩
+        rw [eq, rz, add_zero, mt]
+        exact dvd_mul_right _ _
+      · rw [ite_eq_right re]
+        have nr : Normal k (trim qr.2) := nrt.resolve_left fun h => re (List.isEmpty_iff.mpr h)
+        obtain ⟨dm, lm, mm⟩ := monicWith_spec hν drt nr
+        obtain ⟨dg, du, dv, bez, ga, gb⟩ := ih dt dm (by
+          have := (trim_spec dm).2.2.2
+          omega)
+        generalize xgcdWith ν fuel (trim b) (monicWith ν (trim qr.2)) = s
+          at dg du dv bez ga gb ⊢
+        have du' := defined_map_sound_div hν dv (defined_lead drt) nr
+        have mu := model_map_sound_div hν dv (defined_lead drt) nr
+        have dco := defined_sub du (defined_mul du' dq)
+        have u : IsUnit (C (Term.value k (lead (trim qr.2)))⁻¹) :=
+          isUnit_C.mpr (inv_ne_zero nr).isUnit
+        rw [mm, rt] at bez gb
+        rw [mt] at bez ga
+        refine ⟨dg, du', defined_map_sound hν dco, ?_, ?_, ga⟩
+        · rw [model_map_sound hν dco, model_sub, model_mul, mu]
+          linear_combination (C (Term.value k (lead (trim qr.2)))⁻¹ * model k s.2.2) * eq + bez
+        · rw [eq]
+          exact dvd_add (dvd_mul_of_dvd_left ga _) (u.dvd_mul_left.mp gb)
 
 /-- The greatest common divisor program returns a common divisor `g` of `a` and `b` and
 cofactors with `u a + v b = g`. -/
@@ -680,6 +726,58 @@ theorem gcdWith_spec (hν : Sound k ν) {a b : Poly n} (ha : Defined k a) (hb : 
     have := (trim_spec hb).2.2.2
     omega)
 
+/-- The Euclidean algorithm returns a common divisor of `a` and `b` that every common divisor
+divides, once the fuel is at least the trimmed length of `b`. -/
+theorem euclidWith_spec (hν : Sound k ν) : ∀ (fuel : ℕ) {a b : Poly n}, Defined k a →
+    Defined k b → (trim b).length ≤ fuel →
+    Defined k (euclidWith ν fuel a b) ∧ model k (euclidWith ν fuel a b) ∣ model k a ∧
+      model k (euclidWith ν fuel a b) ∣ model k b ∧
+      ∀ h, h ∣ model k a → h ∣ model k b → h ∣ model k (euclidWith ν fuel a b) := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro a b ha hb hl
+    have bz : model k b = 0 :=
+      (trim_eq_nil_iff hb).mp (List.length_eq_zero_iff.mp (Nat.le_zero.mp hl))
+    exact ⟨ha, dvd_rfl, bz ▸ dvd_zero _, fun _ h _ => h⟩
+  | succ fuel ih =>
+    intro a b ha hb hl
+    obtain ⟨mt, dt, nrm, -⟩ := trim_spec hb
+    rw [euclidWith]
+    by_cases he : (trim b).isEmpty
+    · rw [ite_eq_left he]
+      have bz : model k b = 0 := (trim_eq_nil_iff hb).mp (List.isEmpty_iff.mp he)
+      exact ⟨ha, dvd_rfl, bz ▸ dvd_zero _, fun _ h _ => h⟩
+    · rw [ite_eq_right he]
+      dsimp only
+      have nb : Normal k (trim b) := nrm.resolve_left fun h => he (List.isEmpty_iff.mpr h)
+      obtain ⟨eq, -, dr, small⟩ := remWith_spec hν ha dt nb
+      generalize remWith ν a (trim b) = r at eq dr small ⊢
+      generalize quotWith ν a (trim b) = q at eq
+      obtain ⟨rt, drt, nrt, lrt⟩ := trim_spec dr
+      rw [mt] at eq
+      by_cases re : (trim r).isEmpty
+      · rw [ite_eq_left re]
+        have rz : model k r = 0 := (trim_eq_nil_iff dr).mp (List.isEmpty_iff.mp re)
+        refine ⟨dt, ?_, by rw [mt], fun h _ hb' => by rw [mt]; exact hb'⟩
+        rw [eq, rz, add_zero, mt]
+        exact dvd_mul_right _ _
+      · rw [ite_eq_right re]
+        have nr : Normal k (trim r) := nrt.resolve_left fun h => re (List.isEmpty_iff.mpr h)
+        obtain ⟨dm, lm, mm⟩ := monicWith_spec hν drt nr
+        obtain ⟨dg, ga, gb, gmax⟩ := ih dt dm (by
+          have := (trim_spec dm).2.2.2
+          omega)
+        have u : IsUnit (C (Term.value k (lead (trim r)))⁻¹) :=
+          isUnit_C.mpr (inv_ne_zero nr).isUnit
+        rw [mm, rt] at gb
+        rw [mt] at ga
+        refine ⟨dg, ?_, ga, fun h ha' hb' => gmax h (by rw [mt]; exact hb') ?_⟩
+        · rw [eq]
+          exact dvd_add (dvd_mul_of_dvd_left ga _) (u.dvd_mul_left.mp gb)
+        · rw [mm, rt, show model k r = model k a - model k b * model k q by rw [eq]; ring]
+          exact dvd_mul_of_dvd_right (dvd_sub ha' (dvd_mul_of_dvd_left hb' _)) _
+
 /-- Lowest terms: the same quotient, with coprime numerator and denominator. -/
 theorem reduceWith_spec (hν : Sound k ν) {a b : Poly n} (ha : Defined k a) (hb : Defined k b)
     (bn : model k b ≠ 0) :
@@ -687,47 +785,39 @@ theorem reduceWith_spec (hν : Sound k ν) {a b : Poly n} (ha : Defined k a) (hb
       model k (reduceWith ν a b).2 ≠ 0 ∧
       IsCoprime (model k (reduceWith ν a b).1) (model k (reduceWith ν a b).2) ∧
       model k a * model k (reduceWith ν a b).2 = model k (reduceWith ν a b).1 * model k b := by
-  obtain ⟨dg, du, dv, bez, ga, gb⟩ := gcdWith_spec hν ha hb
+  obtain ⟨G, hG⟩ : ∃ G, G = euclidWith ν (b.length + 1) a b := ⟨_, rfl⟩
+  have e : reduceWith ν a b = (quotWith ν a (trim G), quotWith ν b (trim G)) := by
+    subst hG
+    rfl
+  obtain ⟨dg, ga, gb, gmax⟩ := euclidWith_spec hν (b.length + 1) ha hb (by
+    have := (trim_spec hb).2.2.2
+    omega)
+  rw [← hG] at dg ga gb gmax
+  rw [e]
   obtain ⟨mt, dt, nrm, -⟩ := trim_spec dg
-  have gn : model k (gcdWith ν a b).1 ≠ 0 := fun z => bn (zero_dvd_iff.mp (z ▸ gb))
-  have ng : Normal k (trim (gcdWith ν a b).1) :=
-    nrm.resolve_left fun h => gn ((trim_eq_nil_iff dg).mp h)
+  have gn : model k G ≠ 0 := fun z => bn (zero_dvd_iff.mp (z ▸ gb))
+  have ng : Normal k (trim G) := nrm.resolve_left fun h => gn ((trim_eq_nil_iff dg).mp h)
   have qa := quotWith_of_dvd hν ha dt ng (mt ▸ ga)
   have qb := quotWith_of_dvd hν hb dt ng (mt ▸ gb)
   rw [mt] at qa qb
   refine ⟨(remWith_spec hν ha dt ng).2.1, (remWith_spec hν hb dt ng).2.1, ?_, ?_, ?_⟩
   · intro z
     apply bn
-    rw [qb]
-    rw [show model k (quotWith ν b (trim (gcdWith ν a b).1)) = 0 from z, mul_zero]
-  · refine ⟨model k (gcdWith ν a b).2.1, model k (gcdWith ν a b).2.2,
-      mul_left_cancel₀ gn ?_⟩
-    change _ * (_ * model k (quotWith ν a (trim (gcdWith ν a b).1)) +
-      _ * model k (quotWith ν b (trim (gcdWith ν a b).1))) = _
-    linear_combination (model k (gcdWith ν a b).2.1) * (-qa) +
-      (model k (gcdWith ν a b).2.2) * (-qb) + bez
-  · change model k a * model k (quotWith ν b (trim (gcdWith ν a b).1)) =
-      model k (quotWith ν a (trim (gcdWith ν a b).1)) * model k b
-    apply mul_left_cancel₀ gn
+    rw [qb, z, mul_zero]
+  · apply IsRelPrime.isCoprime
+    intro d da db
+    have h1 : model k G * d ∣ model k a := by
+      rw [qa]
+      exact mul_dvd_mul_left _ da
+    have h2 : model k G * d ∣ model k b := by
+      rw [qb]
+      exact mul_dvd_mul_left _ db
+    apply isUnit_of_dvd_one
+    exact (mul_dvd_mul_iff_left gn).mp (by rw [mul_one]; exact gmax _ h1 h2)
+  · apply mul_left_cancel₀ gn
     linear_combination
-      (model k (gcdWith ν a b).1 * model k (quotWith ν b (trim (gcdWith ν a b).1))) * qa -
-      (model k (gcdWith ν a b).1 * model k (quotWith ν a (trim (gcdWith ν a b).1))) * qb
-
-/-- Dividing every coefficient by a term with nonzero value and simplifying keeps a defined
-coefficient list defined. -/
-theorem defined_map_sound_div (hν : Sound k ν) {p : Poly n} {e : Term n} (hp : Defined k p)
-    (he : Term.InDomain k e) (nz : Term.value k e ≠ 0) :
-    Defined k (p.map fun a => ν (.div a e)) := by
-  have := defined_map_sound hν (defined_map_div hp he nz)
-  rwa [List.map_map] at this
-
-/-- Dividing every coefficient by a term with nonzero value and simplifying divides the
-polynomial by the value. -/
-theorem model_map_sound_div (hν : Sound k ν) {p : Poly n} {e : Term n} (hp : Defined k p)
-    (he : Term.InDomain k e) (nz : Term.value k e ≠ 0) :
-    model k (p.map fun a => ν (.div a e)) = C (Term.value k e)⁻¹ * model k p := by
-  have := model_map_sound hν (defined_map_div hp he nz)
-  rwa [List.map_map, model_map_div] at this
+      (model k G * model k (quotWith ν b (trim G))) * qa -
+      (model k G * model k (quotWith ν a (trim G))) * qb
 
 end Poly
 

@@ -108,6 +108,14 @@ def quotWith (ν : Term n → Term n) (p d : Poly n) : Poly n := (divModWith ν 
 
 def remWith (ν : Term n → Term n) (p d : Poly n) : Poly n := (divModWith ν d p.length p).2
 
+/-- Divide every coefficient by the highest written one. -/
+def monicWith (ν : Term n → Term n) (p : Poly n) : Poly n := p.map fun e => ν (.div e (lead p))
+
+/-! The two Euclidean algorithms divide each remainder by its highest coefficient. Without
+that, the coefficients of the remainders grow from step to step. The arguments themselves
+are left as they are: dividing them would put their highest coefficients into the
+denominators of all the others, which costs more than it saves. -/
+
 /-- The extended Euclidean algorithm: a common divisor `g` of `a` and `b` and cofactors
 with `u a + v b = g`, returned as `(g, u, v)`. -/
 def xgcdWith (ν : Term n → Term n) : Nat → Poly n → Poly n → Poly n × Poly n × Poly n
@@ -115,16 +123,30 @@ def xgcdWith (ν : Term n → Term n) : Nat → Poly n → Poly n → Poly n × 
   | fuel + 1, a, b =>
     if (trim b).isEmpty then (a, [.const 1], [])
     else
-      let r := xgcdWith ν fuel (trim b) (remWith ν a (trim b))
-      (r.1, r.2.2, (sub r.2.1 (mul r.2.2 (quotWith ν a (trim b)))).map ν)
+      let qr := divModWith ν (trim b) a.length a
+      let r := trim qr.2
+      if r.isEmpty then (trim b, [], [.const 1])
+      else
+        let s := xgcdWith ν fuel (trim b) (monicWith ν r)
+        let u := s.2.2.map fun e => ν (.div e (lead r))
+        (s.1, u, (sub s.2.1 (mul u qr.1)).map ν)
 
 /-- A greatest common divisor with its cofactors. -/
 def gcdWith (ν : Term n → Term n) (a b : Poly n) : Poly n × Poly n × Poly n :=
   xgcdWith ν (b.length + 1) a b
 
+/-- The Euclidean algorithm, for a greatest common divisor without cofactors. -/
+def euclidWith (ν : Term n → Term n) : Nat → Poly n → Poly n → Poly n
+  | 0, a, _ => a
+  | fuel + 1, a, b =>
+    if (trim b).isEmpty then a
+    else
+      let r := trim (remWith ν a (trim b))
+      if r.isEmpty then trim b else euclidWith ν fuel (trim b) (monicWith ν r)
+
 /-- Divide a numerator and a denominator by their greatest common divisor. -/
 def reduceWith (ν : Term n → Term n) (a b : Poly n) : Poly n × Poly n :=
-  let g := trim (gcdWith ν a b).1
+  let g := trim (euclidWith ν (b.length + 1) a b)
   (quotWith ν a g, quotWith ν b g)
 
 /-- A numerator and a denominator for a term one level up, without cancellation. -/
