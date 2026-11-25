@@ -59,6 +59,15 @@ def restrict (Cs : List (List Rat)) (Gs : List (Poly n))
         (fun i => Linear.unit Gs.length i ++ G.map fun v => -(v.getD i 0)) ++
       out.2.map fun r => List.replicate Gs.length 0 ++ r)
 
+/-- The same description of the solutions, with as few new parameters as possible: one for
+each vector of a basis of the solutions of the rows, whose polynomial is the corresponding
+combination, and one row for each old parameter tying it to the new ones. Without it every
+degree adds its own parameters and rows, and the description grows with the degree bound. -/
+def shrink (m : Nat) (out : List (Poly n) × List (List Rat)) : List (Poly n) × List (List Rat) :=
+  let G := Linear.kernel out.2 out.1.length
+  (List.replicate m [] ++ G.map fun v => norm (lcomb v out.1),
+    (List.range m).map fun i => Linear.unit m i ++ G.map fun v => -(v.getD i 0))
+
 /-- Solve `R Y′ + S Y = Σ pᵢ Gᵢ` for polynomials `Y` with fewer than `k` coefficients, given
 the solver `lower` of the preceding field. The result lists one polynomial for each
 parameter, old and new, and equations on the parameters. -/
@@ -75,14 +84,15 @@ def solvePoly (t : Tower (n + 1))
       let rec' := restrict high
         (Gs.map fun G => norm (sub G (applyL t R S (mono k (η G)))))
         (fun Gs' => solvePoly t lower R S lam k Gs')
-      (addFront ((Gs.map η).map (mono k)) rec'.1, rec'.2)
+      shrink Gs.length (addFront ((Gs.map η).map (mono k)) rec'.1, rec'.2)
     else
       let sol := lower (Term.norm (.div s r))
         ((coeffs Gs (lam + k)).map fun g => Term.norm (.div g r))
       let rec' := restrict (high ++ sol.2.map fun row => row.take (Gs.length + sol.1.length))
         (Gs ++ sol.1.map fun h => norm (neg (applyL t R S (mono k h))))
         (fun Gs' => solvePoly t lower R S lam k Gs')
-      (addFront (Gs.map (fun _ => ([] : Poly n)) ++ sol.1.map (mono k)) rec'.1, rec'.2)
+      shrink Gs.length
+        (addFront (Gs.map (fun _ => ([] : Poly n)) ++ sol.1.map (mono k)) rec'.1, rec'.2)
 
 /-- Powers of a polynomial. -/
 def ppow (B : Poly n) : Nat → Poly n

@@ -736,6 +736,110 @@ theorem spec_solve {t : Tower (n + 1)} {R S : Poly n} {lam : ℕ} (g : Good k t 
     rw [L_add, sub.2, newComb hp]
     ring
 
+theorem pcomb_replicate_nil : ∀ (m : ℕ) (p : List k),
+    pcomb p (List.replicate m ([] : Poly n)) = 0
+  | 0, p => by simp [pcomb_nil_right]
+  | m + 1, [] => by simp [pcomb_nil_left]
+  | m + 1, c :: p => by
+    rw [List.replicate_succ, pcomb_cons, pcomb_replicate_nil m p, Poly.model_nil]
+    simp
+
+/-- `shrink` describes the same solutions: the combinations of the old polynomials whose
+coefficients solve the old rows are the combinations of the new ones whose coefficients
+solve the new rows. -/
+theorem shrink_spec {t : Tower (n + 1)} {R S : Poly n} {j : ℕ} {Gs : List (Poly n)}
+    {out : List (Poly n) × List (List ℚ)} (h : Spec k t R S j Gs out) :
+    Spec k t R S j Gs (shrink Gs.length out) := by
+  obtain ⟨Ys, rows⟩ := out
+  obtain ⟨dY, mle, hsol⟩ := h
+  dsimp only at dY mle hsol
+  obtain ⟨klen, kiff⟩ := kernel_spec (k := k) rows Ys.length
+  obtain ⟨G, hG⟩ : ∃ G, G = kernel rows Ys.length := ⟨_, rfl⟩
+  rw [← hG] at klen kiff
+  have run : shrink Gs.length (Ys, rows) =
+      (List.replicate Gs.length [] ++ G.map fun v => Poly.norm (lcomb v Ys),
+        (List.range Gs.length).map fun i => unit Gs.length i ++ G.map fun v => -(v.getD i 0)) := by
+    subst hG
+    rfl
+  rw [run]
+  -- the new polynomials are rational combinations of the old ones
+  have mval : ∀ v ∈ G, Poly.model k (Poly.norm (lcomb v Ys)) = ∑ i ∈ Finset.range Ys.length,
+      C (constHom k n ((v.getD i 0 : ℚ) : k)) * Poly.model k (Ys.getD i []) := by
+    intro v hv
+    rw [Poly.model_norm (defined_lcomb v dY), model_lcomb,
+      pcomb_eq_sum Ys _ (by rw [List.length_map, klen v hv])]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    rw [getD_map_cast]
+  have pnew (p e : List k) (hp : p.length = Gs.length) :
+      pcomb (p ++ e) (List.replicate Gs.length [] ++ G.map fun v => Poly.norm (lcomb v Ys)) =
+        ∑ i ∈ Finset.range Ys.length,
+          C (constHom k n (lsum e G i)) * Poly.model k (Ys.getD i []) := by
+    rw [pcomb_append (by rw [List.length_replicate, hp]), pcomb_replicate_nil, zero_add,
+      pcomb_kernel (fun i => Poly.model k (Ys.getD i [])) _ G e mval]
+  -- the new rows say that the old parameters are combinations of the new ones
+  have rowsVal (c e : List k) (hc : c.length = Gs.length) :
+      (∀ row ∈ (List.range Gs.length).map fun i => unit Gs.length i ++ G.map fun v =>
+        -(v.getD i 0), dotK row (c ++ e) = 0) ↔
+        ∀ i, i < Gs.length → c.getD i 0 = lsum e G i := by
+    constructor
+    · intro h i hi
+      have := h _ (List.mem_map.mpr ⟨i, List.mem_range.mpr hi, rfl⟩)
+      rw [dotK_append (by rw [length_unit, hc]), dotK_unit _ _ _ hi, dotK_map_neg] at this
+      linear_combination this
+    · intro h row hrow
+      obtain ⟨i, hi, rfl⟩ := List.mem_map.mp hrow
+      rw [dotK_append (by rw [length_unit, hc]), dotK_unit _ _ _ (List.mem_range.mp hi),
+        dotK_map_neg, h i (List.mem_range.mp hi)]
+      ring
+  refine ⟨?_, ?_, fun p Y hp => ?_⟩
+  · intro Y hY
+    rcases List.mem_append.mp hY with h | h
+    · rw [List.eq_of_mem_replicate h]
+      exact Poly.defined_nil
+    · obtain ⟨v, -, rfl⟩ := List.mem_map.mp h
+      exact Poly.defined_norm (defined_lcomb v dY)
+  · simp
+  rw [hsol p Y hp]
+  dsimp only
+  constructor
+  · rintro ⟨w, wl, rfl, rows0⟩
+    obtain ⟨es, el, eh⟩ := (kiff (p ++ w) wl).mp rows0
+    refine ⟨es, by simp [el, hp], ?_, (rowsVal p es hp).mpr fun i hi => ?_⟩
+    · rw [pnew p es hp, pcomb_eq_sum Ys (p ++ w) wl]
+      refine Finset.sum_congr rfl fun i _ => ?_
+      rw [← eh i]
+    · rw [← eh i, List.getD_append _ _ _ _ (by omega)]
+  · rintro ⟨e, el, rfl, rows'⟩
+    have el' : e.length = G.length := by
+      simp only [List.length_append, List.length_replicate, List.length_map, hp] at el
+      omega
+    have agree := (rowsVal p e hp).mp rows'
+    obtain ⟨x, hx⟩ : ∃ x : List k, x = (List.range Ys.length).map (lsum e G) := ⟨_, rfl⟩
+    have xl : x.length = Ys.length := by simp [hx]
+    have xi (i : ℕ) : x.getD i 0 = lsum e G i := by
+      rw [hx, getD_map_range]
+      split
+      · rfl
+      · rename_i h
+        exact (lsum_eq_zero_of_length (Nat.le_of_not_lt h) e G klen).symm
+    have sol := (kiff x xl).mpr ⟨e, el', xi⟩
+    have split : x = p ++ x.drop Gs.length := by
+      conv_lhs => rw [← List.take_append_drop Gs.length x]
+      congr 1
+      apply List.ext_getElem
+      · simp [xl, hp, mle]
+      · intro i h1 h2
+        have hi : i < Gs.length := by rw [← hp]; exact h2
+        have a := agree i hi
+        rw [← xi i] at a
+        rw [List.getElem_take]
+        simpa [List.getD, h2, show i < x.length by omega] using a.symm
+    refine ⟨x.drop Gs.length, by rw [List.length_append, List.length_drop, xl]; omega, ?_,
+      by rw [← split]; exact sol⟩
+    rw [← split, pnew p e hp, pcomb_eq_sum Ys x xl]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    rw [xi i]
+
 /-- `solvePoly` describes exactly the solutions: the polynomials `Y` with fewer than `j`
 coefficients and the parameters `p` with `R Y′ + S Y = Σ pᵢ Gᵢ` are the combinations
 `Y = Σ (p, w)ᵢ Yᵢ` of the returned polynomials for which `(p, w)` solves the returned
@@ -761,6 +865,7 @@ theorem solvePoly_spec {t : Tower (n + 1)} {R S : Poly n} {lam : ℕ} (g : Good 
     rw [← hs]
     split
     · rename_i hz
+      refine shrink_spec ?_
       have hr : (Poly.model k R).coeff lam = 0 := by
         rw [← Poly.value_coeff]
         exact (Term.isZero_iff rdom).mp hz
@@ -807,6 +912,7 @@ theorem solvePoly_spec {t : Tower (n + 1)} {R S : Poly n} {lam : ℕ} (g : Good 
         obtain ⟨v, -, rfl⟩ := List.mem_map.mp hG'
         exact Poly.defined_norm (defined_lcomb v dG')
     · rename_i hz
+      refine shrink_spec ?_
       have hr : (Poly.model k R).coeff lam ≠ 0 := by
         rw [← Poly.value_coeff]
         exact fun z => hz ((Term.isZero_iff rdom).mpr z)
