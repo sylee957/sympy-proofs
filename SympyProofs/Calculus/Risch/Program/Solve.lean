@@ -111,7 +111,9 @@ structure Pieces (n : Nat) where
   Gs : List (Poly n)
   lam : Nat
 
-def pieces (t : Tower (n + 1)) (f : Term (n + 1)) (gs : List (Term (n + 1))) : Pieces n :=
+/-- The instance `y′ + f y = Σ cᵢ gᵢ` cleared of denominators, read off `f` and `gs` as
+they are written. -/
+def piecesOf (t : Tower (n + 1)) (f : Term (n + 1)) (gs : List (Term (n + 1))) : Pieces n :=
   let red := reduce (ofTerm f).1 (ofTerm f).2
   let N := norm red.1
   let B := trim (norm red.2)
@@ -124,6 +126,12 @@ def pieces (t : Tower (n + 1)) (f : Term (n + 1)) (gs : List (Term (n + 1))) : P
   let S := trim (norm (mul T (sub (mul N P) (mul B (der t P)))))
   let E := norm (mul (mul P P) B)
   ⟨N, B, T, P, R, S, Ws, Ws.map (fun W => norm (mul W E)), max (R.length - 1) (S.length - 1)⟩
+
+/-- The instance cleared of denominators, from `f` and `gs` in lowest terms. A term as
+written may carry denominators that cancel, and each would raise the bounds on the
+denominator and the degree of the solutions. -/
+def pieces (t : Tower (n + 1)) (f : Term (n + 1)) (gs : List (Term (n + 1))) : Pieces n :=
+  piecesOf t (Term.norm f) (gs.map Term.norm)
 
 /-- The element whose primitive, up to a multiple of the derivative of a primitive
 generator, governs cancellation of the two highest coefficients. -/

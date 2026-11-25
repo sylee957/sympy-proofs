@@ -188,12 +188,13 @@ theorem cleared_iff (t : Tower (n + 1)) {N B T P H Y : (K k n)[X]} (hB : B ≠ 0
     field_simp at he
     linear_combination he
 
-/-- The cleared data of an instance satisfy their specification, with the exponent of the
-generator in the denominator given by `special`. -/
-theorem pieces_spec {t : Tower (n + 1)} (ht : t.Admissible k) {f : Term (n + 1)}
+/-- The cleared data of an instance, read off `f` and `gs` as written, satisfy their
+specification, with the exponent of the generator in the denominator given by `special`. -/
+theorem piecesOf_spec {t : Tower (n + 1)} (ht : t.Admissible k) {f : Term (n + 1)}
     {gs : List (Term (n + 1))} (hf : Term.InDomain k f) (hg : ∀ g ∈ gs, Term.InDomain k g) :
     PiecesSpec k t f gs
-      (special t (pieces t f gs).N (pieces t f gs).B (pieces t f gs).T) (pieces t f gs) := by
+      (special t (piecesOf t f gs).N (piecesOf t f gs).B (piecesOf t f gs).T)
+      (piecesOf t f gs) := by
   obtain ⟨fe, fn⟩ := Poly.ofTerm_spec f hf
   obtain ⟨dp, dq⟩ := Poly.ofTerm_defined (k := k) f
   have qn : Poly.model k (Poly.ofTerm f).2 ≠ 0 := fun z => fn (by rw [z, map_zero])
@@ -331,6 +332,40 @@ theorem pieces_spec {t : Tower (n + 1)} (ht : t.Admissible k) {f : Term (n + 1)}
             exact normR
   subst hE hS hR hP hWs hT hB hN
   exact key
+
+/-- Terms in lowest terms have the same values, so they give the same combinations. -/
+theorem linComb_map_norm : ∀ (c : List k) (gs : List (Term n)), (∀ g ∈ gs, Term.InDomain k g) →
+    linComb c (gs.map Term.norm) = linComb c gs
+  | [], gs, _ => by rw [linComb_nil_left, linComb_nil_left]
+  | _ :: _, [], _ => by rw [List.map_nil]
+  | a :: c, g :: gs, hg => by
+    rw [List.map_cons, linComb_cons, linComb_cons,
+      (Term.norm_sound n g (hg g List.mem_cons_self)).2,
+      linComb_map_norm c gs fun h hh => hg h (List.mem_cons_of_mem _ hh)]
+
+/-- The specification depends on `f` and `gs` only through their values. -/
+theorem PiecesSpec.congr {t : Tower (n + 1)} {f f' : Term (n + 1)}
+    {gs gs' : List (Term (n + 1))} {e : ℕ} {pc : Pieces n}
+    (hf : Term.value k f' = Term.value k f) (hgs : ∀ c : List k, linComb c gs' = linComb c gs)
+    (hlen : gs'.length = gs.length) (ps : PiecesSpec k t f' gs' e pc) :
+    PiecesSpec k t f gs e pc :=
+  { ps with
+    fval := by rw [← hf]; exact ps.fval
+    lenG := ps.lenG.trans hlen
+    comb := fun c => by rw [← hgs c]; exact ps.comb c }
+
+/-- The cleared data of an instance satisfy their specification, with the exponent of the
+generator in the denominator given by `special`. -/
+theorem pieces_spec {t : Tower (n + 1)} (ht : t.Admissible k) {f : Term (n + 1)}
+    {gs : List (Term (n + 1))} (hf : Term.InDomain k f) (hg : ∀ g ∈ gs, Term.InDomain k g) :
+    PiecesSpec k t f gs
+      (special t (pieces t f gs).N (pieces t f gs).B (pieces t f gs).T) (pieces t f gs) := by
+  obtain ⟨hf', vf⟩ := Term.norm_sound (n + 1) f hf
+  have hg' : ∀ g ∈ gs.map Term.norm, Term.InDomain k g := by
+    intro g hg0
+    obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hg0
+    exact (Term.norm_sound (n + 1) a (hg a ha)).1
+  exact (piecesOf_spec ht hf' hg').congr vf (linComb_map_norm · gs hg) (List.length_map _)
 
 /-! ### The denominator -/
 
