@@ -1,0 +1,13 @@
+module
+
+public import SympyProofs.LinearAlgebra.Eigenvectors.Gram
+public import SympyProofs.LinearAlgebra.MoorePenrose.Gram
+
+public section
+
+namespace SympyProofs.Diagonalization
+
+export MoorePenrose (gramPseudoinverse gramPseudoinverse_isMoorePenrose
+  right_gramPseudoinverse_isMoorePenrose left_gramPseudoinverse_isMoorePenrose)
+
+end SympyProofs.Diagonalization

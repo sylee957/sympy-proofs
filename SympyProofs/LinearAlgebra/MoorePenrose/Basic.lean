@@ -1,6 +1,8 @@
-import Mathlib.Analysis.RCLike.Basic
-import Mathlib.LinearAlgebra.Matrix.DotProduct
-import Mathlib.Tactic
+module
+
+public import Mathlib.Analysis.RCLike.Basic
+public import Mathlib.LinearAlgebra.Matrix.DotProduct
+public import Mathlib.Tactic
 
 /-!
 # Moore–Penrose equations and uniqueness
@@ -8,6 +10,8 @@ import Mathlib.Tactic
 The four defining equations, their compatibility with conjugate transpose,
 and uniqueness of the pseudoinverse for finite real or complex matrices.
 -/
+
+@[expose] public section
 
 namespace SympyProofs.MoorePenrose
 
