@@ -25,6 +25,8 @@ public import SympyProofs.Calculus.Risch.Spec.Solve
 public import SympyProofs.Calculus.Risch.Spec.Elementary
 public import SympyProofs.Calculus.Risch.Spec.Answer
 public import SympyProofs.Calculus.Risch.Spec.Liouville
+public import SympyProofs.Calculus.Risch.Spec.Extension
+public import SympyProofs.Calculus.Risch.Spec.Analytic
 public import SympyProofs.Calculus.Risch.Algebra.SimplePole
 public import SympyProofs.Calculus.Risch.Algebra.HermiteLemmas
 public import SympyProofs.Calculus.Risch.Algebra.ResidueLemmas
@@ -59,6 +61,10 @@ public import SympyProofs.Calculus.Risch.Proof.GcdMod
 public import SympyProofs.Calculus.Risch.Proof.RootSums
 public import SympyProofs.Calculus.Risch.Proof.Residue
 public import SympyProofs.Calculus.Risch.Proof.Integrate
+public import SympyProofs.Calculus.Risch.Proof.Extension
+public import SympyProofs.Calculus.Risch.Proof.Specialize
+public import SympyProofs.Calculus.Risch.Proof.Analytic
+public import SympyProofs.Calculus.Risch.Proof.AnalyticConverse
 
 /-!
 # Elementary integration in towers of exponentials and logarithms
@@ -86,6 +92,15 @@ algebraically closed constant field `k` of characteristic zero:
   `v′ + Σ cᵢ uᵢ′ / uᵢ` with `v`, `uᵢ` in the field and constants `cᵢ`;
 * `integrate_no_primitive`: in that case `f` has no primitive in any elementary extension
   of the field (Liouville's theorem).
+* `integrate_no_answer`: in that case no answer written in a tower obtained from `t` by
+  adjoining exponentials and logarithms, and accepted by `admissible`, has derivative `f`.
+* `integrate_hasDerivAt`: over the complex numbers, with the generators read as the
+  variable, exponentials and principal logarithms, an answer of `integrate` is a function
+  whose derivative at every regular point is the value of `f`.
+* `integrate_no_function`: conversely, when `integrate` returns `nonelementary`, no answer
+  in a tower of exponentials and logarithms above `t` is a function with derivative `f` on
+  any nonempty open set of regular points. It rests on `Tower.realize_independent`: the
+  functions of an admissible tower are algebraically independent.
 
 `admissible_sound` says that an accepted tower is admissible over every constant field of
 characteristic zero, and `solve_spec` is part (b) of Risch's Main Theorem for it.

@@ -17,6 +17,23 @@ For every tower `t` with `admissible t = true` and every term `f` with `f.define
   has no elementary integral: there are no `v, uᵢ` in the field and constants `cᵢ` in `k`
   with `f = v′ + Σ cᵢ uᵢ′/uᵢ`. By Liouville's theorem this excludes a primitive in every
   elementary extension (`integrate_no_primitive`).
+* **Completeness in the language of terms** (`integrate_no_answer`). In that case no answer
+  written in a larger tower has derivative `f`: for every tower `t'` obtained from `t` by
+  adjoining exponentials and logarithms (`Tower.ElementaryExt`) with `admissible t' = true`,
+  and every answer `F` in `t'`, a term together with sums of logarithms over roots, the
+  derivative of `F` is not `f`. The statement uses only programs, terms and their values.
+* **Soundness for functions** (`integrate_hasDerivAt`). Over the complex numbers, read the
+  first generator as a multiple of the variable `z`, an exponential generator as
+  `Complex.exp` and a logarithm generator as `Complex.log` (`Tower.realize`). An answer
+  `F` of `integrate`, read the same way with `Complex.log` in its sums, has derivative
+  `f` at every point `z` where no denominator of the tower, of `f` or of `F` vanishes and
+  the argument of every logarithm lies off the branch cut.
+* **Completeness for functions** (`integrate_no_function`). Conversely, when `integrate`
+  returns `nonelementary`, no answer written in a tower of exponentials and logarithms above
+  `t` is a function with derivative `f`: not on any nonempty open set of regular points. The
+  reason is that the functions of an admissible tower are algebraically independent over the
+  complex numbers on every such set (`Tower.realize_independent`), so an identity between
+  functions is an identity in the field.
 * **Input conditions are computed.** `admissible t` and `f.defined` are boolean programs. A
   tower that passes `admissible` is admissible over every constant field
   (`admissible_sound`), and `f.defined` holds exactly when no denominator of `f` vanishes
@@ -76,7 +93,7 @@ reduction, the residue criterion and the assembly of the answer.
 | Directory | Contents | Imports |
 | --- | --- | --- |
 | `Program/` | data types and algorithms | Lean core only |
-| `Spec/` | every definition the theorems are stated with: the field `K k n` and its derivation, the meaning of terms, coefficient lists and answers, Liouville forms and elementary extensions | Mathlib, `Program/` |
+| `Spec/` | every definition the theorems are stated with: the field `K k n` and its derivation, the meaning of terms, coefficient lists and answers, Liouville forms, elementary extensions, extensions of a tower, and the functions of a complex variable that a tower and an answer stand for | Mathlib, `Program/` |
 | `Algebra/` | lemmas about polynomials and rational functions over any field | Mathlib |
 | `Proof/` | the specification of each program | all of the above |
 
@@ -162,11 +179,11 @@ Each stage ends with the project building and its theorems free of `sorry`.
    the bridge from "no Liouville form in the field" to "no primitive in any elementary
    extension".
 7. **Analytic meaning.** For `k = ℂ`, the answer as a function with the stated derivative
-   near every regular point.
+   near every regular point, and no such function when there is no elementary integral.
 
 ## Status
 
-Stages 1 to 6 are complete: the programs run, the project builds, and no theorem uses
+All seven stages are complete: the programs run, the project builds, and no theorem uses
 `sorry`. `integrate`, `integrateChecked`, `solve`, `relRows` and `admissible` agree with
 the expected answers on the examples tried, including integrands with irrational residues.
 
@@ -177,5 +194,5 @@ the expected answers on the examples tried, including integrands with irrational
 | 3. Part (b) | `Program/Deriv`, `Resultant`, `Rel`, `Solve`, `Admissible` | `Proof/Solve` (`admissible_sound`, `solve_spec`), with `Proof/Deriv`, `Constants`, `Pole`, `Subresultant`, `Resultant`, `SolvePoly`, `Rel`, `SolveBounds`, `SolveStep` |
 | 4. Reduction and polynomial part | `Program/Hermite`, `PolyPart` | `Proof/Hermite` (`Hermite.reduceTerm_spec`), `Proof/LiouvilleForm`, `Proof/PolyPart` (`expPart_sound`, `expPart_complete`, `primPart_sound`, `primPart_complete`) |
 | 5. Residues | `Program/Residue` | `Proof/ResidueCriterion` (`Tower.residue_necessary`), `Proof/ConstRoots` (`constRoots_spec`), `Proof/GcdMod` (`gcdMod_spec`), `Proof/RootSums`, `Algebra/LogPart` (`logPart_identity`), `Proof/Residue` (`logPart_sound`, `logPart_complete`) |
-| 6. Main theorems | `Program/Answer`, `Integrate` | `Proof/Integrate` (`integrate_sound`, `integrate_complete`, `integrate_no_primitive`, `integrateChecked_sound`, `integrateChecked_complete`) |
-| 7. Analytic meaning | | not started |
+| 6. Main theorems | `Program/Answer`, `Integrate` | `Proof/Integrate` (`integrate_sound`, `integrate_complete`, `integrate_no_primitive`, `integrateChecked_sound`, `integrateChecked_complete`), `Proof/Extension` (`integrate_no_answer`, `integrate_no_term`) |
+| 7. Analytic meaning | | `Proof/Specialize` (`polyHom_injective`, `SpecializesOn.unique`), `Proof/Analytic` (`Term.hasDerivAt_eval`, `Tower.realize_spec`, `integrate_hasDerivAt`), `Proof/AnalyticConverse` (`Tower.realize_independent`, `integrate_no_function`) |
