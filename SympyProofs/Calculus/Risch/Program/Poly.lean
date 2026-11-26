@@ -1,12 +1,14 @@
 module
 
 public import SympyProofs.Calculus.Risch.Program.Normal
+public import SympyProofs.Calculus.Risch.Program.ZPoly
 
 /-! Polynomials in the newest generator. An element of the field of depth `n + 1` is a
 quotient of two polynomials in the generator `n` whose coefficients are terms of depth `n`.
 A polynomial is the list of its coefficients, lowest degree first. Division, greatest common
 divisors and reduction to lowest terms use the zero test on the coefficients, and
-`Term.norm` puts a term in lowest terms at every depth. -/
+`Term.norm` puts every coefficient in lowest terms, as a quotient of two polynomials with
+integer coefficients in all the generators at once. -/
 
 @[expose] public section
 
@@ -21,19 +23,27 @@ namespace Coeff
 
 variable {n : Nat}
 
+/-- `a + b` and `a b` with integer arithmetic when both are integers: Lean's rational
+arithmetic finds a greatest common divisor even then. -/
+def ratAdd (a b : Rat) : Rat :=
+  if a.den == 1 && b.den == 1 then ((a.num + b.num : Int) : Rat) else a + b
+
+def ratMul (a b : Rat) : Rat :=
+  if a.den == 1 && b.den == 1 then ((a.num * b.num : Int) : Rat) else a * b
+
 def neg : Term n → Term n
   | .const a => .const (-a)
   | .neg a => a
   | a => .neg a
 
 def add : Term n → Term n → Term n
-  | .const a, .const b => .const (a + b)
+  | .const a, .const b => .const (ratAdd a b)
   | .const a, b => if a == 0 then b else .add (.const a) b
   | a, .const b => if b == 0 then a else .add a (.const b)
   | a, b => .add a b
 
 def mul : Term n → Term n → Term n
-  | .const a, .const b => .const (a * b)
+  | .const a, .const b => .const (ratMul a b)
   | .const a, b => if a == 0 then .const 0 else if a == 1 then b else .mul (.const a) b
   | a, .const b => if b == 0 then .const 0 else if b == 1 then a else .mul a (.const b)
   | a, b => .mul a b
@@ -177,17 +187,9 @@ def evalRat : Term 0 → Rat
   | .mul a b => a.evalRat * b.evalRat
   | .div a b => a.evalRat / b.evalRat
 
-/-- Lowest terms. A constant is evaluated. At depth `n + 1` the numerator and denominator
-are polynomials in the newest generator without a common factor, the denominator has leading
-coefficient one, and the coefficients are in lowest terms. -/
-def norm : {n : Nat} → Term n → Term n
-  | 0, e => .const e.evalRat
-  | n + 1, e =>
-    let rd := Poly.reduceWith (norm (n := n)) (Poly.ofTerm e).1 (Poly.ofTerm e).2
-    let den := Poly.trim rd.2
-    let c := Poly.lead den
-    Coeff.div (Poly.toTerm (rd.1.map fun a => norm (.div a c)))
-      (Poly.toTerm (den.map fun a => norm (.div a c)))
+/-- Lowest terms: a quotient of two polynomials with integer coefficients in all the
+generators, reduced by their greatest common divisor. -/
+def norm {n : Nat} (e : Term n) : Term n := ZP.normFF e
 
 end Term
 

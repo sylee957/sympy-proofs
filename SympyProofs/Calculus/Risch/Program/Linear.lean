@@ -16,20 +16,49 @@ def unit : Nat → Nat → List Rat
   | m + 1, 0 => 1 :: List.replicate m 0
   | m + 1, i + 1 => 0 :: unit m i
 
-/-- `u - c w` on the first `M` coordinates. A missing entry counts as `0`. -/
-def vsub (M : Nat) (u : List Rat) (c : Rat) (w : List Rat) : List Rat :=
-  (List.range M).map fun i => u.getD i 0 - c * w.getD i 0
+/-! The kernel is computed over the integers: Lean's rational arithmetic finds a greatest
+common divisor after every operation, through GMP even for small numbers. -/
+
+/-- A row with the same equation and integer entries: multiplied by the least common
+multiple of the denominators. -/
+def intRow (r : List Rat) : List Int :=
+  if r.all (·.den == 1) then r.map (·.num)
+  else
+    let d : Nat := r.foldl (fun acc q => Nat.lcm acc q.den) 1
+    r.map fun q => q.num * ((d / q.den : Nat) : Int)
+
+def dotZ (r g : List Int) : Int := (List.zipWith (· * ·) r g).foldl (· + ·) 0
+
+/-- A generator with the same span, divided by the greatest common divisor of its entries
+once they grow large. -/
+def smallZ (g : List Int) : List Int :=
+  if g.all fun a => a.natAbs < 2 ^ 60 then g
+  else
+    let c : Int := (g.foldl (fun acc a => Nat.gcd acc a.natAbs) 0 : Nat)
+    if c ≤ 1 then g
+    else if g.all fun a => a % c == 0 then g.map (· / c) else g
+
+/-- The `i`th unit vector of length `m`, with integer entries. -/
+def unitZ : Nat → Nat → List Int
+  | 0, _ => []
+  | m + 1, 0 => 1 :: List.replicate m 0
+  | m + 1, i + 1 => 0 :: unitZ m i
 
 /-- Impose the equation `r · x = 0` on a list of generators: one generator `w` that does not
-satisfy it is removed, and every other generator `g` is replaced by `g - (r·g / r·w) w`. -/
-def step (M : Nat) (r : List Rat) (G : List (List Rat)) : List (List Rat) :=
-  match G.find? (fun g => dot r g != 0) with
+satisfy it is removed, and every other generator `g` is replaced by `(r·w) g - (r·g) w`. -/
+def stepZ (r : List Int) (G : List (List Int)) : List (List Int) :=
+  match G.find? (fun g => dotZ r g != 0) with
   | none => G
-  | some w => (G.erase w).map fun g => vsub M g (dot r g / dot r w) w
+  | some w =>
+    let rw := dotZ r w
+    (G.erase w).map fun g =>
+      let c := dotZ r g
+      smallZ (List.zipWith (fun a b => rw * a - c * b) g w)
 
 /-- Generators of the solutions in `M` unknowns of all the equations. -/
 def kernel (rows : List (List Rat)) (M : Nat) : List (List Rat) :=
-  rows.foldl (fun G r => step M r G) ((List.range M).map (unit M))
+  let G := (rows.map intRow).foldl (fun G r => stepZ r G) ((List.range M).map (unitZ M))
+  G.map fun g => g.map fun (a : Int) => (a : Rat)
 
 /-- `b r - c p` on the first `m` coordinates. -/
 def reduceRow (m : Nat) (b : Rat) (r : List Rat) (c : Rat) (p : List Rat) : List Rat :=

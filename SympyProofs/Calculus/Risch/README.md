@@ -111,6 +111,14 @@ At an exponential step both bounds involve an integer `m` for which `g + m u′`
 logarithmic derivative. It is found by linear algebra over the rationals (`relRows`), which
 also decides whether a new exponential is admissible.
 
+Coefficients are kept in lowest terms by `Term.norm`, which writes a term as a quotient of
+two polynomials with integer coefficients in all the generators at once and cancels their
+greatest common divisor. That divisor comes from the heuristic of Char, Geddes and Gonnet,
+with a primitive Euclidean algorithm when it gives up, and is used only after exact division
+by it has succeeded: nothing about it needs to be proved. Linear systems are solved by
+elimination over the integers. Both avoid rational arithmetic, which in Lean computes a
+greatest common divisor after every operation.
+
 ## Constants
 
 Programs compute with rational numbers only. Part (b), admissibility, Hermite reduction
@@ -141,7 +149,8 @@ Each stage ends with the project building and its theorems free of `sorry`.
 
 1. **Foundations.** Terms, towers, the symbolic derivative; the field `K k n`, its
    derivation, and the theorem that the symbolic derivative computes it.
-2. **Arithmetic.** Normal forms and the zero test; polynomials in the newest generator as
+2. **Arithmetic.** Normal forms and the zero test; lowest terms of a term as a quotient of
+   two polynomials with integer coefficients; polynomials in the newest generator as
    coefficient lists with division, greatest common divisor and reduction to lowest terms;
    linear algebra over the rationals.
 3. **Part (b).** `solve` and `relRows` for both kinds of step, and `admissible`.
@@ -164,7 +173,7 @@ the expected answers on the examples tried, including integrands with irrational
 | Stage | Programs | Proofs |
 | --- | --- | --- |
 | 1. Foundations | `Program/Term` | `Proof/Derivative` (`Tower.der_value`) |
-| 2. Arithmetic | `Program/Normal`, `Poly`, `Linear`, `Constraints` | `Proof/Normal` (`Term.isZero_iff`, `Term.defined_iff`), `Proof/Poly` (`Term.norm_sound`, division, gcd, lowest terms), `Proof/Linear` (`kernel_spec`), `Proof/Constraints` (`rowsOf_spec`) |
+| 2. Arithmetic | `Program/Normal`, `ZPoly`, `Poly`, `Linear`, `Constraints` | `Proof/Normal` (`Term.isZero_iff`, `Term.defined_iff`), `Proof/ZPoly` (`ZP.normFF_spec`), `Proof/Poly` (`Term.norm_sound`, division, gcd, lowest terms), `Proof/Linear` (`kernel_spec`), `Proof/Constraints` (`rowsOf_spec`) |
 | 3. Part (b) | `Program/Deriv`, `Resultant`, `Rel`, `Solve`, `Admissible` | `Proof/Solve` (`admissible_sound`, `solve_spec`), with `Proof/Deriv`, `Constants`, `Pole`, `Subresultant`, `Resultant`, `SolvePoly`, `Rel`, `SolveBounds`, `SolveStep` |
 | 4. Reduction and polynomial part | `Program/Hermite`, `PolyPart` | `Proof/Hermite` (`Hermite.reduceTerm_spec`), `Proof/LiouvilleForm`, `Proof/PolyPart` (`expPart_sound`, `expPart_complete`, `primPart_sound`, `primPart_complete`) |
 | 5. Residues | `Program/Residue` | `Proof/ResidueCriterion` (`Tower.residue_necessary`), `Proof/ConstRoots` (`constRoots_spec`), `Proof/GcdMod` (`gcdMod_spec`), `Proof/RootSums`, `Algebra/LogPart` (`logPart_identity`), `Proof/Residue` (`logPart_sound`, `logPart_complete`) |

@@ -4,6 +4,7 @@ public import SympyProofs.Calculus.Risch.Program.Poly
 public import SympyProofs.Calculus.Risch.Spec.Field
 public import SympyProofs.Calculus.Risch.Spec.Poly
 public import SympyProofs.Calculus.Risch.Proof.Normal
+public import SympyProofs.Calculus.Risch.Proof.ZPoly
 public import Mathlib.Algebra.Polynomial.Derivative
 public import Mathlib.RingTheory.Coprime.Basic
 import Mathlib.Algebra.Polynomial.FieldDivision
@@ -27,6 +28,24 @@ open Polynomial
 variable {k : Type} [Field k] [CharZero k] {n : ℕ}
 
 namespace Coeff
+
+/-- The sum with integer arithmetic is the sum. -/
+@[simp] theorem ratAdd_eq (a b : ℚ) : ratAdd a b = a + b := by
+  unfold ratAdd
+  split
+  · rename_i h
+    simp only [Bool.and_eq_true, beq_iff_eq] at h
+    rw [Int.cast_add, (Rat.den_eq_one_iff a).mp h.1, (Rat.den_eq_one_iff b).mp h.2]
+  · rfl
+
+/-- The product with integer arithmetic is the product. -/
+@[simp] theorem ratMul_eq (a b : ℚ) : ratMul a b = a * b := by
+  unfold ratMul
+  split
+  · rename_i h
+    simp only [Bool.and_eq_true, beq_iff_eq] at h
+    rw [Int.cast_mul, (Rat.den_eq_one_iff a).mp h.1, (Rat.den_eq_one_iff b).mp h.2]
+  · rfl
 
 /-- The value of a negation is the negative of the value. -/
 theorem value_neg (a : Term n) : Term.value k (neg a) = -Term.value k a := by
@@ -844,42 +863,10 @@ theorem value_evalRat (e : Term 0) : ((e.evalRat : ℚ) : k) = value k e := by
     change ((a.evalRat / b.evalRat : ℚ) : k) = value k a / value k b
     rw [Rat.cast_div, ha, hb]
 
-/-- Lowest terms keep a defined term defined and do not change its value. -/
-theorem norm_sound : ∀ (n : ℕ), Sound k (norm (n := n))
-  | 0 => fun e _ => ⟨trivial, value_evalRat e⟩
-  | n + 1 => by
-    intro e he
-    have hν : Sound k (norm (n := n)) := norm_sound n
-    obtain ⟨fe, fn⟩ := Poly.ofTerm_spec e he
-    obtain ⟨dp, dq⟩ := Poly.ofTerm_defined (k := k) e
-    have qn : Poly.model k (Poly.ofTerm e).2 ≠ 0 := fun z => fn (by rw [z, map_zero])
-    obtain ⟨dN, dB, nB, -, ratio⟩ := Poly.reduceWith_spec hν dp dq qn
-    obtain ⟨mt, dt, nrm, -⟩ := Poly.trim_spec dB
-    have nd : Poly.Normal k (Poly.trim (Poly.reduceWith norm (Poly.ofTerm e).1
-        (Poly.ofTerm e).2).2) :=
-      nrm.resolve_left fun h => nB ((Poly.trim_eq_nil_iff dB).mp h)
-    have hc := Poly.defined_lead dt
-    have cn : value k (Poly.lead (Poly.trim (Poly.reduceWith norm (Poly.ofTerm e).1
-        (Poly.ofTerm e).2).2)) ≠ 0 := nd
-    have nB' := RatFunc.algebraMap_ne_zero nB
-    have ci : algebraMap (K k n)[X] (RatFunc (K k n)) (C (value k (Poly.lead (Poly.trim
-        (Poly.reduceWith norm (Poly.ofTerm e).1 (Poly.ofTerm e).2).2)))⁻¹) ≠ 0 :=
-      RatFunc.algebraMap_ne_zero (C_ne_zero.mpr (inv_ne_zero cn))
-    have vN := Poly.model_map_sound_div hν dN hc cn
-    have vD := Poly.model_map_sound_div hν dt hc cn
-    rw [mt] at vD
-    rw [norm]
-    refine ⟨Coeff.inDomain_div (Poly.inDomain_toTerm (Poly.defined_map_sound_div hν dN hc cn))
-      (Poly.inDomain_toTerm (Poly.defined_map_sound_div hν dt hc cn)) ?_, ?_⟩
-    · rw [Poly.value_toTerm, vD, map_mul]
-      exact mul_ne_zero ci nB'
-    · rw [Coeff.value_div, Poly.value_toTerm, Poly.value_toTerm, vN, vD, map_mul, map_mul,
-        mul_div_mul_left _ _ ci, div_eq_iff nB']
-      have r' := congrArg (algebraMap (K k n)[X] (RatFunc (K k n))) ratio
-      simp only [map_mul] at r'
-      rw [fe] at r'
-      apply mul_right_cancel₀ fn
-      linear_combination -r'
+/-- Lowest terms keep a defined term defined and do not change its value: a term is the
+quotient of the two polynomials with integer coefficients it is turned into. -/
+theorem norm_sound (n : ℕ) : Sound k (norm (n := n)) := fun e he =>
+  ZP.normFF_spec (gens k n) e he
 
 end Term
 

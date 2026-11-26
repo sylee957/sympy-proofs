@@ -2,6 +2,7 @@ module
 
 public import SympyProofs.Calculus.Risch.Program.Term
 public import SympyProofs.Calculus.Risch.Program.Normal
+public import SympyProofs.Calculus.Risch.Program.ZPoly
 public import SympyProofs.Calculus.Risch.Program.Poly
 public import SympyProofs.Calculus.Risch.Program.Linear
 public import SympyProofs.Calculus.Risch.Program.Constraints
@@ -31,6 +32,7 @@ public import SympyProofs.Calculus.Risch.Algebra.CoprimeCover
 public import SympyProofs.Calculus.Risch.Algebra.LogPart
 public import SympyProofs.Calculus.Risch.Proof.Derivative
 public import SympyProofs.Calculus.Risch.Proof.Normal
+public import SympyProofs.Calculus.Risch.Proof.ZPoly
 public import SympyProofs.Calculus.Risch.Proof.Poly
 public import SympyProofs.Calculus.Risch.Proof.Linear
 public import SympyProofs.Calculus.Risch.Proof.Constraints

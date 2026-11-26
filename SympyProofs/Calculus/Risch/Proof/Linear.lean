@@ -8,6 +8,8 @@ public import Mathlib.Algebra.BigOperators.Ring.Finset
 public import Mathlib.Algebra.BigOperators.Pi
 public import Mathlib.Algebra.Module.Pi
 public import Mathlib.Data.List.GetD
+import Mathlib.Data.Int.Cast.Field
+import Mathlib.Data.Nat.Cast.Field
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.LinearCombination
 import Mathlib.Tactic.Ring
@@ -153,20 +155,6 @@ theorem form_fn {M : ℕ} (r : List ℚ) {g : List ℚ} (hg : g.length = M) :
   refine Finset.sum_congr rfl fun i _ => ?_
   rw [getD_map_cast]
 
-theorem length_vsub (M : ℕ) (u : List ℚ) (c : ℚ) (w : List ℚ) : (vsub M u c w).length = M := by
-  simp [vsub]
-
-theorem fn_vsub {M : ℕ} {u w : List ℚ} (c : ℚ) (hu : u.length = M) (hw : w.length = M) :
-    fn k (vsub M u c w) = fn k u - (c : k) • fn k w := by
-  funext i
-  simp only [fn, vsub, Pi.sub_apply, Pi.smul_apply, smul_eq_mul, getD_map_range]
-  by_cases hi : i < M
-  · rw [ite_eq_left hi]
-    push_cast
-    rfl
-  · rw [ite_eq_right hi, List.getD_eq_default _ _ (by omega), List.getD_eq_default _ _ (by omega)]
-    simp
-
 /-! ### The span of the generators -/
 
 variable (k) in
@@ -174,107 +162,305 @@ variable (k) in
 def span (G : List (List ℚ)) : Submodule k (ℕ → k) :=
   Submodule.span k (fn k '' {g | g ∈ G})
 
-/-- A step keeps the lengths, and cuts the span down to the solutions of its equation. -/
-theorem step_spec {M : ℕ} (r : List ℚ) {G : List (List ℚ)} (hG : ∀ g ∈ G, g.length = M) :
-    (∀ g ∈ step M r G, g.length = M) ∧
-      span k (step M r G) = span k G ⊓ LinearMap.ker (form (k := k) M r) := by
-  rw [step]
-  cases hfind : G.find? (fun g => dot r g != 0) with
+/-! ### Integer vectors -/
+
+/-- An integer vector as a rational one. -/
+def castV (g : List ℤ) : List ℚ := g.map fun (a : ℤ) => (a : ℚ)
+
+theorem length_castV (g : List ℤ) : (castV g).length = g.length := List.length_map _
+
+theorem getD_castV (g : List ℤ) (i : ℕ) : (castV g).getD i 0 = ((g.getD i 0 : ℤ) : ℚ) := by
+  by_cases hi : i < g.length
+  · simp [castV, List.getD, hi]
+  · simp [castV, List.getD, hi]
+
+theorem foldl_add_int (acc : ℤ) : ∀ l : List ℤ, l.foldl (· + ·) acc = acc + l.sum
+  | [] => by simp
+  | a :: l => by rw [List.foldl_cons, foldl_add_int (acc + a) l, List.sum_cons]; ring
+
+theorem dotZ_cast : ∀ (r g : List ℤ), ((dotZ r g : ℤ) : ℚ) = dot (castV r) (castV g) := by
+  intro r g
+  rw [dotZ, foldl_add_int, zero_add]
+  induction r generalizing g with
+  | nil => simp [dot, castV]
+  | cons a r ih =>
+    cases g with
+    | nil => simp [dot, castV]
+    | cons b g =>
+      have := ih g
+      simp only [dot, castV, List.map_cons, List.zipWith_cons_cons, List.sum_cons] at this ⊢
+      push_cast at this ⊢
+      rw [this]
+
+theorem form_fn_castV {M : ℕ} (r : List ℤ) {g : List ℤ} (hg : g.length = M) :
+    form M (castV r) (fn k (castV g)) = ((dotZ r g : ℤ) : k) := by
+  rw [form_fn (castV r) (by rw [length_castV, hg]), ← dotZ_cast, Rat.cast_intCast]
+
+theorem length_zipWith_comb {M : ℕ} {g w : List ℤ} (hg : g.length = M) (hw : w.length = M)
+    (a b : ℤ) : (List.zipWith (fun x y => a * x - b * y) g w).length = M := by
+  simp [hg, hw]
+
+theorem fn_comb {M : ℕ} {g w : List ℤ} (hg : g.length = M) (hw : w.length = M) (a b : ℤ) :
+    fn k (castV (List.zipWith (fun x y => a * x - b * y) g w)) =
+      (a : k) • fn k (castV g) - (b : k) • fn k (castV w) := by
+  funext i
+  simp only [fn, getD_castV, Pi.sub_apply, Pi.smul_apply, smul_eq_mul]
+  by_cases hi : i < M
+  · rw [List.getD_eq_getElem _ _ (by rw [length_zipWith_comb hg hw]; exact hi),
+      List.getElem_zipWith, List.getD_eq_getElem _ _ (by omega),
+      List.getD_eq_getElem _ _ (by omega)]
+    push_cast
+    ring
+  · rw [List.getD_eq_default _ _ (by rw [length_zipWith_comb hg hw]; omega),
+      List.getD_eq_default _ _ (by omega), List.getD_eq_default _ _ (by omega)]
+    simp
+
+/-- `smallZ` keeps the length and multiplies the vector by a nonzero rational. -/
+theorem smallZ_spec (g : List ℤ) :
+    (smallZ g).length = g.length ∧
+      ∃ c : ℚ, c ≠ 0 ∧ ∀ i, (((smallZ g).getD i 0 : ℤ) : ℚ) = c * ((g.getD i 0 : ℤ) : ℚ) := by
+  unfold smallZ
+  dsimp only
+  split_ifs with h1 h2 h3
+  · exact ⟨rfl, 1, one_ne_zero, fun i => (one_mul _).symm⟩
+  · exact ⟨rfl, 1, one_ne_zero, fun i => (one_mul _).symm⟩
+  · refine ⟨List.length_map _, ((((g.foldl (fun acc a => Nat.gcd acc a.natAbs) 0 : ℕ) : ℤ) :
+      ℚ))⁻¹, inv_ne_zero (Int.cast_ne_zero.mpr (by omega)), fun i => ?_⟩
+    have dvd : ∀ a ∈ g, ((g.foldl (fun acc a => Nat.gcd acc a.natAbs) 0 : ℕ) : ℤ) ∣ a := by
+      intro a ha
+      have := List.all_eq_true.mp h3 a ha
+      exact Int.dvd_of_emod_eq_zero (by simpa using this)
+    by_cases hi : i < g.length
+    · rw [List.getD_eq_getElem _ _ (by rw [List.length_map]; exact hi), List.getElem_map,
+        List.getD_eq_getElem _ _ hi,
+        Int.cast_div (dvd _ (List.getElem_mem hi)) (by rw [Int.cast_ne_zero]; omega)]
+      ring
+    · rw [List.getD_eq_default _ _ (by rw [List.length_map]; omega),
+        List.getD_eq_default _ _ (by omega)]
+      simp
+  · exact ⟨rfl, 1, one_ne_zero, fun i => (one_mul _).symm⟩
+
+theorem fn_smallZ (g : List ℤ) :
+    ∃ c : k, c ≠ 0 ∧ fn k (castV (smallZ g)) = c • fn k (castV g) := by
+  obtain ⟨-, c, c0, hc⟩ := smallZ_spec g
+  refine ⟨(c : k), Rat.cast_ne_zero.mpr c0, ?_⟩
+  funext i
+  simp only [fn, getD_castV, Pi.smul_apply, smul_eq_mul, hc i, Rat.cast_mul]
+
+/-- `intRow` keeps the length and multiplies the row by a nonzero rational. -/
+theorem intRow_spec (r : List ℚ) :
+    (intRow r).length = r.length ∧
+      ∃ d : ℚ, d ≠ 0 ∧ ∀ i, (((intRow r).getD i 0 : ℤ) : ℚ) = d * r.getD i 0 := by
+  unfold intRow
+  split
+  · rename_i h
+    refine ⟨List.length_map _, 1, one_ne_zero, fun i => ?_⟩
+    by_cases hi : i < r.length
+    · rw [List.getD_eq_getElem _ _ (by rw [List.length_map]; exact hi), List.getElem_map,
+        List.getD_eq_getElem _ _ hi, one_mul]
+      have := List.all_eq_true.mp h _ (List.getElem_mem hi)
+      exact (Rat.den_eq_one_iff _).mp (by simpa using this)
+    · rw [List.getD_eq_default _ _ (by rw [List.length_map]; omega),
+        List.getD_eq_default _ _ (by omega)]
+      simp
+  · have key : ∀ (l : List ℚ) (acc : ℕ), acc ≠ 0 →
+        l.foldl (fun acc q => Nat.lcm acc q.den) acc ≠ 0 ∧
+          ∀ q ∈ l, q.den ∣ l.foldl (fun acc q => Nat.lcm acc q.den) acc := by
+      intro l
+      induction l with
+      | nil => intro acc h; exact ⟨h, by simp⟩
+      | cons q l ih =>
+        intro acc h
+        obtain ⟨nz, dv⟩ := ih (Nat.lcm acc q.den) (Nat.lcm_ne_zero h q.den_nz)
+        refine ⟨nz, fun q' hq' => ?_⟩
+        rcases List.mem_cons.mp hq' with rfl | hq'
+        · have mono : ∀ (l : List ℚ) (a : ℕ), a ∣ l.foldl (fun acc q => Nat.lcm acc q.den) a := by
+            intro l
+            induction l with
+            | nil => intro a; simp
+            | cons p l ih' =>
+              intro a
+              exact (Nat.dvd_lcm_left a p.den).trans (ih' _)
+          exact (Nat.dvd_lcm_right acc q'.den).trans (mono l _)
+        · exact dv q' hq'
+    obtain ⟨nz, dv⟩ := key r 1 one_ne_zero
+    refine ⟨List.length_map _, ((r.foldl (fun acc q => Nat.lcm acc q.den) 1 : ℕ) : ℚ),
+      Nat.cast_ne_zero.mpr nz, fun i => ?_⟩
+    by_cases hi : i < r.length
+    · rw [List.getD_eq_getElem _ _ (by rw [List.length_map]; exact hi), List.getElem_map,
+        List.getD_eq_getElem _ _ hi]
+      have hd := dv _ (List.getElem_mem hi)
+      rw [Int.cast_mul, Int.cast_natCast, Nat.cast_div hd (Nat.cast_ne_zero.mpr r[i].den_nz)]
+      conv_rhs => rw [← Rat.num_div_den r[i]]
+      ring
+    · rw [List.getD_eq_default _ _ (by rw [List.length_map]; omega),
+        List.getD_eq_default _ _ (by omega)]
+      simp
+
+theorem form_intRow {M : ℕ} (r : List ℚ) (f : ℕ → k) :
+    form M (castV (intRow r)) f = 0 ↔ form M r f = 0 := by
+  obtain ⟨-, d, d0, hd⟩ := intRow_spec r
+  have : form M (castV (intRow r)) f = (d : k) * form M r f := by
+    change ∑ i ∈ Finset.range M, (((castV (intRow r)).getD i 0 : ℚ) : k) * f i =
+      (d : k) * ∑ i ∈ Finset.range M, ((r.getD i 0 : ℚ) : k) * f i
+    rw [Finset.mul_sum]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    rw [getD_castV, hd i, Rat.cast_mul]
+    ring
+  rw [this, mul_eq_zero, or_iff_right (Rat.cast_ne_zero.mpr d0)]
+
+/-- A step over the integers keeps the lengths, and cuts the span down to the solutions of
+its equation. -/
+theorem stepZ_spec {M : ℕ} (r : List ℤ) {G : List (List ℤ)} (hG : ∀ g ∈ G, g.length = M) :
+    (∀ g ∈ stepZ r G, g.length = M) ∧
+      span k ((stepZ r G).map castV) =
+        span k (G.map castV) ⊓ LinearMap.ker (form (k := k) M (castV r)) := by
+  rw [stepZ]
+  cases hfind : G.find? (fun g => dotZ r g != 0) with
   | none =>
     refine ⟨hG, ?_⟩
     have all := List.find?_eq_none.mp hfind
     apply le_antisymm
     · refine le_inf le_rfl ?_
       apply Submodule.span_le.mpr
-      rintro _ ⟨g, hg, rfl⟩
-      have zero : dot r g = 0 := by simpa using all g hg
-      rw [SetLike.mem_coe, LinearMap.mem_ker, form_fn r (hG g hg), zero, Rat.cast_zero]
+      rintro _ ⟨g', hg', rfl⟩
+      obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hg'
+      have zero : dotZ r g = 0 := by simpa using all g hg
+      rw [SetLike.mem_coe, LinearMap.mem_ker, form_fn_castV r (hG g hg), zero, Int.cast_zero]
     · exact inf_le_left
   | some w =>
     have hw : w ∈ G := List.mem_of_find?_eq_some hfind
-    have hc : dot r w ≠ 0 := by simpa using List.find?_some hfind
+    have hc : dotZ r w ≠ 0 := by simpa using List.find?_some hfind
     have wl := hG w hw
-    have cform : form M r (fn k w) ≠ 0 := by
-      rw [form_fn r wl]
-      exact Rat.cast_ne_zero.mpr hc
+    have cform : form M (castV r) (fn k (castV w)) ≠ 0 := by
+      rw [form_fn_castV r wl]
+      exact Int.cast_ne_zero.mpr hc
     refine ⟨?_, ?_⟩
     · intro g hg
-      obtain ⟨g', -, rfl⟩ := List.mem_map.mp hg
-      exact length_vsub _ _ _ _
-    obtain ⟨T, hT⟩ : ∃ T : (ℕ → k) →ₗ[k] (ℕ → k),
-        ∀ x, T x = x - (form M r x / form M r (fn k w)) • fn k w := by
-      refine ⟨LinearMap.id - (form M r).smulRight ((form M r (fn k w))⁻¹ • fn k w), fun x => ?_⟩
-      simp only [LinearMap.sub_apply, LinearMap.id_apply, LinearMap.smulRight_apply, smul_smul,
-        div_eq_mul_inv]
-    have Tw : T (fn k w) = 0 := by rw [hT, div_self cform, one_smul, sub_self]
-    have Tker (y : ℕ → k) (hy : form M r y = 0) : T y = y := by
-      rw [hT, hy, zero_div, zero_smul, sub_zero]
-    have image : fn k '' {g | g ∈ (G.erase w).map fun g => vsub M g (dot r g / dot r w) w} =
-        T '' (fn k '' {g | g ∈ G.erase w}) := by
-      ext f
-      constructor
-      · rintro ⟨g, hg, rfl⟩
-        obtain ⟨g', hg', rfl⟩ := List.mem_map.mp hg
-        have gl := hG g' (List.mem_of_mem_erase hg')
-        exact ⟨fn k g', ⟨g', hg', rfl⟩, by
-          rw [hT, fn_vsub _ gl wl, form_fn r gl, form_fn r wl, Rat.cast_div]⟩
-      · rintro ⟨_, ⟨g', hg', rfl⟩, rfl⟩
-        have gl := hG g' (List.mem_of_mem_erase hg')
-        exact ⟨vsub M g' (dot r g' / dot r w) w, List.mem_map.mpr ⟨g', hg', rfl⟩, by
-          rw [hT, fn_vsub _ gl wl, form_fn r gl, form_fn r wl, Rat.cast_div]⟩
-    have whole : fn k '' {g | g ∈ G} = insert (fn k w) (fn k '' {g | g ∈ G.erase w}) := by
-      have sets : {g | g ∈ G} = insert w {g | g ∈ G.erase w} := by
+      obtain ⟨g', hg', rfl⟩ := List.mem_map.mp hg
+      rw [(smallZ_spec _).1, length_zipWith_comb (hG g' (List.mem_of_mem_erase hg')) wl]
+    obtain ⟨T, hT⟩ : ∃ T : (ℕ → k) →ₗ[k] (ℕ → k), ∀ x,
+        T x = form M (castV r) (fn k (castV w)) • x - form M (castV r) x • fn k (castV w) :=
+      ⟨form M (castV r) (fn k (castV w)) • LinearMap.id -
+        (form M (castV r)).smulRight (fn k (castV w)), fun x => by
+          simp only [LinearMap.sub_apply, LinearMap.smul_apply, LinearMap.id_apply,
+            LinearMap.smulRight_apply]⟩
+    have Tw : T (fn k (castV w)) = 0 := by rw [hT, sub_self]
+    have Tker (y : ℕ → k) (hy : form M (castV r) y = 0) :
+        T y = form M (castV r) (fn k (castV w)) • y := by
+      rw [hT, hy, zero_smul, sub_zero]
+    -- each new generator is a nonzero multiple of the image of an old one
+    have each (g : List ℤ) (hg : g ∈ G.erase w) : ∃ c : k, c ≠ 0 ∧
+        fn k (castV (smallZ (List.zipWith (fun a b => dotZ r w * a - dotZ r g * b) g w))) =
+          c • T (fn k (castV g)) := by
+      have gl := hG g (List.mem_of_mem_erase hg)
+      obtain ⟨c, c0, hc⟩ := fn_smallZ (k := k)
+        (List.zipWith (fun a b => dotZ r w * a - dotZ r g * b) g w)
+      refine ⟨c, c0, ?_⟩
+      rw [hc, fn_comb gl wl, hT, form_fn_castV r gl, form_fn_castV r wl]
+    have S_eq : Submodule.span k (fn k '' {g | g ∈ ((G.erase w).map fun g =>
+          smallZ (List.zipWith (fun a b => dotZ r w * a - dotZ r g * b) g w)).map castV}) =
+        Submodule.span k (T '' (fn k '' {g | g ∈ (G.erase w).map castV})) := by
+      apply le_antisymm
+      · apply Submodule.span_le.mpr
+        rintro _ ⟨v, hv, rfl⟩
+        obtain ⟨u, hu, rfl⟩ := List.mem_map.mp hv
+        obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hu
+        obtain ⟨c, -, hc⟩ := each g hg
+        rw [SetLike.mem_coe, hc]
+        exact Submodule.smul_mem _ _ (Submodule.subset_span
+          ⟨fn k (castV g), ⟨castV g, List.mem_map.mpr ⟨g, hg, rfl⟩, rfl⟩, rfl⟩)
+      · apply Submodule.span_le.mpr
+        rintro _ ⟨_, ⟨v, hv, rfl⟩, rfl⟩
+        obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hv
+        obtain ⟨c, c0, hc⟩ := each g hg
+        have : T (fn k (castV g)) = c⁻¹ • fn k (castV (smallZ
+            (List.zipWith (fun a b => dotZ r w * a - dotZ r g * b) g w))) := by
+          rw [hc, smul_smul, inv_mul_cancel₀ c0, one_smul]
+        rw [SetLike.mem_coe, this]
+        exact Submodule.smul_mem _ _ (Submodule.subset_span ⟨_, List.mem_map.mpr
+          ⟨_, List.mem_map.mpr ⟨g, hg, rfl⟩, rfl⟩, rfl⟩)
+    have whole : fn k '' {g | g ∈ G.map castV} =
+        insert (fn k (castV w)) (fn k '' {g | g ∈ (G.erase w).map castV}) := by
+      have sets : {g | g ∈ G.map castV} = insert (castV w) {g | g ∈ (G.erase w).map castV} := by
         ext g
         simp only [Set.mem_ofPred_eq, Set.mem_insert_iff]
-        rw [← List.mem_cons, (List.perm_cons_erase hw).mem_iff]
+        rw [← List.mem_cons, ← List.map_cons, ((List.perm_cons_erase hw).map castV).mem_iff]
       rw [sets, Set.image_insert_eq]
-    rw [span, image, ← Submodule.map_span, span, whole]
+    rw [span, S_eq, ← Submodule.map_span, span, whole]
     apply le_antisymm
     · rintro _ ⟨x, hx, rfl⟩
-      have xin : x ∈ Submodule.span k (insert (fn k w) (fn k '' {g | g ∈ G.erase w})) :=
+      have xin : x ∈ Submodule.span k (insert (fn k (castV w))
+          (fn k '' {g | g ∈ (G.erase w).map castV})) :=
         Submodule.span_mono (Set.subset_insert _ _) hx
       refine ⟨?_, ?_⟩
       · rw [hT]
-        exact Submodule.sub_mem _ xin
+        exact Submodule.sub_mem _ (Submodule.smul_mem _ _ xin)
           (Submodule.smul_mem _ _ (Submodule.subset_span (Set.mem_insert _ _)))
-      · rw [SetLike.mem_coe, LinearMap.mem_ker, hT, map_sub, map_smul, smul_eq_mul,
-          div_mul_cancel₀ _ cform, sub_self]
+      · rw [SetLike.mem_coe, LinearMap.mem_ker, hT, map_sub, map_smul, map_smul, smul_eq_mul,
+          smul_eq_mul, mul_comm, sub_self]
     · rintro y ⟨hy, hker⟩
       have mapped : T y ∈ Submodule.map T
-          (Submodule.span k (insert (fn k w) (fn k '' {g | g ∈ G.erase w}))) := ⟨y, hy, rfl⟩
+          (Submodule.span k (insert (fn k (castV w))
+            (fn k '' {g | g ∈ (G.erase w).map castV}))) := ⟨y, hy, rfl⟩
       rw [Submodule.map_span, Set.image_insert_eq, Tw, Submodule.span_insert_zero,
         ← Submodule.map_span, Tker y (LinearMap.mem_ker.mp hker)] at mapped
-      exact mapped
+      have := Submodule.smul_mem _ (form M (castV r) (fn k (castV w)))⁻¹ mapped
+      rwa [smul_smul, inv_mul_cancel₀ cform, one_smul] at this
 
-theorem foldl_spec {M : ℕ} : ∀ (rows : List (List ℚ)) {G : List (List ℚ)},
+theorem foldlZ_spec {M : ℕ} : ∀ (rows : List (List ℤ)) {G : List (List ℤ)},
     (∀ g ∈ G, g.length = M) →
-    (∀ g ∈ rows.foldl (fun G r => step M r G) G, g.length = M) ∧
-      ∀ f : ℕ → k, f ∈ span k (rows.foldl (fun G r => step M r G) G) ↔
-        f ∈ span k G ∧ ∀ r ∈ rows, form M r f = 0
+    (∀ g ∈ rows.foldl (fun G r => stepZ r G) G, g.length = M) ∧
+      ∀ f : ℕ → k, f ∈ span k ((rows.foldl (fun G r => stepZ r G) G).map castV) ↔
+        f ∈ span k (G.map castV) ∧ ∀ r ∈ rows, form M (castV r) f = 0
   | [], G, hG => ⟨hG, fun f => by simp⟩
   | r :: rows, G, hG => by
-    obtain ⟨len, eq⟩ := step_spec (k := k) r hG
-    obtain ⟨len', iff⟩ := foldl_spec rows len
+    obtain ⟨len, eq⟩ := stepZ_spec (k := k) r hG
+    obtain ⟨len', iff⟩ := foldlZ_spec rows len
     refine ⟨len', fun f => ?_⟩
     rw [List.foldl_cons, iff, eq, Submodule.mem_inf, LinearMap.mem_ker]
     simp only [List.mem_cons, forall_eq_or_imp]
     tauto
 
-theorem length_of_mem_units {M : ℕ} : ∀ g ∈ (List.range M).map (unit M), g.length = M := by
+theorem length_unitZ : ∀ m i, (unitZ m i).length = m
+  | 0, _ => rfl
+  | m + 1, 0 => by simp [unitZ]
+  | m + 1, i + 1 => by simp [unitZ, length_unitZ m i]
+
+theorem castV_unitZ : ∀ m i, castV (unitZ m i) = unit m i
+  | 0, _ => rfl
+  | m + 1, 0 => by simp [castV, unitZ, unit]
+  | m + 1, i + 1 => by
+    have := castV_unitZ m i
+    simp only [castV] at this ⊢
+    simp [unitZ, unit, this]
+
+theorem length_of_mem_unitsZ {M : ℕ} : ∀ g ∈ (List.range M).map (unitZ M), g.length = M := by
   intro g hg
   obtain ⟨i, -, rfl⟩ := List.mem_map.mp hg
-  exact length_unit M i
+  exact length_unitZ M i
+
+theorem kernel_eq (rows : List (List ℚ)) (M : ℕ) :
+    kernel rows M =
+      ((rows.map intRow).foldl (fun G r => stepZ r G) ((List.range M).map (unitZ M))).map
+        castV := rfl
 
 /-- Every generator has the length of the system. -/
 theorem length_of_mem_kernel (rows : List (List ℚ)) (M : ℕ) :
-    ∀ g ∈ kernel rows M, g.length = M :=
-  (foldl_spec (k := ℚ) rows length_of_mem_units).1
+    ∀ g ∈ kernel rows M, g.length = M := by
+  intro g hg
+  rw [kernel_eq] at hg
+  obtain ⟨g', hg', rfl⟩ := List.mem_map.mp hg
+  rw [length_castV]
+  exact (foldlZ_spec (k := ℚ) (rows.map intRow) length_of_mem_unitsZ).1 g' hg'
 
 /-- The span of the generators consists of the solutions, as functions. -/
 theorem mem_span_kernel (rows : List (List ℚ)) (M : ℕ) (f : ℕ → k) :
     f ∈ span k (kernel rows M) ↔
-      f ∈ span k ((List.range M).map (unit M)) ∧ ∀ r ∈ rows, form M r f = 0 :=
-  (foldl_spec rows length_of_mem_units).2 f
+      f ∈ span k ((List.range M).map (unit M)) ∧ ∀ r ∈ rows, form M r f = 0 := by
+  rw [kernel_eq, (foldlZ_spec (k := k) (rows.map intRow) length_of_mem_unitsZ).2 f,
+    List.map_map, show castV ∘ unitZ M = unit M from funext (castV_unitZ M)]
+  simp only [List.mem_map, forall_exists_index, and_imp, forall_apply_eq_imp_iff₂, form_intRow]
 
 omit [CharZero k] in
 theorem mem_span_unit {M : ℕ} {x : List k} (hx : x.length = M) :
