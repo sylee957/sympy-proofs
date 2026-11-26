@@ -18,7 +18,10 @@ tower is an identity between the functions the terms stand for:
 * the functions `Tower.realize` satisfy the differential equations of the tower at its
   regular points (`Tower.realize_spec`).
 
-`integrate_hasDerivAt` combines them with `integrate_sound`. -/
+`integrate_hasDerivAt` combines them with `integrate_sound`. It is a case of
+`integrate_hasDerivAt_of_solution`, which fixes no functions: the generators are any
+functions that satisfy the differential equations of the tower, and the logarithms in the
+answer are any continuous logarithms of their arguments (`hasDerivAt_of_exp_eq`). -/
 
 @[expose] public section
 
@@ -29,6 +32,21 @@ variable {n : ℕ}
 namespace Term
 
 variable {m : ℕ}
+
+/-- A term of the field below is evaluated at the values of the generators below. -/
+theorem eval_weaken' {F : Type*} [Field F] (p : Fin (m + 1) → F) (e : Term m) :
+    e.weaken.eval p = e.eval fun i => p i.castSucc := by
+  have hp : p = Fin.lastCases (p (Fin.last m)) fun i => p i.castSucc :=
+    funext (Fin.lastCases (by simp) fun i => by simp)
+  conv_lhs => rw [hp]
+  rw [eval_weaken]
+
+theorem defined_weaken' {F : Type*} [Field F] (p : Fin (m + 1) → F) (e : Term m) :
+    e.weaken.Defined p ↔ e.Defined fun i => p i.castSucc := by
+  have hp : p = Fin.lastCases (p (Fin.last m)) fun i => p i.castSucc :=
+    funext (Fin.lastCases (by simp) fun i => by simp)
+  conv_lhs => rw [hp]
+  rw [defined_weaken]
 
 /-- **The chain rule for terms.** If the generators are functions of `w` whose derivatives
 at `z` are given by the terms `vel`, then a term defined at `z` is a function of `w` whose
@@ -119,27 +137,87 @@ noncomputable def Answer.derivAt (t : Tower n) (a : Answer n) (p : Fin n → ℂ
     c * ((s.arg.deriv (rootVel t)).eval (Fin.lastCases c p : Fin (n + 1) → ℂ) /
       s.arg.eval (Fin.lastCases c p))).sum
 
+/-- With a constant for the root, the generators still satisfy their equations. -/
+theorem hasDerivAt_rootEnv {t : Tower n} {g : ℂ → Fin n → ℂ} {z : ℂ}
+    (hg : ∀ i, HasDerivAt (fun w => g w i) ((t.vel i).eval (g z)) z) (c : ℂ) :
+    ∀ i, HasDerivAt (fun w => (Fin.lastCases c (g w) : Fin (n + 1) → ℂ) i)
+      ((rootVel t i).eval (Fin.lastCases c (g z) : Fin (n + 1) → ℂ)) z := by
+  refine Fin.lastCases ?_ fun i => ?_
+  · simpa [rootVel_last, Term.eval] using hasDerivAt_const z c
+  · simpa [rootVel_castSucc] using hg i
+
+/-- **Any continuous logarithm has the logarithmic derivative.** If `exp (ℓ w) = u w` near
+`z`, with `ℓ` continuous at `z` and `u` differentiable there, then `ℓ` has the derivative
+`u′ / u` at `z`. No branch is chosen: near `z` the function `ℓ` differs from a principal
+logarithm of `u w / u z` by a constant. -/
+theorem hasDerivAt_of_exp_eq {ℓ u : ℂ → ℂ} {u' z : ℂ} (hu : HasDerivAt u u' z)
+    (hc : ContinuousAt ℓ z) (he : ∀ᶠ w in nhds z, Complex.exp (ℓ w) = u w) :
+    HasDerivAt ℓ (u' / u z) z := by
+  have ez : Complex.exp (ℓ z) = u z := he.self_of_nhds
+  have uz : u z ≠ 0 := ez ▸ Complex.exp_ne_zero _
+  have near := hc.eventually_mem (Metric.ball_mem_nhds (ℓ z) Real.pi_pos)
+  have key : ∀ᶠ w in nhds z, ℓ w = ℓ z + Complex.log (u w / u z) := by
+    filter_upwards [he, near] with w hw hn
+    have him : |(ℓ w - ℓ z).im| < Real.pi :=
+      (Complex.abs_im_le_norm _).trans_lt (by rwa [← dist_eq_norm])
+    rw [← hw, ← ez, ← Complex.exp_sub,
+      Complex.log_exp (by linarith [(abs_lt.mp him).1]) (abs_lt.mp him).2.le]
+    ring
+  have d : HasDerivAt (fun w => ℓ z + Complex.log (u w / u z)) (u' / u z) z := by
+    refine (((hu.div_const (u z)).clog (by
+      rw [div_self uz]
+      exact Complex.one_mem_slitPlane)).const_add (ℓ z)).congr_deriv ?_
+    rw [div_self uz, div_one]
+  exact d.congr_of_eventuallyEq key
+
+/-- Logarithms of the arguments exist only where the arguments do not vanish. -/
+theorem Answer.HasLogs.nonsingular {a : Answer n} {ℓ : RootSum n → ℂ → ℂ → ℂ}
+    {g : ℂ → Fin n → ℂ} {z : ℂ} (hℓ : a.HasLogs ℓ g z) (haf : a.field.Defined (g z)) :
+    a.NonsingularAt (g z) :=
+  ⟨haf, fun s hs c hc => ⟨(hℓ s hs c hc).1, by
+    rw [← (hℓ s hs c hc).2.2.self_of_nhds]
+    exact Complex.exp_ne_zero _⟩⟩
+
+theorem Answer.RegularAt.nonsingular {a : Answer n} {p : Fin n → ℂ} (ha : a.RegularAt p) :
+    a.NonsingularAt p :=
+  ⟨ha.1, fun s hs c hc => ⟨(ha.2 s hs c hc).1, Complex.slitPlane_ne_zero (ha.2 s hs c hc).2⟩⟩
+
+/-- The principal logarithms of the arguments are logarithms, where the arguments lie off
+the branch cut. -/
+theorem Answer.RegularAt.hasLogs {t : Tower n} {a : Answer n} {g : ℂ → Fin n → ℂ} {z : ℂ}
+    (ha : a.RegularAt (g z)) (hg : ∀ i, HasDerivAt (fun w => g w i) ((t.vel i).eval (g z)) z) :
+    a.HasLogs (fun s c w => Complex.log (s.arg.eval (Fin.lastCases c (g w)))) g z := by
+  intro s hs c hc
+  obtain ⟨dc, sc⟩ := ha.2 s hs c hc
+  have cu := (Term.hasDerivAt_eval (hasDerivAt_rootEnv hg c) s.arg dc).continuousAt
+  exact ⟨dc, cu.clog sc,
+    (cu.eventually_ne (Complex.slitPlane_ne_zero sc)).mono fun w hw => Complex.exp_log hw⟩
+
 /-- The function of an answer has the derivative `Answer.derivAt` wherever the generators
-are functions that satisfy the differential equations of the tower. -/
+are functions that satisfy the differential equations of the tower, with any continuous
+logarithms of its arguments. -/
+theorem Answer.hasDerivAt_realizeWith_derivAt {t : Tower n} (a : Answer n)
+    {g : ℂ → Fin n → ℂ} {ℓ : RootSum n → ℂ → ℂ → ℂ} {z : ℂ}
+    (hg : ∀ i, HasDerivAt (fun w => g w i) ((t.vel i).eval (g z)) z)
+    (haf : a.field.Defined (g z)) (hℓ : a.HasLogs ℓ g z) :
+    HasDerivAt (fun w => a.realizeWith (fun s c => ℓ s c w) (g w)) (a.derivAt t (g z)) z := by
+  refine (Term.hasDerivAt_eval hg a.field haf).add (hasDerivAt_list_sum a.sums fun s hs => ?_)
+  refine HasDerivAt.fun_sum fun c hc => ?_
+  obtain ⟨dc, lc, ec⟩ := hℓ s hs c hc
+  exact (hasDerivAt_of_exp_eq
+    (Term.hasDerivAt_eval (hasDerivAt_rootEnv hg c) s.arg dc) lc ec).const_mul c
+
+/-- The same with the principal logarithms. -/
 theorem Answer.hasDerivAt_realize_derivAt {t : Tower n} (a : Answer n) {g : ℂ → Fin n → ℂ}
     {z : ℂ} (hg : ∀ i, HasDerivAt (fun w => g w i) ((t.vel i).eval (g z)) z)
     (ha : a.RegularAt (g z)) :
-    HasDerivAt (fun w => a.realize (g w)) (a.derivAt t (g z)) z := by
-  -- with a constant for the root, the generators still satisfy their equations
-  have hG (c : ℂ) : ∀ i, HasDerivAt (fun w => (Fin.lastCases c (g w) : Fin (n + 1) → ℂ) i)
-      ((rootVel t i).eval (Fin.lastCases c (g z) : Fin (n + 1) → ℂ)) z := by
-    refine Fin.lastCases ?_ fun i => ?_
-    · simpa [rootVel_last, Term.eval] using hasDerivAt_const z c
-    · simpa [rootVel_castSucc] using hg i
-  refine (Term.hasDerivAt_eval hg a.field ha.1).add (hasDerivAt_list_sum a.sums fun s hs => ?_)
-  refine HasDerivAt.fun_sum fun c hc => ?_
-  obtain ⟨dc, sc⟩ := ha.2 s hs c hc
-  exact ((Term.hasDerivAt_eval (hG c) s.arg dc).clog sc).const_mul c
+    HasDerivAt (fun w => a.realize (g w)) (a.derivAt t (g z)) z :=
+  a.hasDerivAt_realizeWith_derivAt hg ha.1 (ha.hasLogs hg)
 
 /-- The derivative of an answer in the field has the values `Answer.derivAt` wherever the
-tower and the answer are regular. -/
+tower is defined and the answer has no singularity. -/
 theorem Answer.specializesOn_deriv {t : Tower n} (a : Answer n) {S : Set (Fin n → ℂ)}
-    (hS : ∀ p ∈ S, (∀ i, (t.vel i).Defined p) ∧ a.RegularAt p) :
+    (hS : ∀ p ∈ S, (∀ i, (t.vel i).Defined p) ∧ a.NonsingularAt p) :
     SpecializesOn S (a.deriv ℂ t) (a.derivAt t) := by
   unfold Answer.deriv Answer.derivAt
   refine SpecializesOn.add ?_ (SpecializesOn.list_sum a.sums fun s hs => ?_)
@@ -162,24 +240,36 @@ theorem Answer.specializesOn_deriv {t : Tower n} (a : Answer n) {S : Set (Fin n 
       ((SpecializesOn.eval env _ fun p hp =>
           Term.defined_deriv (rootVel_defined (hS p hp).1 c) s.arg ((hS p hp).2.2 s hs c hc).1).div
         (SpecializesOn.eval env _ fun p hp => ((hS p hp).2.2 s hs c hc).1)
-        fun p hp => Complex.slitPlane_ne_zero ((hS p hp).2.2 s hs c hc).2)
+        fun p hp => ((hS p hp).2.2 s hs c hc).2)
 
 /-- **An identity in the field is an identity of functions.** Let `f = F′` hold in the field
-of the tower for an answer `F`, and let the generators be functions `g` that satisfy the
-differential equations of the tower at `z`. If the tower, the integrand and the answer are
-defined at `z`, and the arguments of the logarithms of the answer lie off the branch cut,
-then the function of `F` has the value of `f` as its derivative at `z`. -/
+of the tower for an answer `F`. Let the generators be functions `g` that satisfy the
+differential equations of the tower at `z`, and let `ℓ` be continuous logarithms of the
+arguments of the answer. If the tower, the integrand and the field part of the answer are
+defined at `z`, then the function of `F` has the value of `f` as its derivative at `z`. -/
+theorem Answer.hasDerivAt_realizeWith {t : Tower n} {f : Term n} {a : Answer n}
+    (eq : Term.value ℂ f = a.deriv ℂ t) {g : ℂ → Fin n → ℂ} {ℓ : RootSum n → ℂ → ℂ → ℂ}
+    {z : ℂ} (hg : ∀ i, HasDerivAt (fun w => g w i) ((t.vel i).eval (g z)) z)
+    (hv : ∀ i, (t.vel i).Defined (g z)) (hf : f.Defined (g z))
+    (haf : a.field.Defined (g z)) (hℓ : a.HasLogs ℓ g z) :
+    HasDerivAt (fun w => a.realizeWith (fun s c => ℓ s c w) (g w)) (f.eval (g z)) z := by
+  have left : SpecializesOn {g z} (Term.value ℂ f) fun p => f.eval p :=
+    SpecializesOn.value f fun p hp => by rw [Set.mem_singleton_iff.mp hp]; exact hf
+  have right : SpecializesOn {g z} (a.deriv ℂ t) (a.derivAt t) :=
+    a.specializesOn_deriv fun p hp => by
+      rw [Set.mem_singleton_iff.mp hp]
+      exact ⟨hv, hℓ.nonsingular haf⟩
+  rw [left.unique (eq ▸ right) (Set.mem_singleton _)]
+  exact a.hasDerivAt_realizeWith_derivAt hg haf hℓ
+
+/-- The same with the principal logarithms, where the arguments of the logarithms of the
+answer lie off the branch cut. -/
 theorem Answer.hasDerivAt_realize {t : Tower n} {f : Term n} {a : Answer n}
     (eq : Term.value ℂ f = a.deriv ℂ t) {g : ℂ → Fin n → ℂ} {z : ℂ}
     (hg : ∀ i, HasDerivAt (fun w => g w i) ((t.vel i).eval (g z)) z)
     (hv : ∀ i, (t.vel i).Defined (g z)) (hf : f.Defined (g z)) (ha : a.RegularAt (g z)) :
-    HasDerivAt (fun w => a.realize (g w)) (f.eval (g z)) z := by
-  have left : SpecializesOn {g z} (Term.value ℂ f) fun p => f.eval p :=
-    SpecializesOn.value f fun p hp => by rw [Set.mem_singleton_iff.mp hp]; exact hf
-  have right : SpecializesOn {g z} (a.deriv ℂ t) (a.derivAt t) :=
-    a.specializesOn_deriv fun p hp => by rw [Set.mem_singleton_iff.mp hp]; exact ⟨hv, ha⟩
-  rw [left.unique (eq ▸ right) (Set.mem_singleton _)]
-  exact a.hasDerivAt_realize_derivAt hg ha
+    HasDerivAt (fun w => a.realize (g w)) (f.eval (g z)) z :=
+  Answer.hasDerivAt_realizeWith eq hg hv hf ha.1 (ha.hasLogs hg)
 
 /-- At a regular point the functions of a tower are defined and satisfy its differential
 equations. -/
@@ -226,6 +316,20 @@ theorem Tower.realize_spec (t : Tower n) (z : ℂ) (hz : t.RegularAt z) :
       simpa [Tower.vel, Tower.realize, Term.eval] using
         (Term.hasDerivAt_eval hd u hu).cexp
     · simpa [Tower.vel, Tower.realize] using hd i
+
+/-- **Soundness for functions, without a choice of branches.** Let `g` be any functions
+that satisfy the differential equations of the tower at `z`, and `ℓ` any continuous
+logarithms of the arguments in the answer. An answer of `integrate`, read with these
+functions, has the integrand as its derivative at `z`, provided the integrand and the field
+part of the answer are defined there. The points left out are those where a denominator or
+the argument of a logarithm vanishes. -/
+theorem integrate_hasDerivAt_of_solution {t : Tower n} {f : Term n} {a : Answer n}
+    (ht : admissible t = true) (hf : f.defined = true) (h : integrate t f = .elementary a)
+    {g : ℂ → Fin n → ℂ} {ℓ : RootSum n → ℂ → ℂ → ℂ} {z : ℂ} (hg : t.SolvedBy g z)
+    (hfz : f.Defined (g z)) (haz : a.field.Defined (g z)) (hℓ : a.HasLogs ℓ g z) :
+    HasDerivAt (fun w => a.realizeWith (fun s c => ℓ s c w) (g w)) (f.eval (g z)) z :=
+  Answer.hasDerivAt_realizeWith (integrate_sound (k := ℂ) ht hf h).2 (fun i => (hg i).2)
+    (fun i => (hg i).1) hfz haz hℓ
 
 /-- **Soundness for functions of a complex variable.** Read the generators of the tower as
 the functions `Tower.realize`: the variable, exponentials and principal logarithms. An

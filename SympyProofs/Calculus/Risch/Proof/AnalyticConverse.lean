@@ -10,6 +10,10 @@ a set is an identity in the field of the tower, and when `integrate` finds no el
 integral, no answer written in a tower of exponentials and logarithms above is a function
 with the integrand as its derivative (`integrate_no_function`).
 
+No branch is chosen in the proofs. `Tower.independent_of_solution` and
+`integrate_no_function_of_solution` hold for any functions that satisfy the differential
+equations of the tower on the open set, with exponential generators that vanish nowhere.
+
 The independence is proved one generator at a time. A polynomial relation of least degree in
 the newest generator is differentiated, and the difference with a multiple of itself has
 smaller degree, so it vanishes. Its coefficients then give a primitive, or a logarithmic
@@ -130,79 +134,87 @@ open Polynomial
 
 local notation "alg" => algebraMap (Polynomial (K ℂ n)) (RatFunc (K ℂ n))
 
-/-- **One generator.** Let `T` adjoin to `t` a generator `θ` with `θ′ = a θ + b`, and let `V`
-be an open set of regular points on which the functions of `t` satisfy no polynomial
-relation. A polynomial in `θ` over the field of `t`, with coefficients that have values on
-`V`, whose function vanishes on `V`, is zero, provided a relation of positive degree `e`
-with `l P′ = (l′ + e a l) P`, `l` its leading coefficient, is impossible (`final`). -/
+/-- The functions of the generators below the newest one. -/
+def lower (G : ℂ → Fin (n + 1) → ℂ) : ℂ → Fin n → ℂ := fun w i => G w i.castSucc
+
+/-- Functions that solve a tower solve the tower below it. -/
+theorem solvedBy_lower {t : Tower n} {T : Tower (n + 1)}
+    (hvel : ∀ i, T.vel i.castSucc = (t.vel i).weaken) {G : ℂ → Fin (n + 1) → ℂ} {z : ℂ}
+    (h : T.SolvedBy G z) : t.SolvedBy (lower G) z := fun i => by
+  have hi := h i.castSucc
+  rw [hvel, Term.defined_weaken', Term.eval_weaken'] at hi
+  exact hi
+
+/-- **One generator.** Let `T` adjoin to `t` a generator `θ` with `θ′ = a θ + b`. Let `G` be
+functions that solve `T` on an open set `V`, on which the functions of `t` satisfy no
+polynomial relation. A polynomial in `θ` over the field of `t`, with coefficients that have
+values on `V`, whose function vanishes on `V`, is zero, provided a relation of positive
+degree `e` with `l P′ = (l′ + e a l) P`, `l` its leading coefficient, is impossible
+(`final`). -/
 theorem no_relation_step {t : Tower n} {T : Tower (n + 1)} {a b : K ℂ n} {V : Set ℂ}
-    (hV : IsOpen V) (cast : ∀ z i, T.realize z i.castSucc = t.realize z i)
-    (regT : ∀ z ∈ V, T.RegularAt z) (regt : ∀ z ∈ V, t.RegularAt z)
+    {G : ℂ → Fin (n + 1) → ℂ} (hV : IsOpen V) (solT : ∀ z ∈ V, T.SolvedBy G z)
+    (solt : ∀ z ∈ V, t.SolvedBy (lower G) z)
     (hT : ∀ P : (K ℂ n)[X], ∃ P' : (K ℂ n)[X], T.der ℂ (alg P) = alg P' ∧
       ∀ i, P'.coeff i = t.der ℂ (P.coeff i) + (i : K ℂ n) * a * P.coeff i +
         ((i + 1 : ℕ) : K ℂ n) * b * P.coeff (i + 1))
-    (ha : HasValuesOn (t.realize '' V) a) (hb : HasValuesOn (t.realize '' V) b)
-    (inj : ∀ x : K ℂ n, SpecializesOn (t.realize '' V) x (fun _ => 0) → x = 0)
+    (ha : HasValuesOn (lower G '' V) a) (hb : HasValuesOn (lower G '' V) b)
+    (inj : ∀ x : K ℂ n, SpecializesOn (lower G '' V) x (fun _ => 0) → x = 0)
     (final : ∀ P : (K ℂ n)[X], 0 < P.natDegree →
-      (∀ i, HasValuesOn (t.realize '' V) (P.coeff i)) →
-      SpecializesOn (T.realize '' V) (alg P) (fun _ => 0) →
-      (∀ x : K ℂ n, HasValuesOn (t.realize '' V) x →
-        SpecializesOn (T.realize '' V) (RatFunc.C x : RatFunc (K ℂ n)) (fun _ => 0) → x = 0) →
+      (∀ i, HasValuesOn (lower G '' V) (P.coeff i)) →
+      SpecializesOn (G '' V) (alg P) (fun _ => 0) →
+      (∀ x : K ℂ n, HasValuesOn (lower G '' V) x →
+        SpecializesOn (G '' V) (RatFunc.C x : RatFunc (K ℂ n)) (fun _ => 0) → x = 0) →
       (∀ i, P.leadingCoeff * (t.der ℂ (P.coeff i) + (i : K ℂ n) * a * P.coeff i +
           ((i + 1 : ℕ) : K ℂ n) * b * P.coeff (i + 1)) =
         (t.der ℂ P.leadingCoeff + (P.natDegree : K ℂ n) * a * P.leadingCoeff) * P.coeff i) →
       False) :
     ∀ (d : ℕ) (P : (K ℂ n)[X]), P.natDegree ≤ d →
-      (∀ i, HasValuesOn (t.realize '' V) (P.coeff i)) →
-      SpecializesOn (T.realize '' V) (alg P) (fun _ => 0) → P = 0 := by
-  have sub : T.realize '' V ⊆
-      {p : Fin (n + 1) → ℂ | (fun i => p i.castSucc) ∈ t.realize '' V} := by
+      (∀ i, HasValuesOn (lower G '' V) (P.coeff i)) →
+      SpecializesOn (G '' V) (alg P) (fun _ => 0) → P = 0 := by
+  have sub : G '' V ⊆ {p : Fin (n + 1) → ℂ | (fun i => p i.castSucc) ∈ lower G '' V} := by
     rintro _ ⟨z, hz, rfl⟩
-    exact ⟨z, hz, funext fun i => (cast z i).symm⟩
-  have liftC {x : K ℂ n} {y : (Fin n → ℂ) → ℂ} (h : SpecializesOn (t.realize '' V) x y) :
-      SpecializesOn (T.realize '' V) (RatFunc.C x : RatFunc (K ℂ n))
+    exact ⟨z, hz, rfl⟩
+  have liftC {x : K ℂ n} {y : (Fin n → ℂ) → ℂ} (h : SpecializesOn (lower G '' V) x y) :
+      SpecializesOn (G '' V) (RatFunc.C x : RatFunc (K ℂ n))
         fun p => y fun i => p i.castSucc := h.lift.mono sub
-  have defT : ∀ p ∈ T.realize '' V, ∀ i, (T.vel i).Defined p := by
-    rintro _ ⟨z, hz, rfl⟩
-    exact (T.realize_spec z (regT z hz)).1
-  have deft : ∀ p ∈ t.realize '' V, ∀ i, (t.vel i).Defined p := by
-    rintro _ ⟨z, hz, rfl⟩
-    exact (t.realize_spec z (regt z hz)).1
+  have defT : ∀ p ∈ G '' V, ∀ i, (T.vel i).Defined p := by
+    rintro _ ⟨z, hz, rfl⟩ i
+    exact (solT z hz i).1
+  have deft : ∀ p ∈ lower G '' V, ∀ i, (t.vel i).Defined p := by
+    rintro _ ⟨z, hz, rfl⟩ i
+    exact (solt z hz i).1
   -- the derivative of an element whose function vanishes on `V` has a function that vanishes
-  have derZero {x : K ℂ (n + 1)} (h : SpecializesOn (T.realize '' V) x fun _ => 0) :
-      SpecializesOn (T.realize '' V) (T.der ℂ x) fun _ => 0 := by
+  have derZero {x : K ℂ (n + 1)} (h : SpecializesOn (G '' V) x fun _ => 0) :
+      SpecializesOn (G '' V) (T.der ℂ x) fun _ => 0 := by
     obtain ⟨y', s', d'⟩ := SpecializesOn.der T defT h
     refine s'.congr ?_
     rintro _ ⟨z, hz, rfl⟩
-    exact (d' T.realize z (T.realize_spec z (regT z hz)).2
+    exact (d' G z (fun i => (solT z hz i).2)
       ((hV.eventually_mem hz).mono fun w hw => ⟨w, hw, rfl⟩)).unique (hasDerivAt_const z 0)
-  have valDer {x : K ℂ n} (h : HasValuesOn (t.realize '' V) x) :
-      HasValuesOn (t.realize '' V) (t.der ℂ x) := by
+  have valDer {x : K ℂ n} (h : HasValuesOn (lower G '' V) x) :
+      HasValuesOn (lower G '' V) (t.der ℂ x) := by
     obtain ⟨y, hy⟩ := h
     obtain ⟨y', s', -⟩ := SpecializesOn.der t deft hy
     exact ⟨y', s'⟩
   -- an element of the field below whose function vanishes on `V` is zero
-  have zeroBelow (x : K ℂ n) (hx : HasValuesOn (t.realize '' V) x)
-      (h0 : SpecializesOn (T.realize '' V) (RatFunc.C x : RatFunc (K ℂ n)) fun _ => 0) :
-      x = 0 := by
+  have zeroBelow (x : K ℂ n) (hx : HasValuesOn (lower G '' V) x)
+      (h0 : SpecializesOn (G '' V) (RatFunc.C x : RatFunc (K ℂ n)) fun _ => 0) : x = 0 := by
     obtain ⟨y, hy⟩ := hx
     refine inj x (hy.congr ?_)
     rintro _ ⟨z, hz, rfl⟩
-    have := (liftC hy).unique h0 (Set.mem_image_of_mem _ hz)
-    rwa [show (fun i => T.realize z i.castSucc) = t.realize z from funext (cast z)] at this
+    exact (liftC hy).unique h0 (Set.mem_image_of_mem _ hz)
   have deg0 (P : (K ℂ n)[X]) (hd : P.natDegree = 0)
-      (hc : ∀ i, HasValuesOn (t.realize '' V) (P.coeff i))
-      (h0 : SpecializesOn (T.realize '' V) (alg P) fun _ => 0) : P = 0 := by
+      (hc : ∀ i, HasValuesOn (lower G '' V) (P.coeff i))
+      (h0 : SpecializesOn (G '' V) (alg P) fun _ => 0) : P = 0 := by
     have e := eq_C_of_natDegree_eq_zero hd
     rw [e, RatFunc.algebraMap_C] at h0
     rw [e, zeroBelow _ (hc 0) h0, map_zero]
   -- a relation of positive degree gives one of smaller degree
   have step (P : (K ℂ n)[X]) (hP : 0 < P.natDegree)
-      (hc : ∀ i, HasValuesOn (t.realize '' V) (P.coeff i))
-      (h0 : SpecializesOn (T.realize '' V) (alg P) fun _ => 0) :
-      ∃ Q : (K ℂ n)[X], (∀ i, HasValuesOn (t.realize '' V) (Q.coeff i)) ∧
-        SpecializesOn (T.realize '' V) (alg Q) (fun _ => 0) ∧
-        Q.natDegree ≤ P.natDegree - 1 ∧
+      (hc : ∀ i, HasValuesOn (lower G '' V) (P.coeff i))
+      (h0 : SpecializesOn (G '' V) (alg P) fun _ => 0) :
+      ∃ Q : (K ℂ n)[X], (∀ i, HasValuesOn (lower G '' V) (Q.coeff i)) ∧
+        SpecializesOn (G '' V) (alg Q) (fun _ => 0) ∧ Q.natDegree ≤ P.natDegree - 1 ∧
         (Q = 0 → ∀ i, P.leadingCoeff * (t.der ℂ (P.coeff i) + (i : K ℂ n) * a * P.coeff i +
             ((i + 1 : ℕ) : K ℂ n) * b * P.coeff (i + 1)) =
           (t.der ℂ P.leadingCoeff + (P.natDegree : K ℂ n) * a * P.leadingCoeff) *
@@ -210,11 +222,11 @@ theorem no_relation_step {t : Tower n} {T : Tower (n + 1)} {a b : K ℂ n} {V : 
     obtain ⟨P', hP', cP'⟩ := hT P
     obtain ⟨c, hc'⟩ : ∃ c, c = t.der ℂ P.leadingCoeff +
         (P.natDegree : K ℂ n) * a * P.leadingCoeff := ⟨_, rfl⟩
-    have hlv : HasValuesOn (t.realize '' V) P.leadingCoeff := hc P.natDegree
-    have hcv : HasValuesOn (t.realize '' V) c := by
+    have hlv : HasValuesOn (lower G '' V) P.leadingCoeff := hc P.natDegree
+    have hcv : HasValuesOn (lower G '' V) c := by
       rw [hc']
       exact (valDer hlv).add (((HasValuesOn.natCast _).mul ha).mul hlv)
-    have hP'v : ∀ i, HasValuesOn (t.realize '' V) (P'.coeff i) := fun i => by
+    have hP'v : ∀ i, HasValuesOn (lower G '' V) (P'.coeff i) := fun i => by
       rw [cP']
       exact ((valDer (hc i)).add (((HasValuesOn.natCast i).mul ha).mul (hc i))).add
         (((HasValuesOn.natCast (i + 1)).mul hb).mul (hc (i + 1)))
@@ -262,30 +274,29 @@ def StepDer (t : Tower n) (T : Tower (n + 1)) (a b : K ℂ n) : Prop :=
       ((i + 1 : ℕ) : K ℂ n) * b * P.coeff (i + 1)
 
 /-- No polynomial `P` of positive degree `e` in the newest generator, whose function vanishes
-on `V`, satisfies `l P′ = (l′ + e a l) P` with `l` its leading coefficient. -/
-def NoRelation (t : Tower n) (T : Tower (n + 1)) (a b : K ℂ n) (V : Set ℂ) : Prop :=
-  ∀ P : (K ℂ n)[X], 0 < P.natDegree →
-    (∀ i, HasValuesOn (t.realize '' V) (P.coeff i)) →
-    SpecializesOn (T.realize '' V) (alg P) (fun _ => 0) →
-    (∀ x : K ℂ n, HasValuesOn (t.realize '' V) x →
-      SpecializesOn (T.realize '' V) (RatFunc.C x : RatFunc (K ℂ n)) (fun _ => 0) → x = 0) →
+on `S`, satisfies `l P′ = (l′ + e a l) P` with `l` its leading coefficient. -/
+def NoRelation (t : Tower n) (a b : K ℂ n) (S₀ : Set (Fin n → ℂ))
+    (S : Set (Fin (n + 1) → ℂ)) : Prop :=
+  ∀ P : (K ℂ n)[X], 0 < P.natDegree → (∀ i, HasValuesOn S₀ (P.coeff i)) →
+    SpecializesOn S (alg P) (fun _ => 0) →
+    (∀ x : K ℂ n, HasValuesOn S₀ x →
+      SpecializesOn S (RatFunc.C x : RatFunc (K ℂ n)) (fun _ => 0) → x = 0) →
     (∀ i, P.leadingCoeff * (t.der ℂ (P.coeff i) + (i : K ℂ n) * a * P.coeff i +
         ((i + 1 : ℕ) : K ℂ n) * b * P.coeff (i + 1)) =
       (t.der ℂ P.leadingCoeff + (P.natDegree : K ℂ n) * a * P.leadingCoeff) * P.coeff i) →
     False
 
-/-- Independence of the functions of `t` on `V` passes to `T`. -/
+/-- Independence of the functions below passes to the functions of `T`. -/
 theorem independent_step {t : Tower n} {T : Tower (n + 1)} {a b : K ℂ n} {V : Set ℂ}
-    (hV : IsOpen V) (ne : V.Nonempty) (cast : ∀ z i, T.realize z i.castSucc = t.realize z i)
-    (regT : ∀ z ∈ V, T.RegularAt z) (regt : ∀ z ∈ V, t.RegularAt z) (hT : StepDer t T a b)
-    (ha : HasValuesOn (t.realize '' V) a) (hb : HasValuesOn (t.realize '' V) b)
-    (ih : ∀ P : MvPolynomial (Fin n) ℂ,
-      (∀ z ∈ V, MvPolynomial.eval (t.realize z) P = 0) → P = 0)
-    (final : NoRelation t T a b V) :
-    ∀ P : MvPolynomial (Fin (n + 1)) ℂ,
-      (∀ z ∈ V, MvPolynomial.eval (T.realize z) P = 0) → P = 0 := by
+    {G : ℂ → Fin (n + 1) → ℂ} (hV : IsOpen V) (ne : V.Nonempty)
+    (solT : ∀ z ∈ V, T.SolvedBy G z) (solt : ∀ z ∈ V, t.SolvedBy (lower G) z)
+    (hT : StepDer t T a b) (ha : HasValuesOn (lower G '' V) a)
+    (hb : HasValuesOn (lower G '' V) b)
+    (ih : ∀ P : MvPolynomial (Fin n) ℂ, (∀ z ∈ V, MvPolynomial.eval (lower G z) P = 0) → P = 0)
+    (final : NoRelation t a b (lower G '' V) (G '' V)) :
+    ∀ P : MvPolynomial (Fin (n + 1)) ℂ, (∀ z ∈ V, MvPolynomial.eval (G z) P = 0) → P = 0 := by
   intro P hP
-  have inj : ∀ x : K ℂ n, SpecializesOn (t.realize '' V) x (fun _ => 0) → x = 0 := fun x hx =>
+  have inj : ∀ x : K ℂ n, SpecializesOn (lower G '' V) x (fun _ => 0) → x = 0 := fun x hx =>
     hx.eq_zero_of_forall (ne.image _) fun R hR => ih R fun z hz => hR _ ⟨z, hz, rfl⟩
   obtain ⟨R, hR⟩ : ∃ R : (MvPolynomial (Fin n) ℂ)[X], R = (MvPolynomial.finSuccEquiv ℂ n).toRingHom
       ((MvPolynomial.renameEquiv ℂ (finRotate (n + 1))).toRingHom P) := ⟨_, rfl⟩
@@ -293,7 +304,7 @@ theorem independent_step {t : Tower n} {T : Tower (n + 1)} {a b : K ℂ n} {V : 
     rw [polyHom_succ, hR]
     rfl
   have z : R.map (polyHom ℂ n) = 0 :=
-    no_relation_step hV cast regT regt hT ha hb inj final _ _ le_rfl
+    no_relation_step hV solT solt hT ha hb inj final _ _ le_rfl
       (fun i => by
         rw [coeff_map]
         exact ⟨_, SpecializesOn.poly _⟩)
@@ -305,9 +316,9 @@ theorem independent_step {t : Tower n} {T : Tower (n + 1)} {a b : K ℂ n} {V : 
   exact polyHom_injective (n + 1) (by rw [e, z, map_zero, map_zero])
 
 /-- A primitive without a primitive in the field below satisfies no relation. -/
-theorem noRelation_prim {t : Tower n} {b : Term n} {V : Set ℂ}
-    (np : ¬ ∃ v : K ℂ n, t.der ℂ v = Term.value ℂ b) :
-    NoRelation t (t.prim b) 0 (Term.value ℂ b) V := by
+theorem noRelation_prim {t : Tower n} {b : Term n} {S₀ : Set (Fin n → ℂ)}
+    {S : Set (Fin (n + 1) → ℂ)} (np : ¬ ∃ v : K ℂ n, t.der ℂ v = Term.value ℂ b) :
+    NoRelation t 0 (Term.value ℂ b) S₀ S := by
   intro P pos hc h0 zb ids
   have l0 : P.leadingCoeff ≠ 0 := leadingCoeff_ne_zero.mpr fun z => by
     rw [z, natDegree_zero] at pos
@@ -329,11 +340,12 @@ theorem noRelation_prim {t : Tower n} {b : Term n} {V : Set ℂ}
   ring
 
 /-- An exponential none of whose positive powers lies in the field below, up to a constant,
-satisfies no relation. -/
-theorem noRelation_exp {t : Tower n} {u : Term n} {V : Set ℂ}
+and whose function vanishes nowhere on `S`, satisfies no relation. -/
+theorem noRelation_exp {t : Tower n} {u : Term n} {S₀ : Set (Fin n → ℂ)}
+    {S : Set (Fin (n + 1) → ℂ)} (nz : ∀ p ∈ S, p (Fin.last n) ≠ 0)
     (np : ¬ ∃ (m : ℕ) (v : K ℂ n), 0 < m ∧ v ≠ 0 ∧
       t.der ℂ v / v = (m : K ℂ n) * t.der ℂ (Term.value ℂ u)) :
-    NoRelation t (t.exp u) (t.der ℂ (Term.value ℂ u)) 0 V := by
+    NoRelation t (t.der ℂ (Term.value ℂ u)) 0 S₀ S := by
   intro P pos hc h0 zb ids
   have l0 : P.leadingCoeff ≠ 0 := leadingCoeff_ne_zero.mpr fun z => by
     rw [z, natDegree_zero] at pos
@@ -354,26 +366,24 @@ theorem noRelation_exp {t : Tower n} {u : Term n} {V : Set ℂ}
       · rw [hex i h, ite_eq_right h.ne, mul_zero]
       · rw [h, coeff_natDegree, ite_eq_left rfl, mul_one]
       · rw [coeff_eq_zero_of_natDegree_lt h, ite_eq_right h.ne', mul_zero]
-    have hX : SpecializesOn ((t.exp u).realize '' V) (RatFunc.X : RatFunc (K ℂ n))
-        fun p => p (Fin.last n) := by
-      simpa [gens] using SpecializesOn.gen (S := (t.exp u).realize '' V) (Fin.last n)
+    have hX : SpecializesOn S (RatFunc.X : RatFunc (K ℂ n)) fun p => p (Fin.last n) := by
+      simpa [gens] using SpecializesOn.gen (S := S) (Fin.last n)
     have hl : alg P = RatFunc.C P.leadingCoeff * RatFunc.X ^ P.natDegree := by
       conv_lhs => rw [eP]
       rw [map_mul, map_pow, RatFunc.algebraMap_C, RatFunc.algebraMap_X]
     rw [hl] at h0
-    have q := h0.div (hX.pow P.natDegree) (by
-      rintro _ ⟨z, hz, rfl⟩
-      simp [Tower.realize])
+    have q := h0.div (hX.pow P.natDegree) fun p hp => pow_ne_zero _ (nz p hp)
     rw [mul_div_assoc, div_self (pow_ne_zero _ RatFunc.X_ne_zero), mul_one] at q
     refine l0 (zb _ (by simpa using hc P.natDegree) (q.congr fun p _ => by simp))
 
-/-- **The functions of an admissible tower are algebraically independent.** A polynomial
-that vanishes on the functions of the tower throughout a nonempty open set of regular points
-is zero. -/
-theorem Tower.realize_independent (t : Tower n) (adm : t.Admissible ℂ) {V : Set ℂ}
-    (hV : IsOpen V) (ne : V.Nonempty) (reg : ∀ z ∈ V, t.RegularAt z) :
-    ∀ P : MvPolynomial (Fin n) ℂ,
-      (∀ z ∈ V, MvPolynomial.eval (t.realize z) P = 0) → P = 0 := by
+/-- **Functions that solve an admissible tower are algebraically independent.** Let `g` be
+functions that satisfy the differential equations of an admissible tower on a nonempty open
+set, with exponential generators that vanish nowhere on it. A polynomial that vanishes on
+`g` throughout the set is zero. -/
+theorem Tower.independent_of_solution (t : Tower n) (adm : t.Admissible ℂ) {V : Set ℂ}
+    (hV : IsOpen V) (ne : V.Nonempty) {g : ℂ → Fin n → ℂ} (sol : ∀ z ∈ V, t.SolvedBy g z)
+    (nz : ∀ z ∈ V, t.ExpNonzero (g z)) :
+    ∀ P : MvPolynomial (Fin n) ℂ, (∀ z ∈ V, MvPolynomial.eval (g z) P = 0) → P = 0 := by
   induction t with
   | const =>
     intro P hP
@@ -384,19 +394,27 @@ theorem Tower.realize_independent (t : Tower n) (adm : t.Admissible ℂ) {V : Se
     rw [h, map_zero]
   | @prim n t b ih =>
     obtain ⟨at', -, np⟩ := adm
-    have regt : ∀ z ∈ V, t.RegularAt z := fun z hz => (reg z hz).1
-    refine independent_step hV ne (fun z i => by simp [Tower.realize]) reg regt ?_
-      HasValuesOn.zero ⟨_, SpecializesOn.value b ?_⟩ (ih at' regt) (noRelation_prim np)
+    have solt : ∀ z ∈ V, t.SolvedBy (lower g) z := fun z hz =>
+      solvedBy_lower (fun i => by simp [Tower.vel]) (sol z hz)
+    refine independent_step hV ne sol solt ?_ HasValuesOn.zero
+      ⟨_, SpecializesOn.value b ?_⟩ (ih at' (g := lower g) solt nz) (noRelation_prim np)
     · intro P
       let : Differential (K ℂ n) := ⟨t.der ℂ⟩
       exact ⟨affine 0 (Term.value ℂ b) P, extend_poly _ P, fun i => coeff_affine 0 _ P i⟩
     · rintro _ ⟨z, hz, rfl⟩
-      exact (reg z hz).2.1
+      have hb := (sol z hz (Fin.last n)).1
+      rw [show (t.prim b).vel (Fin.last n) = b.weaken by simp [Tower.vel],
+        Term.defined_weaken'] at hb
+      exact hb
   | @exp n t u ih =>
     obtain ⟨at', -, np⟩ := adm
-    have regt : ∀ z ∈ V, t.RegularAt z := fun z hz => (reg z hz).1
-    refine independent_step hV ne (fun z i => by simp [Tower.realize]) reg regt ?_
-      ⟨fun p => (t.D u).eval p, ?_⟩ HasValuesOn.zero (ih at' regt) (noRelation_exp np)
+    have solt : ∀ z ∈ V, t.SolvedBy (lower g) z := fun z hz =>
+      solvedBy_lower (fun i => by simp [Tower.vel]) (sol z hz)
+    refine independent_step hV ne sol solt ?_ ⟨fun p => (t.D u).eval p, ?_⟩ HasValuesOn.zero
+      (ih at' (g := lower g) solt fun z hz => (nz z hz).1)
+      (noRelation_exp (by
+        rintro _ ⟨z, hz, rfl⟩
+        exact (nz z hz).2) np)
     · intro P
       let : Differential (K ℂ n) := ⟨t.der ℂ⟩
       exact ⟨affine (t.der ℂ (Term.value ℂ u)) 0 P, extend_poly _ P,
@@ -404,9 +422,75 @@ theorem Tower.realize_independent (t : Tower n) (adm : t.Admissible ℂ) {V : Se
     · rw [Tower.der_value]
       refine SpecializesOn.value (t.D u) ?_
       rintro _ ⟨z, hz, rfl⟩
-      exact Term.defined_deriv (t.realize_spec z (regt z hz)).1 u (reg z hz).2
+      have hu := (sol z hz (Fin.last n)).1
+      rw [show (t.exp u).vel (Fin.last n) =
+          .mul (.gen (Fin.last n)) (u.deriv t.vel).weaken by simp [Tower.vel]] at hu
+      exact (Term.defined_weaken' _ _).mp hu.2
 
 end Step
+
+/-- The exponential generators of `Tower.realize` vanish nowhere. -/
+theorem Tower.expNonzero_realize (t : Tower n) (z : ℂ) : t.ExpNonzero (t.realize z) := by
+  induction t with
+  | const => trivial
+  | @prim n t b ih =>
+    have e : (fun i : Fin n => (t.prim b).realize z i.castSucc) = t.realize z :=
+      funext fun i => by simp [Tower.realize]
+    change t.ExpNonzero fun i => (t.prim b).realize z i.castSucc
+    rw [e]
+    exact ih
+  | @exp n t u ih =>
+    have e : (fun i : Fin n => (t.exp u).realize z i.castSucc) = t.realize z :=
+      funext fun i => by simp [Tower.realize]
+    change (t.ExpNonzero fun i => (t.exp u).realize z i.castSucc) ∧ _
+    rw [e]
+    exact ⟨ih, by simp [Tower.realize]⟩
+
+/-- **The functions of an admissible tower are algebraically independent.** A polynomial
+that vanishes on the functions `Tower.realize` throughout a nonempty open set of regular
+points is zero. -/
+theorem Tower.realize_independent (t : Tower n) (adm : t.Admissible ℂ) {V : Set ℂ}
+    (hV : IsOpen V) (ne : V.Nonempty) (reg : ∀ z ∈ V, t.RegularAt z) :
+    ∀ P : MvPolynomial (Fin n) ℂ,
+      (∀ z ∈ V, MvPolynomial.eval (t.realize z) P = 0) → P = 0 :=
+  t.independent_of_solution adm hV ne
+    (fun z hz i => ⟨(t.realize_spec z (reg z hz)).1 i, (t.realize_spec z (reg z hz)).2 i⟩)
+    fun z _ => t.expNonzero_realize z
+
+/-- **Completeness for functions, without a choice of branches.** When `integrate` returns
+`nonelementary`, no answer written in a tower obtained from `t` by adjoining exponentials
+and logarithms, and accepted by `admissible`, is a function with the integrand as its
+derivative on a nonempty open set `V`. The generators may be any functions `g` that satisfy
+the differential equations of the larger tower on `V`, with exponential generators that
+vanish nowhere, and the logarithms in the answer any continuous logarithms `ℓ` of their
+arguments. -/
+theorem integrate_no_function_of_solution {t : Tower n} {f : Term n} (hf : f.defined = true)
+    (h : integrate t f = .nonelementary) {d : ℕ} {t' : Tower (n + d)}
+    (ext : t.ElementaryExt d t') (ht' : admissible t' = true) (a : Answer (n + d))
+    {V : Set ℂ} (hV : IsOpen V) (ne : V.Nonempty) {g : ℂ → Fin (n + d) → ℂ}
+    {ℓ : RootSum (n + d) → ℂ → ℂ → ℂ}
+    (reg : ∀ z ∈ V, t'.SolvedBy g z ∧ t'.ExpNonzero (g z) ∧ (f.lift d).Defined (g z) ∧
+      a.field.Defined (g z) ∧ a.HasLogs ℓ g z) :
+    ¬ ∀ z ∈ V, HasDerivAt (fun w => a.realizeWith (fun s c => ℓ s c w) (g w))
+      ((f.lift d).eval (g z)) z := by
+  intro hd
+  refine integrate_no_answer (k := ℂ) hf h ext ht' a (sub_eq_zero.mp ?_)
+  have left : SpecializesOn (g '' V) (Term.value ℂ (f.lift d)) fun p => (f.lift d).eval p :=
+    SpecializesOn.value _ (by
+      rintro _ ⟨z, hz, rfl⟩
+      exact (reg z hz).2.2.1)
+  have right : SpecializesOn (g '' V) (a.deriv ℂ t') (a.derivAt t') :=
+    a.specializesOn_deriv (by
+      rintro _ ⟨z, hz, rfl⟩
+      exact ⟨fun i => ((reg z hz).1 i).1, (reg z hz).2.2.2.2.nonsingular (reg z hz).2.2.2.1⟩)
+  refine SpecializesOn.eq_zero_of_forall ((right.sub left).congr ?_) (ne.image _) fun P hP =>
+    t'.independent_of_solution (admissible_sound ht') hV ne (fun z hz => (reg z hz).1)
+      (fun z hz => (reg z hz).2.1) P fun z hz => hP _ ⟨z, hz, rfl⟩
+  rintro _ ⟨z, hz, rfl⟩
+  have d1 := a.hasDerivAt_realizeWith_derivAt (t := t') (fun i => ((reg z hz).1 i).2)
+    (reg z hz).2.2.2.1 (reg z hz).2.2.2.2
+  rw [d1.unique (hd z hz)]
+  exact sub_self _
 
 /-- **Completeness for functions of a complex variable.** When `integrate` returns
 `nonelementary`, no answer written in a tower obtained from `t` by adjoining exponentials
@@ -421,24 +505,10 @@ theorem integrate_no_function {t : Tower n} {f : Term n} (hf : f.defined = true)
     (reg : ∀ z ∈ V, t'.RegularAt z ∧ (f.lift d).Defined (t'.realize z) ∧
       a.RegularAt (t'.realize z)) :
     ¬ ∀ z ∈ V, HasDerivAt (fun w => a.realize (t'.realize w))
-      ((f.lift d).eval (t'.realize z)) z := by
-  intro hd
-  refine integrate_no_answer (k := ℂ) hf h ext ht' a (sub_eq_zero.mp ?_)
-  have left : SpecializesOn (t'.realize '' V) (Term.value ℂ (f.lift d))
-      fun p => (f.lift d).eval p := SpecializesOn.value _ (by
-    rintro _ ⟨z, hz, rfl⟩
-    exact (reg z hz).2.1)
-  have right : SpecializesOn (t'.realize '' V) (a.deriv ℂ t') (a.derivAt t') :=
-    a.specializesOn_deriv (by
-      rintro _ ⟨z, hz, rfl⟩
-      exact ⟨(t'.realize_spec z (reg z hz).1).1, (reg z hz).2.2⟩)
-  refine SpecializesOn.eq_zero_of_forall ((right.sub left).congr ?_) (ne.image _) fun P hP =>
-    t'.realize_independent (admissible_sound ht') hV ne (fun z hz => (reg z hz).1) P
-      fun z hz => hP _ ⟨z, hz, rfl⟩
-  rintro _ ⟨z, hz, rfl⟩
-  have d1 := a.hasDerivAt_realize_derivAt (t := t') (t'.realize_spec z (reg z hz).1).2
-    (reg z hz).2.2
-  rw [d1.unique (hd z hz)]
-  exact sub_self _
+      ((f.lift d).eval (t'.realize z)) z :=
+  integrate_no_function_of_solution hf h ext ht' a hV ne fun z hz =>
+    ⟨fun i => ⟨(t'.realize_spec z (reg z hz).1).1 i, (t'.realize_spec z (reg z hz).1).2 i⟩,
+      t'.expNonzero_realize z, (reg z hz).2.1, (reg z hz).2.2.1,
+      (reg z hz).2.2.hasLogs (t'.realize_spec z (reg z hz).1).2⟩
 
 end SympyProofs.Calculus.Risch

@@ -97,10 +97,16 @@ algebraically closed constant field `k` of characteristic zero:
 * `integrate_hasDerivAt`: over the complex numbers, with the generators read as the
   variable, exponentials and principal logarithms, an answer of `integrate` is a function
   whose derivative at every regular point is the value of `f`.
+* `integrate_hasDerivAt_of_solution`: the same without a choice of branches, for any
+  functions that satisfy the differential equations of the tower and any continuous
+  logarithms of the arguments in the answer.
 * `integrate_no_function`: conversely, when `integrate` returns `nonelementary`, no answer
   in a tower of exponentials and logarithms above `t` is a function with derivative `f` on
   any nonempty open set of regular points. It rests on `Tower.realize_independent`: the
   functions of an admissible tower are algebraically independent.
+* `integrate_no_function_of_solution`: the same without a choice of branches, for any
+  functions that satisfy the differential equations of the tower on the open set, with
+  exponential generators that vanish nowhere (`Tower.independent_of_solution`).
 
 `admissible_sound` says that an accepted tower is admissible over every constant field of
 characteristic zero, and `solve_spec` is part (b) of Risch's Main Theorem for it.

@@ -28,12 +28,21 @@ For every tower `t` with `admissible t = true` and every term `f` with `f.define
   `F` of `integrate`, read the same way with `Complex.log` in its sums, has derivative
   `f` at every point `z` where no denominator of the tower, of `f` or of `F` vanishes and
   the argument of every logarithm lies off the branch cut.
+  No branch has to be chosen (`integrate_hasDerivAt_of_solution`): the same holds for any
+  functions that satisfy the differential equations of the tower and any continuous
+  logarithms of the arguments in `F`, at every point where no denominator vanishes. The
+  only points left out are those where a denominator or the argument of a logarithm is zero.
 * **Completeness for functions** (`integrate_no_function`). Conversely, when `integrate`
   returns `nonelementary`, no answer written in a tower of exponentials and logarithms above
   `t` is a function with derivative `f`: not on any nonempty open set of regular points. The
   reason is that the functions of an admissible tower are algebraically independent over the
   complex numbers on every such set (`Tower.realize_independent`), so an identity between
   functions is an identity in the field.
+  This too needs no choice of branches (`integrate_no_function_of_solution`): it holds for
+  any functions that satisfy the differential equations of the larger tower on the open set
+  and any continuous logarithms of the arguments, provided no exponential generator
+  vanishes there. A solution of `θ′ = u′θ` may be identically zero, which is not an
+  exponential, so that condition cannot be dropped.
 * **Input conditions are computed.** `admissible t` and `f.defined` are boolean programs. A
   tower that passes `admissible` is admissible over every constant field
   (`admissible_sound`), and `f.defined` holds exactly when no denominator of `f` vanishes
@@ -195,4 +204,4 @@ the expected answers on the examples tried, including integrands with irrational
 | 4. Reduction and polynomial part | `Program/Hermite`, `PolyPart` | `Proof/Hermite` (`Hermite.reduceTerm_spec`), `Proof/LiouvilleForm`, `Proof/PolyPart` (`expPart_sound`, `expPart_complete`, `primPart_sound`, `primPart_complete`) |
 | 5. Residues | `Program/Residue` | `Proof/ResidueCriterion` (`Tower.residue_necessary`), `Proof/ConstRoots` (`constRoots_spec`), `Proof/GcdMod` (`gcdMod_spec`), `Proof/RootSums`, `Algebra/LogPart` (`logPart_identity`), `Proof/Residue` (`logPart_sound`, `logPart_complete`) |
 | 6. Main theorems | `Program/Answer`, `Integrate` | `Proof/Integrate` (`integrate_sound`, `integrate_complete`, `integrate_no_primitive`, `integrateChecked_sound`, `integrateChecked_complete`), `Proof/Extension` (`integrate_no_answer`, `integrate_no_term`) |
-| 7. Analytic meaning | | `Proof/Specialize` (`polyHom_injective`, `SpecializesOn.unique`), `Proof/Analytic` (`Term.hasDerivAt_eval`, `Tower.realize_spec`, `integrate_hasDerivAt`), `Proof/AnalyticConverse` (`Tower.realize_independent`, `integrate_no_function`) |
+| 7. Analytic meaning | | `Proof/Specialize` (`polyHom_injective`, `SpecializesOn.unique`), `Proof/Analytic` (`Term.hasDerivAt_eval`, `hasDerivAt_of_exp_eq`, `Tower.realize_spec`, `integrate_hasDerivAt_of_solution`, `integrate_hasDerivAt`), `Proof/AnalyticConverse` (`Tower.independent_of_solution`, `integrate_no_function_of_solution`, `Tower.realize_independent`, `integrate_no_function`) |
